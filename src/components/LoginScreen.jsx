@@ -1,35 +1,95 @@
-import React, { useState } from 'react';
-import { Shield, ArrowRight, UserCheck, Wallet, User, KeyRound, Lock, Eye, EyeOff } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Shield, ArrowRight, UserCheck, Wallet, User, KeyRound, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { BKILogo } from './BKILogo';
+import { checkLoginLock } from '../utils/security';
 
 export const LoginScreen = () => {
   const { login, demoUsers } = useAuth();
 
   const [selectedUserId, setSelectedUserId] = useState(demoUsers[1]?.id || demoUsers[0]?.id);
   const [identifierInput, setIdentifierInput] = useState(demoUsers[1]?.username || 'budi');
-  const [passwordInput, setPasswordInput] = useState(demoUsers[1]?.password || 'password123');
+  const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Rate limiting UI state
+  const [lockCountdown, setLockCountdown] = useState(0);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+
+  // Check lock state on mount
+  useEffect(() => {
+    const lockState = checkLoginLock();
+    if (lockState.isLocked) {
+      setLockCountdown(lockState.remainingSeconds);
+      setFailedAttempts(lockState.attempts);
+    }
+  }, []);
+
+  // Countdown timer for lockout
+  useEffect(() => {
+    if (lockCountdown <= 0) return;
+
+    const timer = setInterval(() => {
+      setLockCountdown((prev) => {
+        if (prev <= 1) {
+          setFailedAttempts(0);
+          setErrorMessage('');
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [lockCountdown]);
 
   const handleUserSelect = (user) => {
     setSelectedUserId(user.id);
     setIdentifierInput(user.username || user.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    setPasswordInput(user.password || 'password123');
+    // Do NOT auto-fill password — user must type it manually
+    setPasswordInput('');
     setErrorMessage('');
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setErrorMessage('');
 
-    const result = login(identifierInput, passwordInput);
-    if (result && !result.success) {
-      setErrorMessage(result.message);
+    if (lockCountdown > 0) {
+      setErrorMessage(`Login dikunci. Tunggu ${lockCountdown} detik lagi.`);
+      return;
     }
-  };
+
+    if (!identifierInput || !passwordInput) {
+      setErrorMessage('Mohon isi username/email dan password!');
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      const result = await login(identifierInput, passwordInput);
+
+      if (result && !result.success) {
+        setErrorMessage(result.message);
+
+        if (result.lockInfo) {
+          setFailedAttempts(result.lockInfo.attempts);
+          if (result.lockInfo.isLocked) {
+            setLockCountdown(result.lockInfo.remainingSeconds);
+          }
+        }
+      }
+    } catch (err) {
+      setErrorMessage('Terjadi kesalahan saat login. Silakan coba lagi.');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [identifierInput, passwordInput, lockCountdown, login]);
 
   const getRoleIcon = (role) => {
     switch (role) {
@@ -47,6 +107,13 @@ export const LoginScreen = () => {
   };
 
   const selectedUserObj = demoUsers.find((u) => u.id === selectedUserId) || demoUsers[0];
+  const isLocked = lockCountdown > 0;
+
+  const formatCountdown = (seconds) => {
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m}:${s.toString().padStart(2, '0')}`;
+  };
 
   return (
     <div
@@ -115,6 +182,8 @@ export const LoginScreen = () => {
           <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6' }}>
             Sistem Informasi Terpadu Surat Tugas, Kwitansi Honorarium, dan Pengisian Laporan Survei Klasifikasi Kapal Wilayah Kalimantan Barat.
           </p>
+
+
         </div>
 
         {/* Right Side: User Account Selection */}
@@ -132,7 +201,7 @@ export const LoginScreen = () => {
               Pilih Akun Personel BKI Pontianak
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Klik salah satu akun di bawah untuk memilih akun login:
+              Klik salah satu akun lalu masukkan password untuk login:
             </p>
           </div>
 
@@ -180,7 +249,7 @@ export const LoginScreen = () => {
                         {user.name}
                       </div>
                       <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                        Akun: <strong style={{ color: 'var(--accent-primary)' }}>@{user.username || user.role}</strong> • {user.email}
+                        Akun: <strong style={{ color: 'var(--accent-primary)' }}>@{user.username || user.role}</strong> • {user.roleLabel}
                       </div>
                     </div>
                   </div>
@@ -204,7 +273,31 @@ export const LoginScreen = () => {
             })}
           </div>
 
-          {errorMessage && (
+          {/* Lockout Warning Banner */}
+          {isLocked && (
+            <div style={{
+              padding: '0.75rem 1rem',
+              background: 'rgba(239, 68, 68, 0.12)',
+              border: '1.5px solid #ef4444',
+              borderRadius: 'var(--radius-md)',
+              marginBottom: '1rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.65rem'
+            }}>
+              <AlertTriangle size={20} color="#dc2626" style={{ flexShrink: 0 }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#dc2626' }}>
+                  🔒 Login Dikunci — Terlalu Banyak Percobaan Gagal
+                </div>
+                <div style={{ fontSize: '0.78rem', color: '#b91c1c', marginTop: '0.1rem' }}>
+                  Coba lagi dalam <strong style={{ fontSize: '1rem' }}>{formatCountdown(lockCountdown)}</strong> ({failedAttempts}/5 percobaan)
+                </div>
+              </div>
+            </div>
+          )}
+
+          {errorMessage && !isLocked && (
             <div style={{ padding: '0.6rem 0.85rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1rem' }}>
               ⚠️ {errorMessage}
             </div>
@@ -223,6 +316,8 @@ export const LoginScreen = () => {
                 onChange={(e) => setIdentifierInput(e.target.value)}
                 placeholder="Ketik username atau email BKI (budi, siti, admin@bki.co.id)..."
                 required
+                disabled={isLocked}
+                autoComplete="username"
               />
             </div>
 
@@ -259,6 +354,8 @@ export const LoginScreen = () => {
                   onChange={(e) => setPasswordInput(e.target.value)}
                   placeholder="Masukkan password..."
                   required
+                  disabled={isLocked}
+                  autoComplete="current-password"
                 />
                 <button
                   type="button"
@@ -280,9 +377,33 @@ export const LoginScreen = () => {
               </div>
             </div>
 
-            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem' }}>
-              <span>Masuk Sebagai {selectedUserObj ? selectedUserObj.name : 'Personel'}</span>
-              <ArrowRight size={18} />
+            {/* Failed attempts indicator */}
+            {failedAttempts > 0 && failedAttempts < 5 && !isLocked && (
+              <div style={{ fontSize: '0.725rem', color: '#f59e0b', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                <AlertTriangle size={13} />
+                <span>Percobaan gagal: {failedAttempts}/5 — Akun akan dikunci setelah 5x gagal</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem', opacity: isLocked || isLoading ? 0.6 : 1 }}
+              disabled={isLocked || isLoading}
+            >
+              {isLoading ? (
+                <span>Memverifikasi...</span>
+              ) : isLocked ? (
+                <>
+                  <Lock size={16} />
+                  <span>Login Dikunci ({formatCountdown(lockCountdown)})</span>
+                </>
+              ) : (
+                <>
+                  <span>Masuk Sebagai {selectedUserObj ? selectedUserObj.name : 'Personel'}</span>
+                  <ArrowRight size={18} />
+                </>
+              )}
             </button>
           </form>
         </div>

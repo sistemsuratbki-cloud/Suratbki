@@ -5,6 +5,8 @@ import { calculateHonorFee } from '../utils/tariffData';
 import { formatRupiah } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 
+import { sanitizeFormData } from '../utils/security';
+
 export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
   const { suratTugas, addKwitansiHonor, updateKwitansiHonor } = useData();
 
@@ -91,11 +93,11 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
       return;
     }
 
-    const payload = {
+    const payload = sanitizeFormData({
       ...formData,
       tarifDasar: baseRate,
       jumlah: totalHonor
-    };
+    });
 
     if (editItem) {
       updateKwitansiHonor(editItem.id, payload);

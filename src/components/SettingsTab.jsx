@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
-import { KeyRound, Check, Shield, Lock, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { KeyRound, Check, Shield, Eye, EyeOff, RotateCcw } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ConfirmModal } from './ConfirmModal';
+import { validatePasswordStrength } from '../utils/security';
 
 export const SettingsTab = () => {
-  const { currentUser, changePassword, resetUsers } = useAuth();
+  const { currentUser, changePassword, verifyCurrentPassword, resetUsers } = useAuth();
   const { adminSettings, updateAdminSettings } = useData();
 
   const [currentPassInput, setCurrentPassInput] = useState('');
@@ -18,6 +19,7 @@ export const SettingsTab = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [adminMsg, setAdminMsg] = useState('');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isSubmittingPass, setIsSubmittingPass] = useState(false);
 
   const [signatoryInput, setSignatoryInput] = useState({
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
@@ -31,37 +33,60 @@ export const SettingsTab = () => {
     setTimeout(() => setAdminMsg(''), 4000);
   };
 
-  const handleChangePassword = (e) => {
+  const handleChangePassword = async (e) => {
     e.preventDefault();
     setMessage({ type: '', text: '' });
 
-    if (currentPassInput !== currentUser.password) {
-      setMessage({ type: 'error', text: 'Password saat ini yang Anda masukkan salah!' });
+    if (!currentPassInput) {
+      setMessage({ type: 'error', text: 'Masukkan password saat ini!' });
       return;
     }
 
-    if (!newPassInput || newPassInput.length < 4) {
-      setMessage({ type: 'error', text: 'Password baru minimal harus 4 karakter!' });
-      return;
+    setIsSubmittingPass(true);
+
+    try {
+      const isCurrentValid = await verifyCurrentPassword(currentPassInput);
+      if (!isCurrentValid) {
+        setMessage({ type: 'error', text: 'Password saat ini yang Anda masukkan salah!' });
+        setIsSubmittingPass(false);
+        return;
+      }
+
+      const strength = validatePasswordStrength(newPassInput);
+      if (!strength.isValid) {
+        setMessage({
+          type: 'error',
+          text: `Password baru tidak memenuhi syarat keamanan: ${strength.errors.join(', ')}`
+        });
+        setIsSubmittingPass(false);
+        return;
+      }
+
+      if (newPassInput !== confirmPassInput) {
+        setMessage({ type: 'error', text: 'Konfirmasi password baru tidak cocok!' });
+        setIsSubmittingPass(false);
+        return;
+      }
+
+      await changePassword(currentUser.id, newPassInput);
+      setMessage({ type: 'success', text: 'Password Anda berhasil diperbarui dengan enkripsi aman!' });
+
+      setCurrentPassInput('');
+      setNewPassInput('');
+      setConfirmPassInput('');
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Gagal memperbarui password. Silakan coba lagi.' });
+    } finally {
+      setIsSubmittingPass(false);
     }
-
-    if (newPassInput !== confirmPassInput) {
-      setMessage({ type: 'error', text: 'Konfirmasi password baru tidak cocok!' });
-      return;
-    }
-
-    changePassword(currentUser.id, newPassInput);
-    setMessage({ type: 'success', text: 'Password Anda berhasil diperbarui!' });
-
-    setCurrentPassInput('');
-    setNewPassInput('');
-    setConfirmPassInput('');
   };
 
   const handleConfirmResetDemo = () => {
     resetUsers();
     setMessage({ type: 'success', text: 'Seluruh data demo & akun telah direset ke kondisi awal!' });
   };
+
+  const passValidation = validatePasswordStrength(newPassInput);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
@@ -106,7 +131,7 @@ export const SettingsTab = () => {
             <KeyRound size={22} color="var(--accent-primary)" />
             <div>
               <h3 className="card-title">Ubah Password Akun Saya</h3>
-              <div className="card-subtitle">Perbarui password akun untuk menjaga keamanan akses sistem</div>
+              <div className="card-subtitle">Perbarui password akun dengan enkripsi SHA-256 dan standar keamanan tinggi</div>
             </div>
           </div>
         </div>
@@ -140,6 +165,7 @@ export const SettingsTab = () => {
                 onChange={(e) => setCurrentPassInput(e.target.value)}
                 placeholder="Masukkan password saat ini..."
                 required
+                autoComplete="current-password"
               />
               <button
                 type="button"
@@ -170,8 +196,9 @@ export const SettingsTab = () => {
                   style={{ paddingRight: '2.5rem' }}
                   value={newPassInput}
                   onChange={(e) => setNewPassInput(e.target.value)}
-                  placeholder="Password baru..."
+                  placeholder="Min 6 Karakter (A-Z, a-z, 0-9)..."
                   required
+                  autoComplete="new-password"
                 />
                 <button
                   type="button"
@@ -201,13 +228,37 @@ export const SettingsTab = () => {
                 onChange={(e) => setConfirmPassInput(e.target.value)}
                 placeholder="Ulangi password baru..."
                 required
+                autoComplete="new-password"
               />
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+          {/* Real-time Password Strength Meter */}
+          {newPassInput && (
+            <div style={{ marginBottom: '1rem', background: 'var(--bg-main)', padding: '0.75rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.775rem', fontWeight: 700, color: passValidation.color }}>
+                <span>Kekuatan Password: {passValidation.label}</span>
+                <span>{passValidation.score}/4</span>
+              </div>
+              <div style={{ height: '5px', background: '#e2e8f0', borderRadius: '3px', marginTop: '0.35rem', overflow: 'hidden' }}>
+                <div style={{ height: '100%', width: `${(passValidation.score / 4) * 100}%`, background: passValidation.color, transition: 'all 0.25s ease' }} />
+              </div>
+              {passValidation.errors.length > 0 && (
+                <div style={{ fontSize: '0.725rem', color: '#dc2626', marginTop: '0.35rem' }}>
+                  Kekurangan: {passValidation.errors.join(' • ')}
+                </div>
+              )}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isSubmittingPass}
+            style={{ marginTop: '0.5rem', opacity: isSubmittingPass ? 0.6 : 1 }}
+          >
             <Check size={16} />
-            <span>Simpan Password Baru</span>
+            <span>{isSubmittingPass ? 'Memproses Enkripsi...' : 'Simpan Password Baru'}</span>
           </button>
         </form>
       </div>

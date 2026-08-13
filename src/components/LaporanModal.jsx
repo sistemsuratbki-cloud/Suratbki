@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { isEditWindowExpired } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
+import { sanitizeFormData } from '../utils/security';
 
 export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTugas = null }) => {
   const { suratTugas, addLaporanSurvei, updateLaporanSurvei, updateSuratTugas, updateKwitansiHonor, kwitansiHonor, requestEditApproval } = useData();
@@ -116,10 +117,10 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
       }
     }
 
-    const payloadToSave = {
+    const payloadToSave = sanitizeFormData({
       ...formData,
       suratId: finalSuratId
-    };
+    });
 
     if (editItem) {
       updateLaporanSurvei(editItem.id, payloadToSave);

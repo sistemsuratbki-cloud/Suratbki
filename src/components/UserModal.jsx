@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
+import { sanitizeFormData, validatePasswordStrength } from '../utils/security';
 
 export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   const { addUser, updateUser } = useAuth();
@@ -18,13 +19,15 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   });
 
   const [showPass, setShowPass] = useState(false);
+  const [errorMsg, setErrorMsg] = useState('');
 
   useEffect(() => {
+    setErrorMsg('');
     if (editItem) {
       setFormData({
         ...editItem,
         username: editItem.username || editItem.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
-        password: editItem.password || 'password123'
+        password: '' // Don't prefill existing hashed password
       });
     } else {
       setFormData({
@@ -74,24 +77,44 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
       ...prev,
       name: nameVal,
       username: prev.username || autoUsername,
-      email: prev.email || `${autoUsername || 'user'}@penapras.id`
+      email: prev.email || `${autoUsername || 'user'}@bki.co.id`
     }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!formData.name || !formData.username || !formData.password) {
-      alert('Mohon isi Nama Lengkap, Username, dan Password!');
+    setErrorMsg('');
+
+    if (!formData.name || !formData.username) {
+      setErrorMsg('Mohon isi Nama Lengkap dan Username!');
       return;
     }
 
+    // Validate password if creating new user or if password field is filled during edit
+    if (!editItem || formData.password) {
+      const passCheck = validatePasswordStrength(formData.password || 'password123');
+      if (!passCheck.isValid) {
+        setErrorMsg(`Password kurang kuat: ${passCheck.errors.join(', ')}`);
+        return;
+      }
+    }
+
+    // Sanitize text inputs before saving to prevent XSS
+    const sanitizedData = sanitizeFormData(formData);
+
     if (editItem) {
-      updateUser(editItem.id, formData);
+      // If editing and password was left blank, preserve existing password
+      if (!formData.password) {
+        delete sanitizedData.password;
+      }
+      await updateUser(editItem.id, sanitizedData);
     } else {
-      addUser(formData);
+      await addUser(sanitizedData);
     }
     onClose();
   };
+
+  const passValidation = validatePasswordStrength(formData.password);
 
   return (
     <ModalPortal>
@@ -109,6 +132,12 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
 
           <form onSubmit={handleSubmit}>
             <div className="modal-body">
+              {errorMsg && (
+                <div style={{ padding: '0.6rem 0.85rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1rem' }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">Nama Lengkap Pengguna / Surveyor *</label>
@@ -137,7 +166,9 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
-                  <label className="form-label">Password Akun *</label>
+                  <label className="form-label">
+                    {editItem ? 'Password Baru (Opsional)' : 'Password Akun *'}
+                  </label>
                   <div style={{ position: 'relative' }}>
                     <input
                       type={showPass ? 'text' : 'password'}
@@ -145,8 +176,8 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                       style={{ paddingRight: '2.5rem' }}
                       value={formData.password}
                       onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                      placeholder="Password..."
-                      required
+                      placeholder={editItem ? 'Kosongkan jika tidak diubah' : 'Min 6 Karakter (A-Z, a-z, 0-9)...'}
+                      required={!editItem}
                     />
                     <button
                       type="button"
@@ -165,6 +196,11 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                       {showPass ? <EyeOff size={16} /> : <Eye size={16} />}
                     </button>
                   </div>
+                  {formData.password && (
+                    <div style={{ fontSize: '0.7rem', color: passValidation.color, fontWeight: 700, marginTop: '0.2rem' }}>
+                      Kekuatan: {passValidation.label} ({passValidation.score}/4)
+                    </div>
+                  )}
                 </div>
 
                 <div className="form-group">
@@ -174,7 +210,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                     className="form-input"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Contoh: bambang@penapras.id"
+                    placeholder="Contoh: bambang@bki.co.id"
                   />
                 </div>
               </div>

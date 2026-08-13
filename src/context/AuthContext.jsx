@@ -1,4 +1,15 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import {
+  hashPassword,
+  verifyPassword,
+  isPasswordHashed,
+  checkLoginLock,
+  recordFailedLogin,
+  resetLoginAttempts,
+  createSession,
+  isSessionValid,
+  destroySession
+} from '../utils/security';
 
 const AuthContext = createContext();
 
@@ -90,22 +101,93 @@ export const AuthProvider = ({ children }) => {
 
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem('st_auth_user');
-    return savedUser ? JSON.parse(savedUser) : null;
+    if (!savedUser) return null;
+
+    // Check session validity
+    if (!isSessionValid()) {
+      localStorage.removeItem('st_auth_user');
+      destroySession();
+      return null;
+    }
+
+    return JSON.parse(savedUser);
   });
 
+  const [passwordsMigrated, setPasswordsMigrated] = useState(false);
+
+  // Sync usersList to localStorage
   useEffect(() => {
     localStorage.setItem('st_users_list', JSON.stringify(usersList));
   }, [usersList]);
 
+  // Sync currentUser to localStorage (WITHOUT password)
   useEffect(() => {
     if (currentUser) {
-      localStorage.setItem('st_auth_user', JSON.stringify(currentUser));
+      // Strip password from stored session for security
+      const safeUser = { ...currentUser };
+      delete safeUser.password;
+      localStorage.setItem('st_auth_user', JSON.stringify(safeUser));
     } else {
       localStorage.removeItem('st_auth_user');
     }
   }, [currentUser]);
 
-  const login = (identifierOrUser, inputPassword = null) => {
+  // Auto-migrate plaintext passwords to hashed on first load
+  useEffect(() => {
+    if (passwordsMigrated) return;
+
+    const migratePasswords = async () => {
+      let needsMigration = false;
+      const migratedUsers = await Promise.all(
+        usersList.map(async (user) => {
+          if (!isPasswordHashed(user.password)) {
+            needsMigration = true;
+            const hashedPw = await hashPassword(user.password || 'password123');
+            return { ...user, password: hashedPw };
+          }
+          return user;
+        })
+      );
+
+      if (needsMigration) {
+        setUsersList(migratedUsers);
+      }
+      setPasswordsMigrated(true);
+    };
+
+    migratePasswords();
+  }, [usersList, passwordsMigrated]);
+
+  // Session expiry check — runs every 5 minutes
+  useEffect(() => {
+    if (!currentUser) return;
+
+    const interval = setInterval(() => {
+      if (!isSessionValid()) {
+        setCurrentUser(null);
+        destroySession();
+        alert('Sesi Anda telah kedaluwarsa (8 jam). Silakan login kembali.');
+      }
+    }, 5 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [currentUser]);
+
+  /**
+   * Login with brute-force protection and password hashing.
+   * Returns: { success, message, lockInfo? }
+   */
+  const login = useCallback(async (identifierOrUser, inputPassword = null) => {
+    // Check rate limiting first
+    const lockState = checkLoginLock();
+    if (lockState.isLocked) {
+      return {
+        success: false,
+        message: `Terlalu banyak percobaan login gagal. Akun dikunci selama ${lockState.remainingSeconds} detik. Silakan coba lagi nanti.`,
+        lockInfo: lockState
+      };
+    }
+
     let targetUser = null;
     if (typeof identifierOrUser === 'string') {
       const searchStr = identifierOrUser.toLowerCase().trim();
@@ -114,68 +196,113 @@ export const AuthProvider = ({ children }) => {
           (u.username && u.username.toLowerCase() === searchStr) ||
           (u.email && u.email.toLowerCase() === searchStr) ||
           u.role === searchStr ||
-          u.id === searchStr ||
-          u.name.toLowerCase().includes(searchStr)
+          u.id === searchStr
       );
     } else {
-      targetUser = identifierOrUser;
+      // Object passed (e.g., from user list click)
+      targetUser = usersList.find((u) => u.id === identifierOrUser.id);
     }
 
     if (!targetUser) {
-      return { success: false, message: `Akun "${identifierOrUser}" tidak ditemukan!` };
+      // Generic error to prevent user enumeration
+      const lockInfo = recordFailedLogin();
+      return {
+        success: false,
+        message: 'Username/email atau password yang Anda masukkan salah!',
+        lockInfo
+      };
     }
 
-    // Verify password if provided
-    if (inputPassword && targetUser.password && inputPassword !== targetUser.password) {
-      return { success: false, message: 'Password yang Anda masukkan salah!' };
+    // Verify password
+    if (inputPassword) {
+      const passwordValid = await verifyPassword(inputPassword, targetUser.password);
+      if (!passwordValid) {
+        const lockInfo = recordFailedLogin();
+        const remaining = 5 - lockInfo.attempts;
+        return {
+          success: false,
+          message: remaining > 0
+            ? `Username/email atau password yang Anda masukkan salah! (${remaining} percobaan tersisa)`
+            : `Terlalu banyak percobaan gagal. Akun dikunci selama 2 menit.`,
+          lockInfo
+        };
+      }
     }
 
-    setCurrentUser(targetUser);
-    return { success: true, user: targetUser };
-  };
+    // Login success — reset rate limiter and create session
+    resetLoginAttempts();
+    createSession();
 
-  const logout = () => {
+    // Set current user (without password in memory for safety)
+    const safeUser = { ...targetUser };
+    delete safeUser.password;
+    setCurrentUser(safeUser);
+
+    return { success: true, user: safeUser };
+  }, [usersList]);
+
+  const logout = useCallback(() => {
     setCurrentUser(null);
-  };
+    destroySession();
+  }, []);
 
   // Find User by Username or Email for Forgot Password
-  const findUserByIdentifier = (identifier) => {
+  const findUserByIdentifier = useCallback((identifier) => {
     if (!identifier) return null;
     const searchStr = identifier.toLowerCase().trim();
-    return (
-      usersList.find(
-        (u) =>
-          (u.username && u.username.toLowerCase() === searchStr) ||
-          (u.email && u.email.toLowerCase() === searchStr) ||
-          u.name.toLowerCase().includes(searchStr)
-      ) || null
+    const found = usersList.find(
+      (u) =>
+        (u.username && u.username.toLowerCase() === searchStr) ||
+        (u.email && u.email.toLowerCase() === searchStr)
     );
-  };
+    if (!found) return null;
+    // Return safe user info (no password)
+    const { password, ...safeUser } = found;
+    return safeUser;
+  }, [usersList]);
 
-  // Change Password for Logged-In User
-  const changePassword = (userId, newPassword) => {
+  /**
+   * Verify that an email matches a user account (for forgot password flow).
+   */
+  const verifyUserEmail = useCallback((userId, email) => {
+    const user = usersList.find((u) => u.id === userId);
+    if (!user || !user.email) return false;
+    return user.email.toLowerCase().trim() === email.toLowerCase().trim();
+  }, [usersList]);
+
+  // Change Password (hashed)
+  const changePassword = useCallback(async (userId, newPassword) => {
+    const hashedPw = await hashPassword(newPassword);
+
     setUsersList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, password: newPassword } : u))
+      prev.map((u) => (u.id === userId ? { ...u, password: hashedPw } : u))
     );
 
+    // Don't store password in currentUser
     if (currentUser && currentUser.id === userId) {
-      setCurrentUser((prev) => ({ ...prev, password: newPassword }));
+      setCurrentUser((prev) => ({ ...prev }));
     }
-  };
+  }, [currentUser]);
 
-  // Reset Password by Admin or Forgot Password Modal
-  const resetPassword = (userId, defaultPass = 'password123') => {
+  // Verify current password for the logged-in user (for change password flow)
+  const verifyCurrentPassword = useCallback(async (inputPassword) => {
+    if (!currentUser) return false;
+    const fullUser = usersList.find((u) => u.id === currentUser.id);
+    if (!fullUser) return false;
+    return await verifyPassword(inputPassword, fullUser.password);
+  }, [currentUser, usersList]);
+
+  // Reset Password by Admin (hashed)
+  const resetPassword = useCallback(async (userId, defaultPass = 'password123') => {
+    const hashedPw = await hashPassword(defaultPass);
+
     setUsersList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, password: defaultPass } : u))
+      prev.map((u) => (u.id === userId ? { ...u, password: hashedPw } : u))
     );
-
-    if (currentUser && currentUser.id === userId) {
-      setCurrentUser((prev) => ({ ...prev, password: defaultPass }));
-    }
-  };
+  }, []);
 
   // User Management Actions for Admin
-  const addUser = (userData) => {
+  const addUser = useCallback(async (userData) => {
     let roleLabel = 'Pengguna BKI';
     if (userData.role === 'admin') roleLabel = 'Admin Utama BKI Pontianak';
     else if (userData.role === 'surveyor') roleLabel = 'Class Surveyor BKI';
@@ -184,39 +311,52 @@ export const AuthProvider = ({ children }) => {
 
     const usernameGenerated = userData.username || userData.name.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+    // Hash the password before storing
+    const rawPassword = userData.password || 'password123';
+    const hashedPw = await hashPassword(rawPassword);
+
     const newUser = {
       ...userData,
       id: `usr-${Date.now().toString().slice(-6)}`,
       username: usernameGenerated,
-      password: userData.password || 'password123',
+      password: hashedPw,
       roleLabel: userData.roleLabel || roleLabel,
       avatarBg: userData.avatarBg || (userData.role === 'surveyor' ? '#10b981' : userData.role === 'keuangan' ? '#f59e0b' : '#1e3a8a')
     };
 
     setUsersList((prev) => [newUser, ...prev]);
-  };
+  }, []);
 
-  const updateUser = (id, updatedData) => {
-    setUsersList((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...updatedData } : u))
-    );
-    if (currentUser && currentUser.id === id) {
-      setCurrentUser((prev) => ({ ...prev, ...updatedData }));
+  const updateUser = useCallback(async (id, updatedData) => {
+    // If password is being changed, hash it
+    let dataToSave = { ...updatedData };
+    if (dataToSave.password && !isPasswordHashed(dataToSave.password)) {
+      dataToSave.password = await hashPassword(dataToSave.password);
     }
-  };
 
-  const deleteUser = (id) => {
+    setUsersList((prev) =>
+      prev.map((u) => (u.id === id ? { ...u, ...dataToSave } : u))
+    );
+
+    if (currentUser && currentUser.id === id) {
+      const { password, ...safeUpdate } = dataToSave;
+      setCurrentUser((prev) => ({ ...prev, ...safeUpdate }));
+    }
+  }, [currentUser]);
+
+  const deleteUser = useCallback((id) => {
     if (currentUser && currentUser.id === id) {
       alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login!');
       return;
     }
     setUsersList((prev) => prev.filter((u) => u.id !== id));
-  };
+  }, [currentUser]);
 
-  const resetUsers = () => {
+  const resetUsers = useCallback(() => {
     setUsersList(INITIAL_USERS);
+    setPasswordsMigrated(false); // Will trigger re-migration
     localStorage.removeItem('st_users_list');
-  };
+  }, []);
 
   return (
     <AuthContext.Provider
@@ -232,8 +372,10 @@ export const AuthProvider = ({ children }) => {
         updateUser,
         deleteUser,
         changePassword,
+        verifyCurrentPassword,
         resetPassword,
         findUserByIdentifier,
+        verifyUserEmail,
         resetUsers
       }}
     >

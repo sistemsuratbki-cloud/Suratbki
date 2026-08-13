@@ -1,14 +1,18 @@
 import React, { useState } from 'react';
-import { X, KeyRound, Search, CheckCircle2, Save, Lock, ArrowRight } from 'lucide-react';
+import { X, KeyRound, Search, Save, Lock, Mail, ShieldCheck, CheckCircle2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
+import { validatePasswordStrength } from '../utils/security';
 
 export const ForgotPasswordModal = ({ isOpen, onClose }) => {
-  const { findUserByIdentifier, changePassword, login } = useAuth();
+  const { findUserByIdentifier, verifyUserEmail, changePassword } = useAuth();
 
   const [identifierInput, setIdentifierInput] = useState('');
+  const [emailVerifyInput, setEmailVerifyInput] = useState('');
   const [foundUser, setFoundUser] = useState(null);
-  const [newPassword, setNewPassword] = useState('password123');
+  const [isVerified, setIsVerified] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
 
@@ -20,41 +24,76 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
     setSuccessMessage('');
 
     if (!identifierInput) {
-      setErrorMessage('Mohon masukkan Nama Akun (Username) atau Email Anda!');
+      setErrorMessage('Mohon masukkan Username atau Email Anda!');
       return;
     }
 
     const matched = findUserByIdentifier(identifierInput);
     if (!matched) {
-      setErrorMessage(`Akun dengan username atau email "${identifierInput}" tidak ditemukan!`);
+      setErrorMessage(`Akun dengan username/email "${identifierInput}" tidak ditemukan!`);
       setFoundUser(null);
       return;
     }
 
     setFoundUser(matched);
-    setNewPassword('password123');
+    setEmailVerifyInput('');
+    setIsVerified(false);
   };
 
-  const handleResetAndLogin = (e) => {
+  const handleVerifyEmail = (e) => {
     e.preventDefault();
-    if (!foundUser || !newPassword) return;
+    setErrorMessage('');
 
-    changePassword(foundUser.id, newPassword);
-    setSuccessMessage(`Password akun ${foundUser.name} (@${foundUser.username}) telah dipulihkan!`);
+    if (!foundUser) return;
+
+    const isValidEmail = verifyUserEmail(foundUser.id, emailVerifyInput);
+    if (!isValidEmail) {
+      setErrorMessage('Email konfirmasi yang Anda masukkan tidak cocok dengan email terdaftar pada akun ini!');
+      return;
+    }
+
+    setIsVerified(true);
+    setErrorMessage('');
+  };
+
+  const handleResetPassword = async (e) => {
+    e.preventDefault();
+    setErrorMessage('');
+
+    if (!foundUser || !isVerified) return;
+
+    if (newPassword !== confirmPassword) {
+      setErrorMessage('Konfirmasi password tidak cocok dengan password baru!');
+      return;
+    }
+
+    const validation = validatePasswordStrength(newPassword);
+    if (!validation.isValid) {
+      setErrorMessage(`Password terlalu lemah: ${validation.errors.join(', ')}`);
+      return;
+    }
+
+    await changePassword(foundUser.id, newPassword);
+    setSuccessMessage(`Password akun ${foundUser.name} (@${foundUser.username}) berhasil diperbarui. Silakan login kembali.`);
 
     setTimeout(() => {
-      login(foundUser, newPassword);
-      onClose();
-    }, 900);
+      handleModalClose();
+    }, 2000);
   };
 
   const handleModalClose = () => {
     setIdentifierInput('');
+    setEmailVerifyInput('');
     setFoundUser(null);
+    setIsVerified(false);
+    setNewPassword('');
+    setConfirmPassword('');
     setErrorMessage('');
     setSuccessMessage('');
     onClose();
   };
+
+  const passValidation = validatePasswordStrength(newPassword);
 
   return (
     <ModalPortal>
@@ -82,10 +121,10 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
               </div>
               <div>
                 <h3 className="modal-title" style={{ fontSize: '1.2rem', fontWeight: 800 }}>
-                  Lupa Password Akun
+                  Pemulihan Access Akun
                 </h3>
                 <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                  Pemulihan akses akun surveyor & personel
+                  Verifikasi email terdaftar sebelum mereset password
                 </div>
               </div>
             </div>
@@ -106,17 +145,17 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
             </div>
           )}
 
-          {!foundUser ? (
-            /* Step 1: Search User */
+          {/* STEP 1: Search User */}
+          {!foundUser && (
             <form onSubmit={handleSearchUser}>
               <div className="form-group">
-                <label className="form-label">Masukkan Username atau Email Akun Anda *</label>
+                <label className="form-label">Username atau Email Akun *</label>
                 <input
                   type="text"
                   className="form-input"
                   value={identifierInput}
                   onChange={(e) => setIdentifierInput(e.target.value)}
-                  placeholder="Contoh: budi, siti, admin, atau budi@penapras.id..."
+                  placeholder="Contoh: budi, siti, admin, atau budi@bki.co.id..."
                   required
                 />
               </div>
@@ -127,13 +166,15 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
                 </button>
                 <button type="submit" className="btn btn-primary">
                   <Search size={16} />
-                  Cari Akun Saya
+                  Cari Akun
                 </button>
               </div>
             </form>
-          ) : (
-            /* Step 2: Account Found - Reset Password */
-            <form onSubmit={handleResetAndLogin}>
+          )}
+
+          {/* STEP 2: Email Verification */}
+          {foundUser && !isVerified && (
+            <form onSubmit={handleVerifyEmail}>
               <div
                 style={{
                   padding: '1rem',
@@ -166,7 +207,7 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
                       {foundUser.name}
                     </div>
                     <div style={{ fontSize: '0.775rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                      @{foundUser.username || foundUser.role} • {foundUser.email}
+                      @{foundUser.username || foundUser.role} • {foundUser.roleLabel}
                     </div>
                   </div>
                 </div>
@@ -174,19 +215,19 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
 
               <div className="form-group">
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Lock size={14} color="var(--accent-primary)" />
-                  <span>Masukkan Password Baru Anda *</span>
+                  <Mail size={14} color="var(--accent-primary)" />
+                  <span>Konfirmasi Alamat Email Terdaftar *</span>
                 </label>
                 <input
-                  type="text"
+                  type="email"
                   className="form-input"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  placeholder="Ketik password baru..."
+                  value={emailVerifyInput}
+                  onChange={(e) => setEmailVerifyInput(e.target.value)}
+                  placeholder="Ketik email lengkap terdaftar (e.g. budi@bki.co.id)..."
                   required
                 />
                 <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
-                  Atau gunakan password pemulihan default: <strong style={{ color: 'var(--accent-primary)' }}>password123</strong>
+                  🔒 Keamanan: Masukkan alamat email persis sesuai pendaftaran untuk membuktikan kepemilikan akun.
                 </div>
               </div>
 
@@ -195,8 +236,71 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
                   Cari Akun Lain
                 </button>
                 <button type="submit" className="btn btn-primary">
+                  <ShieldCheck size={16} />
+                  Verifikasi Kepemilikan Email
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* STEP 3: Reset Password with Strength Meter */}
+          {foundUser && isVerified && (
+            <form onSubmit={handleResetPassword}>
+              <div style={{ padding: '0.65rem 0.85rem', background: '#d1fae5', color: '#065f46', borderRadius: 'var(--radius-md)', fontSize: '0.8rem', fontWeight: 700, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                <CheckCircle2 size={16} />
+                <span>Identitas Terverifikasi: {foundUser.name}</span>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                  <Lock size={14} color="var(--accent-primary)" />
+                  <span>Masukkan Password Baru *</span>
+                </label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  placeholder="Ketik password baru (min 6 karakter, kombinasi A-Z, a-z, 0-9)..."
+                  required
+                />
+                {newPassword && (
+                  <div style={{ marginTop: '0.35rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.725rem', fontWeight: 700, color: passValidation.color }}>
+                      <span>Kekuatan Password: {passValidation.label}</span>
+                      <span>{passValidation.score}/4</span>
+                    </div>
+                    <div style={{ height: '4px', background: '#e2e8f0', borderRadius: '2px', marginTop: '0.2rem', overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${(passValidation.score / 4) * 100}%`, background: passValidation.color, transition: 'all 0.2s ease' }} />
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="form-group">
+                <label className="form-label">Konfirmasi Password Baru *</label>
+                <input
+                  type="password"
+                  className="form-input"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Ulangi password baru..."
+                  required
+                />
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1.5rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={() => setIsVerified(false)}>
+                  Kembali
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={!passValidation.isValid || newPassword !== confirmPassword}
+                  style={{ opacity: !passValidation.isValid || newPassword !== confirmPassword ? 0.6 : 1 }}
+                >
                   <Save size={16} />
-                  Simpan Password & Masuk Akun
+                  Simpan Password Baru
                 </button>
               </div>
             </form>

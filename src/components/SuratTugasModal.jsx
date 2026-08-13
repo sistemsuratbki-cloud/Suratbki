@@ -5,6 +5,8 @@ import { LOCATION_TARIFFS, calculateHonorFee } from '../utils/tariffData';
 import { formatRupiah } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 
+import { sanitizeFormData } from '../utils/security';
+
 export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
   const { addSuratTugas, updateSuratTugas, adminSettings } = useData();
 
@@ -106,12 +108,12 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
       return null;
     }
 
-    const payload = {
+    const payload = sanitizeFormData({
       ...formData,
       tarifDasar: baseRate,
       biayaTiket: ticketFee,
       jumlahEstimasi: totalEstimasiGrand
-    };
+    });
 
     let savedItem = payload;
     if (editItem) {

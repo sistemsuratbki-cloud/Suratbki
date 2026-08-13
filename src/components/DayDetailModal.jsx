@@ -6,6 +6,7 @@ import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
+import { sanitizeFormData } from '../utils/security';
 
 export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwitansiList, laporanList }) => {
   const { currentUser } = useAuth();
@@ -197,19 +198,21 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
     const citoPrefix = formData.isCito ? '[⚡ CITO / Hari Libur (+50%)] ' : '';
     const tiketInfo = formData.biayaTiket ? ` [🎟️ Tiket ${formData.kategoriTransportasi}: ${formatRupiah(formData.biayaTiket)}]` : '';
 
-    addLaporanSurvei({
-      suratId: finalSuratId,
-      namaKapal: formData.namaKapal,
-      petugas: formData.petugas,
-      tglLapor: formData.tglMulai,
-      tglSelesai: formData.tglSelesai,
-      lokasi: formData.lokasi,
-      isCito: formData.isCito,
-      biayaTiket: formData.biayaTiket,
-      fileTiketName: formData.fileTiketName,
-      hasil: `${citoPrefix}${tiketInfo} [Kapal: ${formData.namaKapal} | Lokasi: ${formData.lokasi}] ${formData.hasil}`,
-      status: formData.status
-    });
+    addLaporanSurvei(
+      sanitizeFormData({
+        suratId: finalSuratId,
+        namaKapal: formData.namaKapal,
+        petugas: formData.petugas,
+        tglLapor: formData.tglMulai,
+        tglSelesai: formData.tglSelesai,
+        lokasi: formData.lokasi,
+        isCito: formData.isCito,
+        biayaTiket: formData.biayaTiket,
+        fileTiketName: formData.fileTiketName,
+        hasil: `${citoPrefix}${tiketInfo} [Kapal: ${formData.namaKapal} | Lokasi: ${formData.lokasi}] ${formData.hasil}`,
+        status: formData.status
+      })
+    );
 
     return targetSurat;
   };
