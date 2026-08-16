@@ -1,3 +1,14 @@
+export const cleanDocNumber = (val) => {
+  if (!val || typeof val !== 'string') return val || '';
+  return val
+    .replace(/&#x2F;/gi, '/')
+    .replace(/&#x27;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+};
+
 export const formatRupiah = (number) => {
   if (number === undefined || number === null || isNaN(number)) return 'Rp 0';
   return new Intl.NumberFormat('id-ID', {

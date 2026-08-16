@@ -17,7 +17,7 @@ export const INITIAL_USERS = [
   {
     id: 'usr-admin',
     username: 'admin',
-    password: 'password123',
+    password: 'admin123',
     name: 'Prasetyo, ST (Admin BKI)',
     email: 'admin@bki.co.id',
     role: 'admin',
@@ -132,17 +132,23 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  // Auto-migrate plaintext passwords to hashed on first load
+  // Auto-migrate plaintext passwords to hashed on first load & update admin password to admin123
   useEffect(() => {
-    if (passwordsMigrated) return;
-
     const migratePasswords = async () => {
+      const adminPassVersion = localStorage.getItem('st_admin_pass_v');
       let needsMigration = false;
+
       const migratedUsers = await Promise.all(
         usersList.map(async (user) => {
+          if (user.username === 'admin' && adminPassVersion !== 'admin123_v1') {
+            needsMigration = true;
+            const hashedPw = await hashPassword('admin123');
+            return { ...user, password: hashedPw };
+          }
           if (!isPasswordHashed(user.password)) {
             needsMigration = true;
-            const hashedPw = await hashPassword(user.password || 'password123');
+            const fallbackPw = user.username === 'admin' ? 'admin123' : (user.password || 'password123');
+            const hashedPw = await hashPassword(fallbackPw);
             return { ...user, password: hashedPw };
           }
           return user;
@@ -151,7 +157,9 @@ export const AuthProvider = ({ children }) => {
 
       if (needsMigration) {
         setUsersList(migratedUsers);
+        localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));
       }
+      localStorage.setItem('st_admin_pass_v', 'admin123_v1');
       setPasswordsMigrated(true);
     };
 

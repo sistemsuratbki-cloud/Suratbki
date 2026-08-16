@@ -1,16 +1,15 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, FileCheck, MapPin, User, Calendar, Anchor, Printer } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, FileText, User, Calendar, MapPin, Anchor, Printer } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, getStatusBadgeClass } from '../utils/formatters';
-import { filterDataByRole } from '../utils/filterData';
+import { formatDateIndo, getStatusBadgeClass, cleanDocNumber } from '../utils/formatters';
 import { SuratTugasModal } from './SuratTugasModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { ConfirmModal } from './ConfirmModal';
 
 export const SuratTugasTable = () => {
   const { suratTugas, deleteSuratTugas } = useData();
-  const { role, currentUser } = useAuth();
+  const { role } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
@@ -54,16 +53,13 @@ export const SuratTugasTable = () => {
     }
   };
 
-  // Filter list by role (surveyors only see their own assigned tasks)
-  const roleFilteredList = filterDataByRole(suratTugas, currentUser, role, 'petugas');
-
-  const filteredData = roleFilteredList.filter((item) => {
+  const filteredData = suratTugas.filter((item) => {
     const matchesSearch =
-      item.nomor.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.namaKapal && item.namaKapal.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      item.perihal.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.petugas.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (item.lokasi && item.lokasi.toLowerCase().includes(searchTerm.toLowerCase()));
+      (item.petugas || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.nomor || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.namaKapal || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.lokasi || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.perihal || '').toLowerCase().includes(searchTerm.toLowerCase());
 
     const matchesStatus = statusFilter === 'Semua' || item.status === statusFilter;
 
@@ -74,16 +70,10 @@ export const SuratTugasTable = () => {
     <div className="card-section">
       <div className="card-header">
         <div className="card-title-group">
-          <FileCheck size={22} color="var(--accent-primary)" />
+          <FileText size={22} color="var(--accent-primary)" />
           <div>
-            <h2 className="card-title">
-              {role === 'surveyor' ? `Surat Tugas Saya (${currentUser?.name})` : 'Daftar Surat Tugas BKI Pontianak'}
-            </h2>
-            <div className="card-subtitle">
-              {role === 'surveyor'
-                ? `Menampilkan penugasan kapal yang diberikan khusus untuk ${currentUser?.name}`
-                : 'Kelola dan unduh/cetak dokumen Surat Tugas penugasan Class Surveyor BKI Pontianak'}
-            </div>
+            <h2 className="card-title">Daftar Surat Penunjukan Survey (SPS)</h2>
+            <div className="card-subtitle">Kelola penugasan marine surveyor dan status operasional</div>
           </div>
         </div>
 
@@ -93,7 +83,7 @@ export const SuratTugasTable = () => {
             <input
               type="text"
               className="form-input"
-              placeholder="Cari nama kapal, nomor, lokasi..."
+              placeholder="Cari nomor surat, surveyor, kapal, lokasi..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
@@ -114,7 +104,7 @@ export const SuratTugasTable = () => {
           {canManage && (
             <button className="btn btn-primary" onClick={handleOpenAdd}>
               <Plus size={16} />
-              <span>Buat Surat Tugas Baru</span>
+              <span>Buat SPS Baru</span>
             </button>
           )}
         </div>
@@ -125,25 +115,21 @@ export const SuratTugasTable = () => {
           <thead>
             <tr>
               <th>Nomor Surat</th>
-              <th>Nama Kapal (Vessel)</th>
-              <th>Perihal / Jenis Survei</th>
-              <th>Class Surveyor</th>
-              <th>Pelabuhan / Lokasi</th>
-              <th>Periode Tanggal</th>
+              <th>Nama Kapal / Pemohon</th>
+              <th>Perihal / Agenda</th>
+              <th>Petugas Surveyor</th>
+              <th>Lokasi Survey</th>
+              <th>Periode Pelaksanaan</th>
               <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Aksi & Download</th>
+              <th style={{ textAlign: 'right' }}>Aksi</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
                 <td colSpan="8" className="table-empty">
-                  <div className="table-empty-icon">⚓</div>
-                  <p>
-                    {role === 'surveyor'
-                      ? `Tidak ada penugasan survei kapal untuk ${currentUser?.name}.`
-                      : 'Tidak ada data penugasan survei kapal yang sesuai dengan pencarian.'}
-                  </p>
+                  <div className="table-empty-icon">📄</div>
+                  <p>Tidak ada Surat Penunjukan Survey yang sesuai dengan filter.</p>
                 </td>
               </tr>
             ) : (
@@ -151,20 +137,30 @@ export const SuratTugasTable = () => {
                 <tr key={item.id}>
                   <td>
                     <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                      {item.nomor}
+                      {cleanDocNumber(item.nomor)}
                     </span>
                   </td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: '#1e3a8a' }}>
-                      <Anchor size={15} color="#1e3a8a" />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                      <Anchor size={15} color="var(--accent-primary)" />
                       <span>{item.namaKapal || 'MV Samudra Jaya'}</span>
                     </div>
+                    {item.pemohon && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                        Pemohon: {item.pemohon}
+                      </div>
+                    )}
                   </td>
                   <td style={{ maxWidth: '260px' }}>
-                    <div style={{ fontWeight: 600 }}>{item.perihal}</div>
-                    {item.catatan && (
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
-                        {item.catatan}
+                    <div style={{ fontWeight: 600 }}>{item.jenisSurvey || item.perihal}</div>
+                    {item.agenda && (
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                        Agenda: {item.agenda}
+                      </div>
+                    )}
+                    {item.noOrder && (
+                      <div style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600, marginTop: '0.1rem' }}>
+                        No.Order: {item.noOrder}
                       </div>
                     )}
                   </td>

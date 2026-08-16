@@ -10,6 +10,7 @@ import { SuratTugasTable } from './components/SuratTugasTable';
 import { KwitansiTable } from './components/KwitansiTable';
 import { LaporanTable } from './components/LaporanTable';
 import { UserManagementTable } from './components/UserManagementTable';
+import { TariffManagementTable } from './components/TariffManagementTable';
 import { SettingsTab } from './components/SettingsTab';
 import { LoginScreen } from './components/LoginScreen';
 
@@ -52,6 +53,7 @@ function AppContent() {
           {activeTab === 'surat' && <SuratTugasTable />}
           {activeTab === 'kwitansi' && <KwitansiTable />}
           {activeTab === 'laporan' && <LaporanTable />}
+          {activeTab === 'tariffs' && <TariffManagementTable />}
           {activeTab === 'users' && <UserManagementTable />}
           {activeTab === 'settings' && <SettingsTab />}
         </main>

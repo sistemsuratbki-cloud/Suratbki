@@ -203,7 +203,7 @@ export const KwitansiTable = () => {
                           cursor: canManageFinance ? 'pointer' : 'default',
                           padding: 0
                         }}
-                        title={canManageFinance ? 'Klik untuk mengubah status pembayaran' : 'Status pembayaran'}
+                        title={canManageFinance ? 'Klik untuk mengubah status pembayaran / approval' : 'Status pembayaran'}
                       >
                         <span className={`badge ${getStatusBadgeClass(item.status)}`}>
                           <span className="badge-dot" />
@@ -213,10 +213,21 @@ export const KwitansiTable = () => {
                     </td>
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                        {canManageFinance && item.status !== 'Sudah Dibayar' && (
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '0.2rem 0.55rem', fontSize: '0.75rem', background: '#059669', borderColor: '#059669' }}
+                            onClick={() => handleToggleStatus(item)}
+                            title="Setujui & Tandai Sudah Dibayar oleh Keuangan"
+                          >
+                            <span>Approve</span>
+                          </button>
+                        )}
+
                         <button
                           className="btn btn-secondary btn-icon btn-sm"
                           onClick={() => handleOpenPrint(item)}
-                          title="Cetak Kwitansi"
+                          title="Cetak Kwitansi Honorarium"
                         >
                           <Printer size={15} />
                         </button>

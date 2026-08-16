@@ -46,10 +46,10 @@ export const Header = ({ theme, setTheme }) => {
         <button
           onClick={() => setIsResetConfirmOpen(true)}
           className="btn btn-secondary btn-sm"
-          title="Reset Data ke Sample BKI Pontianak Awal"
+          title="Kosongkan seluruh data tugas, kwitansi, dan laporan"
         >
           <RotateCcw size={14} />
-          <span>Reset Demo</span>
+          <span>Kosongkan Data</span>
         </button>
 
         <button
@@ -87,9 +87,9 @@ export const Header = ({ theme, setTheme }) => {
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmReset}
-        title="Reset Data BKI Pontianak"
-        message="Apakah Anda yakin ingin mengembalikan seluruh data Surat Tugas, Kwitansi Honor, Laporan Survei, dan Pengguna BKI Cabang Pontianak ke sampel awal?"
-        confirmText="Ya, Reset Sekarang"
+        title="Konfirmasi Kosongkan Data"
+        message="Apakah Anda yakin ingin menghapus/mengosongkan seluruh data Surat Tugas, Kwitansi Honor, dan Laporan Survei?"
+        confirmText="Ya, Kosongkan Data"
         type="warning"
       />
     </header>

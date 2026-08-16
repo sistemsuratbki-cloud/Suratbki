@@ -1,12 +1,12 @@
 import React from 'react';
-import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut } from 'lucide-react';
+import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
 import { BKILogo } from './BKILogo';
 
 export const Sidebar = ({ activeTab, setActiveTab }) => {
-  const { suratTugas, kwitansiHonor, laporanSurvei } = useData();
+  const { suratTugas, kwitansiHonor, laporanSurvei, tariffs } = useData();
   const { currentUser, role, usersList, logout } = useAuth();
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas');
@@ -43,6 +43,17 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
       badge: draftCount > 0 ? draftCount : null
     }
   ];
+
+  // Restricted Access: Admin, Kacab, and Finance (Keuangan)
+  if (role === 'admin' || role === 'kacab' || role === 'keuangan') {
+    menuItems.push({
+      id: 'tariffs',
+      label: 'Tarif Lokasi',
+      icon: Compass,
+      badge: tariffs ? tariffs.length : null,
+      badgeColor: '#0284c7'
+    });
+  }
 
   if (role === 'admin') {
     menuItems.push({

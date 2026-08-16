@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
@@ -15,10 +15,13 @@ export const CalendarView = () => {
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
   const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas');
 
-  // Default to October 2026 or current month
-  const [currentDate, setCurrentDate] = useState(new Date(2026, 9, 1));
+  // Default to today's current date / month
+  const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDateStr, setSelectedDateStr] = useState(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const today = new Date();
+  const todayDateStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
 
   const year = currentDate.getFullYear();
   const month = currentDate.getMonth();
@@ -36,6 +39,10 @@ export const CalendarView = () => {
     setCurrentDate(new Date(year, month + 1, 1));
   };
 
+  const handleToday = () => {
+    setCurrentDate(new Date());
+  };
+
   // Calendar Grid starting on Sunday (Min, Sen, Sel, Rab, Kam, Jum, Sab)
   const firstDayOfMonth = new Date(year, month, 1).getDay();
   const daysInMonth = new Date(year, month + 1, 0).getDate();
@@ -47,11 +54,17 @@ export const CalendarView = () => {
   for (let i = firstDayOfMonth - 1; i >= 0; i--) {
     const d = daysInPrevMonth - i;
     const prevMonthDate = new Date(year, month - 1, d);
+    const pYear = prevMonthDate.getFullYear();
+    const pMonth = String(prevMonthDate.getMonth() + 1).padStart(2, '0');
+    const pDay = String(prevMonthDate.getDate()).padStart(2, '0');
+    const pDateStr = `${pYear}-${pMonth}-${pDay}`;
+
     daysArray.push({
       dayNumber: d,
       dateObj: prevMonthDate,
       isCurrentMonth: false,
-      dateStr: prevMonthDate.toISOString().split('T')[0]
+      dateStr: pDateStr,
+      isToday: pDateStr === todayDateStr
     });
   }
 
@@ -65,7 +78,8 @@ export const CalendarView = () => {
       dayNumber: d,
       dateObj: new Date(year, month, d),
       isCurrentMonth: true,
-      dateStr: dateStr
+      dateStr: dateStr,
+      isToday: dateStr === todayDateStr
     });
   }
 
@@ -73,11 +87,17 @@ export const CalendarView = () => {
   const remaining = 35 - daysArray.length > 0 ? 35 - daysArray.length : 42 - daysArray.length;
   for (let d = 1; d <= remaining; d++) {
     const nextMonthDate = new Date(year, month + 1, d);
+    const nYear = nextMonthDate.getFullYear();
+    const nMonth = String(nextMonthDate.getMonth() + 1).padStart(2, '0');
+    const nDay = String(nextMonthDate.getDate()).padStart(2, '0');
+    const nDateStr = `${nYear}-${nMonth}-${nDay}`;
+
     daysArray.push({
       dayNumber: d,
       dateObj: nextMonthDate,
       isCurrentMonth: false,
-      dateStr: nextMonthDate.toISOString().split('T')[0]
+      dateStr: nDateStr,
+      isToday: nDateStr === todayDateStr
     });
   }
 
@@ -99,6 +119,8 @@ export const CalendarView = () => {
     ? filteredSuratTugas.filter((st) => selectedDateStr >= st.tglMulai && selectedDateStr <= st.tglSelesai)
     : [];
 
+  const isCurrentMonthActive = year === today.getFullYear() && month === today.getMonth();
+
   return (
     <div className="card-section" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
       <div className="card-header" style={{ padding: '1.25rem 1.5rem', borderBottom: 'none' }}>
@@ -111,7 +133,16 @@ export const CalendarView = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <button
+            className={`btn btn-sm ${isCurrentMonthActive ? 'btn-primary' : 'btn-secondary'}`}
+            onClick={handleToday}
+            title="Lompat ke tanggal & bulan hari ini"
+            style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+          >
+            <CalendarIcon size={14} />
+            <span>Hari Ini</span>
+          </button>
           <button className="btn btn-secondary btn-icon" onClick={handlePrevMonth} title="Bulan Sebelumnya">
             <ChevronLeft size={18} />
           </button>
@@ -134,10 +165,34 @@ export const CalendarView = () => {
           return (
             <div
               key={index}
-              className={`calendar-cell-v2 ${!cell.isCurrentMonth ? 'other-month' : ''}`}
+              className={`calendar-cell-v2 ${!cell.isCurrentMonth ? 'other-month' : ''} ${cell.isToday ? 'is-today' : ''}`}
               onClick={() => handleCellClick(cell)}
+              style={cell.isToday ? { border: '2px solid var(--accent-primary)', background: 'var(--accent-light)', position: 'relative' } : {}}
             >
-              <div className="calendar-date-number-v2">{cell.dayNumber}</div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+                <div
+                  className="calendar-date-number-v2"
+                  style={cell.isToday ? { color: 'var(--accent-primary)', fontWeight: 800, margin: 0 } : { margin: 0 }}
+                >
+                  {cell.dayNumber}
+                </div>
+                {cell.isToday && (
+                  <span
+                    style={{
+                      fontSize: '0.6rem',
+                      fontWeight: 800,
+                      background: 'var(--accent-primary)',
+                      color: '#ffffff',
+                      padding: '0.08rem 0.35rem',
+                      borderRadius: '4px',
+                      textTransform: 'uppercase',
+                      letterSpacing: '0.04em'
+                    }}
+                  >
+                    Hari Ini
+                  </span>
+                )}
+              </div>
 
               <div className="calendar-chips-wrapper">
                 {stList.map((st) => {

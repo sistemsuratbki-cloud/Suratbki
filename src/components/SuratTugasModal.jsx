@@ -1,24 +1,42 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Anchor, Ticket, Paperclip, Printer } from 'lucide-react';
+import { X, Save, Anchor, Ticket, Paperclip, Printer, Sparkles, MapPin, Calendar, FileText, Hash, Shield, Camera, FileCheck2, Plane, Receipt, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
-import { LOCATION_TARIFFS, calculateHonorFee } from '../utils/tariffData';
-import { formatRupiah } from '../utils/formatters';
+import { useAuth } from '../context/AuthContext';
+import { isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
-
 import { sanitizeFormData } from '../utils/security';
 
 export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
-  const { addSuratTugas, updateSuratTugas, adminSettings } = useData();
+  const { addSuratTugas, updateSuratTugas, adminSettings, tariffs } = useData();
+  const { usersList, currentUser } = useAuth();
+  const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
+
+  const defaultLocation = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'Kendawangan (Via Udara)';
+  const defaultRate = activeTariffs[0]?.rate || 3000000;
+
+  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin');
 
   const [formData, setFormData] = useState({
     nomor: '',
+    // 11 Form Fields
     namaKapal: '',
-    perihal: '',
+    pemohon: '',
+    jenisSurvey: 'DINAS SURVEY KLAS',
+    perihal: 'DINAS SURVEY KLAS',
+    lokasi: defaultLocation,
+    tempatSurvey: defaultLocation,
+    tglMulai: '',
+    tglSelesai: '',
+    agenda: '',
+    noOrder: '',
+    jumlahHariLibur: 0,
+    tiketHotel: 0,
+    tiketPesawatTaxi: 0,
+    // Complementary
     petugas: '',
     pangkat: 'GRADE 6 A',
     jabatan: 'SURVEYOR',
-    lokasi: LOCATION_TARIFFS[0].name,
-    tarifDasar: LOCATION_TARIFFS[0].rate,
+    tarifDasar: defaultRate,
     isCito: false,
     biayaTiket: 0,
     kategoriTransportasi: 'Pesawat Terbang',
@@ -26,9 +44,11 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
     nup: adminSettings?.nup || '48199-KI',
-    fileTiketName: '',
-    tglMulai: '',
-    tglSelesai: '',
+    // 4 Distinct Upload Files
+    fileFotoName: '',
+    fileVisitName: '',
+    fileTiketTransportName: '',
+    fileKwitansiHotelName: '',
     status: 'Belum Mulai',
     catatan: ''
   });
@@ -37,92 +57,146 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     if (editItem) {
       setFormData({
         ...editItem,
+        nomor: cleanDocNumber(editItem.nomor),
+        namaKapal: editItem.namaKapal || '',
+        pemohon: editItem.pemohon || '',
+        jenisSurvey: editItem.jenisSurvey || editItem.perihal || 'DINAS SURVEY KLAS',
+        perihal: editItem.perihal || editItem.jenisSurvey || 'DINAS SURVEY KLAS',
+        lokasi: editItem.lokasi || editItem.tempatSurvey || defaultLocation,
+        tempatSurvey: editItem.tempatSurvey || editItem.lokasi || defaultLocation,
+        agenda: editItem.agenda || editItem.perihal || '',
+        noOrder: editItem.noOrder || '',
+        jumlahHariLibur: editItem.jumlahHariLibur !== undefined ? editItem.jumlahHariLibur : (editItem.isCito ? 1 : 0),
+        tiketHotel: editItem.tiketHotel || 0,
+        tiketPesawatTaxi: editItem.tiketPesawatTaxi || editItem.biayaTiket || 0,
         pangkat: editItem.pangkat || 'GRADE 6 A',
         jabatan: editItem.jabatan || 'SURVEYOR',
         saranaTransportasi: editItem.saranaTransportasi || 'UDARA, DARAT DAN AIR',
         keteranganLain: editItem.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
         kepalaCabang: editItem.kepalaCabang || adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
         nup: editItem.nup || adminSettings?.nup || '48199-KI',
-        tarifDasar: editItem.tarifDasar || 3500000,
-        isCito: !!editItem.isCito,
-        biayaTiket: editItem.biayaTiket || 0,
+        tarifDasar: editItem.tarifDasar || defaultRate,
+        isCito: !!editItem.isCito || (Number(editItem.jumlahHariLibur) > 0),
+        biayaTiket: editItem.biayaTiket || (Number(editItem.tiketHotel || 0) + Number(editItem.tiketPesawatTaxi || 0)),
         kategoriTransportasi: editItem.kategoriTransportasi || 'Pesawat Terbang',
-        fileTiketName: editItem.fileTiketName || ''
+        // Uploads
+        fileFotoName: editItem.fileFotoName || '',
+        fileVisitName: editItem.fileVisitName || '',
+        fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
+        fileKwitansiHotelName: editItem.fileKwitansiHotelName || ''
       });
     } else {
       const nextNum = String(Math.floor(Math.random() * 900) + 100);
+      const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
+      const todayDate = new Date().toISOString().split('T')[0];
+
       setFormData({
         nomor: `A 0    /SV.${nextNum}/PK/KI-26`,
         namaKapal: '',
-        perihal: '',
-        petugas: '',
+        pemohon: '',
+        jenisSurvey: 'DINAS SURVEY KLAS',
+        perihal: 'DINAS SURVEY KLAS',
+        petugas: defaultSurveyor,
         pangkat: 'GRADE 6 A',
         jabatan: 'SURVEYOR',
-        lokasi: LOCATION_TARIFFS[0].name,
-        tarifDasar: LOCATION_TARIFFS[0].rate,
+        lokasi: defaultLocation,
+        tempatSurvey: defaultLocation,
+        tarifDasar: defaultRate,
+        agenda: '',
+        noOrder: `ORD-${Date.now().toString().slice(-6)}`,
+        jumlahHariLibur: 0,
+        tiketHotel: 0,
+        tiketPesawatTaxi: 0,
         isCito: false,
-        biayaTiket: 1250000,
+        biayaTiket: 0,
         kategoriTransportasi: 'Pesawat Terbang',
         saranaTransportasi: 'UDARA, DARAT DAN AIR',
         keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
         kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
         nup: adminSettings?.nup || '48199-KI',
-        fileTiketName: '',
-        tglMulai: new Date().toISOString().split('T')[0],
-        tglSelesai: new Date().toISOString().split('T')[0],
+        fileFotoName: '',
+        fileVisitName: '',
+        fileTiketTransportName: '',
+        fileKwitansiHotelName: '',
+        tglMulai: todayDate,
+        tglSelesai: todayDate,
         status: 'Belum Mulai',
         catatan: ''
       });
     }
-  }, [editItem, isOpen, adminSettings]);
+  }, [editItem, isOpen, adminSettings, activeTariffs, currentUser]);
 
   if (!isOpen) return null;
 
   const handleLocationChange = (locName) => {
-    const matched = LOCATION_TARIFFS.find((t) => t.name === locName);
-    const newRate = matched ? matched.rate : formData.tarifDasar;
+    const matched = activeTariffs.find((t) => (t.name === locName || t.tujuan === locName));
+    const newRate = matched ? Number(matched.rate) : formData.tarifDasar;
     setFormData((prev) => ({
       ...prev,
       lokasi: locName,
+      tempatSurvey: locName,
       tarifDasar: newRate
     }));
   };
 
-  const handleTicketFileUpload = (e) => {
+  const handleFileUpload = (fieldKey, e) => {
     const file = e.target.files[0];
     if (file) {
       setFormData((prev) => ({
         ...prev,
-        fileTiketName: file.name
+        [fieldKey]: file.name
       }));
     }
   };
 
-  const { baseRate, citoSurcharge } = calculateHonorFee(formData.tarifDasar, formData.isCito);
-  const ticketFee = Number(formData.biayaTiket) || 0;
-  const totalEstimasiGrand = baseRate + citoSurcharge + ticketFee;
+  const handleRemoveFile = (fieldKey) => {
+    setFormData((prev) => ({
+      ...prev,
+      [fieldKey]: ''
+    }));
+  };
+
+  const currentBaseRate = Number(formData.tarifDasar) || defaultRate;
+  const jumlahLibur = Number(formData.jumlahHariLibur) || 0;
+  const isCitoActive = formData.isCito || jumlahLibur > 0;
+  const citoRateMultiplier = jumlahLibur > 0 ? (0.5 * jumlahLibur) : 0.5;
+  const currentCitoFee = isCitoActive ? Math.round(currentBaseRate * citoRateMultiplier) : 0;
+
+  const currentHotelFee = Number(formData.tiketHotel) || 0;
+  const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
+  const totalBiayaTransportHotel = currentHotelFee + currentFlightTaxiFee;
+  const totalEstimasiGrand = currentBaseRate + currentCitoFee + totalBiayaTransportHotel;
+  const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
 
   const processSave = () => {
-    if (!formData.nomor || !formData.namaKapal || !formData.perihal || !formData.petugas) {
-      alert('Mohon isi Nomor Surat, Nama Kapal, Perihal, dan Nama Surveyor!');
+    if (!formData.namaKapal || !formData.petugas) {
+      alert('Mohon isi Nama Kapal / Objek dan Nama Class Surveyor!');
       return null;
     }
 
     const payload = sanitizeFormData({
       ...formData,
-      tarifDasar: baseRate,
-      biayaTiket: ticketFee,
+      jenisSurvey: formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS',
+      perihal: formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS',
+      tempatSurvey: formData.tempatSurvey || formData.lokasi,
+      lokasi: formData.lokasi || formData.tempatSurvey,
+      agenda: formData.agenda || formData.perihal || '',
+      tarifDasar: currentBaseRate,
+      isCito: isCitoActive,
+      jumlahHariLibur: jumlahLibur,
+      tiketHotel: currentHotelFee,
+      tiketPesawatTaxi: currentFlightTaxiFee,
+      biayaTiket: totalBiayaTransportHotel,
+      fileTiketName: formData.fileTiketTransportName || formData.fileTiketName,
       jumlahEstimasi: totalEstimasiGrand
     });
 
-    let savedItem = payload;
     if (editItem) {
       updateSuratTugas(editItem.id, payload);
-      savedItem = { ...editItem, ...payload };
+      return { ...payload, id: editItem.id };
     } else {
-      savedItem = addSuratTugas(payload);
+      return addSuratTugas(payload);
     }
-    return savedItem;
   };
 
   const handleSubmit = (e) => {
@@ -147,125 +221,464 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '680px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content" style={{ maxWidth: '840px' }} onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Anchor size={20} color="var(--accent-primary)" />
-              <h3 className="modal-title">{editItem ? 'Ubah Surat Tugas Survei Kapal' : 'Buat Surat Tugas Survei Kapal Baru'}</h3>
+            <div className="card-title-group">
+              <Anchor size={22} style={{ color: 'var(--accent-primary)' }} />
+              <div>
+                <h3 className="modal-title">{editItem ? 'Edit Surat Tugas Survei' : 'Form Pengisian Survei Kapal (Surat Tugas)'}</h3>
+                <div className="card-subtitle">Format Formulir Standar BKI Cabang Pontianak</div>
+              </div>
             </div>
             <button className="btn btn-secondary btn-icon" onClick={onClose}>
               <X size={18} />
             </button>
           </div>
 
-          <form onSubmit={handleSubmit}>
-            <div className="modal-body">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label">Nomor Surat Tugas *</label>
+          <div className="modal-body" style={{ maxHeight: 'calc(90vh - 130px)', overflowY: 'auto' }}>
+            <form onSubmit={handleSubmit}>
+              {/* Header: Nomor Surat & Petugas */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Hash size={14} color="var(--accent-primary)" />
+                    <span>Nomor Surat Tugas *</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input"
                     value={formData.nomor}
                     onChange={(e) => setFormData({ ...formData, nomor: e.target.value })}
-                    placeholder="Contoh: ST/MAR/10/2026/005"
+                    placeholder="A 0    /SV.201/PK/KI-26"
                     required
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Nama Kapal (Vessel Name) *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.namaKapal}
-                    onChange={(e) => setFormData({ ...formData, namaKapal: e.target.value })}
-                    placeholder="Contoh: MV Samudra Jaya 08"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Perihal / Jenis Survei Kelayakan *</label>
-                <input
-                  type="text"
-                  className="form-input"
-                  value={formData.perihal}
-                  onChange={(e) => setFormData({ ...formData, perihal: e.target.value })}
-                  placeholder="Contoh: Survei Kelayakan Lambung, Konstruksi & Sertifikasi SOLAS"
-                  required
-                />
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label">1. Nama Class Surveyor *</label>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Shield size={14} color="var(--accent-primary)" />
+                    <span>Nama Class Surveyor *</span>
+                  </label>
                   <input
                     type="text"
                     className="form-input"
                     value={formData.petugas}
                     onChange={(e) => setFormData({ ...formData, petugas: e.target.value })}
-                    placeholder="Contoh: ALFIAN BONE PUTRA"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">2. Pangkat / Grade *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.pangkat}
-                    onChange={(e) => setFormData({ ...formData, pangkat: e.target.value })}
-                    placeholder="Contoh: GRADE 6 A"
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">3. Jabatan *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.jabatan}
-                    onChange={(e) => setFormData({ ...formData, jabatan: e.target.value })}
-                    placeholder="Contoh: SURVEYOR"
+                    placeholder="Nama surveyor yang ditugaskan..."
                     required
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label">8. Sarana Transportasi *</label>
+              {/* ====== 11 FIELD SESUAI CONTOH FORM ====== */}
+              <div
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1.5px solid var(--border-color-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  📋 11 RINCIAN PENUGASAN SURVEI KAPAL
+                </div>
+
+                {/* 1. NAMA KAPAL / OBJEK & 2. PEMOHON */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      1. NAMA KAPAL / OBJEK *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.namaKapal}
+                      onChange={(e) => setFormData({ ...formData, namaKapal: e.target.value })}
+                      placeholder="Contoh: KAPUAS BAHARI XXII / TB. SAMUDRA 01"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      2. PEMOHON *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.pemohon}
+                      onChange={(e) => setFormData({ ...formData, pemohon: e.target.value })}
+                      placeholder="Contoh: PT. PELAYARAN KAPUAS BAHARI / AGEN"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 3. JENIS SURVEY & 4. TEMPAT SURVEY */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      3. JENIS SURVEY *
+                    </label>
+                    <select
+                      className="form-select"
+                      value={formData.jenisSurvey}
+                      onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
+                    >
+                      <option value="DINAS SURVEY KLAS">DINAS SURVEY KLAS</option>
+                      <option value="SURVEY TAHUNAN (ANNUAL SURVEY)">SURVEY TAHUNAN (ANNUAL SURVEY)</option>
+                      <option value="SURVEY ANTARA (INTERMEDIATE SURVEY)">SURVEY ANTARA (INTERMEDIATE SURVEY)</option>
+                      <option value="SURVEY PEMBARUAN KELAS (RENEWAL SURVEY)">SURVEY PEMBARUAN KELAS (RENEWAL SURVEY)</option>
+                      <option value="SURVEY KELAIKLAUTAN (STATUTORY)">SURVEY KELAIKLAUTAN (STATUTORY)</option>
+                      <option value="SURVEY KERUSAKAN (DAMAGE SURVEY)">SURVEY KERUSAKAN (DAMAGE SURVEY)</option>
+                      <option value="INSPEKSI KETEBALAN PELAT & LOAD LINE">INSPEKSI KETEBALAN PELAT & LOAD LINE</option>
+                    </select>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <MapPin size={14} color="var(--accent-primary)" />
+                      <span>4. TEMPAT SURVEY *</span>
+                    </label>
+                    <select
+                      className="form-select"
+                      value={formData.lokasi}
+                      onChange={(e) => handleLocationChange(e.target.value)}
+                      required
+                    >
+                      {activeTariffs.map((loc) => (
+                        <option key={loc.id} value={loc.tujuan || loc.name}>
+                          {loc.tujuan || loc.name} — {formatRupiah(loc.rate)} {loc.rincian ? `(${loc.rincian})` : ''}
+                        </option>
+                      ))}
+                    </select>
+                    {currentMatchedTariff?.rincian && (
+                      <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                        🛣️ Rute SK: {currentMatchedTariff.rincian} • Moda: {currentMatchedTariff.moda || 'Darat/Air'}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 5. TANGGAL MULAI & 6. TANGGAL AKHIR */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Calendar size={14} color="var(--accent-primary)" />
+                      <span>5. TANGGAL MULAI *</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formData.tglMulai}
+                      onChange={(e) => setFormData({ ...formData, tglMulai: e.target.value })}
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Calendar size={14} color="var(--accent-primary)" />
+                      <span>6. TANGGAL AKHIR *</span>
+                    </label>
+                    <input
+                      type="date"
+                      className="form-input"
+                      value={formData.tglSelesai}
+                      onChange={(e) => setFormData({ ...formData, tglSelesai: e.target.value })}
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 7. AGENDA & 8. NO.ORDER */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <FileText size={14} color="var(--accent-primary)" />
+                      <span>7. AGENDA *</span>
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.agenda}
+                      onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
+                      placeholder="Contoh: Pemeriksaan Ketebalan Pelat & Sertifikasi Kelaiklautan"
+                      required
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      8. NO.ORDER *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.noOrder}
+                      onChange={(e) => setFormData({ ...formData, noOrder: e.target.value })}
+                      placeholder="Contoh: ORD-2026/08/001"
+                      required
+                    />
+                  </div>
+                </div>
+
+                {/* 9. JUMLAH HARI LIBUR, 10. TIKET HOTEL, 11. TIKET PESAWAT DAN TAXI */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      9. JUMLAH HARI LIBUR
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="30"
+                      className="form-input"
+                      value={formData.jumlahHariLibur}
+                      onChange={(e) => setFormData({ ...formData, jumlahHariLibur: Number(e.target.value) || 0, isCito: Number(e.target.value) > 0 })}
+                      placeholder="0 hari"
+                    />
+                    <span style={{ fontSize: '0.7rem', color: formData.jumlahHariLibur > 0 ? '#ef4444' : 'var(--text-muted)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
+                      {formData.jumlahHariLibur > 0 ? `⚡ Surcharge CITO Libur (+${formData.jumlahHariLibur * 50}%)` : 'Hari kerja standar'}
+                    </span>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      10. TIKET HOTEL (Rp)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50000"
+                      className="form-input"
+                      value={formData.tiketHotel}
+                      onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) || 0 })}
+                      placeholder="0"
+                    />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                      {currentHotelFee > 0 ? formatRupiah(currentHotelFee) : 'Rp 0'}
+                    </span>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      11. TIKET PESAWAT DAN TAXI (Rp)
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      step="50000"
+                      className="form-input"
+                      value={formData.tiketPesawatTaxi}
+                      onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) || 0 })}
+                      placeholder="0"
+                    />
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                      {currentFlightTaxiFee > 0 ? formatRupiah(currentFlightTaxiFee) : 'Rp 0'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Kalkulasi Otomatis Card */}
+              <div
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1.5px solid var(--border-color-strong)',
+                  padding: '0.85rem 1rem',
+                  borderRadius: 'var(--radius-md)',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.825rem' }}>
+                    <Sparkles size={15} />
+                    <span>Kalkulasi Otomatis Biaya Lokasi & Honorarium Surveyor</span>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: '#047857', background: 'rgba(16, 185, 129, 0.15)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
+                    ⚡ Otomatis Master SK BKI
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
+                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                      {formatRupiah(currentBaseRate)}
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: isCitoActive ? '#dc2626' : 'var(--text-muted)' }}>CITO Hari Libur</div>
+                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: isCitoActive ? '#dc2626' : 'var(--text-muted)', marginTop: '0.1rem' }}>
+                      {isCitoActive ? `+${formatRupiah(currentCitoFee)}` : 'Non-CITO'}
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Hotel & Transport</div>
+                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
+                      {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
+                    </div>
+                  </div>
+
+                  <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1.5px solid var(--accent-primary)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 700 }}>Total Estimasi Biaya</div>
+                    <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--accent-primary)', marginTop: '0.1rem' }}>
+                      {formatRupiah(totalEstimasiGrand)}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* ====== 4 DISTINCT UPLOAD SECTIONS ====== */}
+              <div
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1.5px solid var(--border-color-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  📎 LAMPIRAN BERKAS & DOKUMEN LAPANGAN (4 UPLOAD)
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                  {/* 1. Upload Foto */}
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <Camera size={16} color="#0284c7" />
+                      <span>1. Upload Foto (Dokumentasi/Kapal)</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="form-input"
+                      onChange={(e) => handleFileUpload('fileFotoName', e)}
+                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    />
+                    {formData.fileFotoName ? (
+                      <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(2, 132, 199, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📸 {formData.fileFotoName}</span>
+                        <button type="button" onClick={() => handleRemoveFile('fileFotoName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: JPG, PNG, PDF</span>
+                    )}
+                  </div>
+
+                  {/* 2. Upload Visit */}
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <FileCheck2 size={16} color="#059669" />
+                      <span>2. Upload Visit (Form Visit / Lapangan)</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="form-input"
+                      onChange={(e) => handleFileUpload('fileVisitName', e)}
+                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    />
+                    {formData.fileVisitName ? (
+                      <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {formData.fileVisitName}</span>
+                        <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: PDF, JPG, PNG</span>
+                    )}
+                  </div>
+
+                  {/* 3. Upload Tiket Transport */}
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <Plane size={16} color="#7c3aed" />
+                      <span>3. Upload Tiket Transport (Pesawat/Taxi)</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="form-input"
+                      onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
+                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    />
+                    {formData.fileTiketTransportName ? (
+                      <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(124, 58, 237, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✈️ {formData.fileTiketTransportName}</span>
+                        <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: PDF, E-Ticket, JPG</span>
+                    )}
+                  </div>
+
+                  {/* 4. Kwitansi Hotel */}
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <Receipt size={16} color="#d97706" />
+                      <span>4. Kwitansi Hotel (Invoice Penginapan)</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="form-input"
+                      onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
+                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    />
+                    {formData.fileKwitansiHotelName ? (
+                      <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(217, 119, 6, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏨 {formData.fileKwitansiHotelName}</span>
+                        <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: Invoice PDF, Foto Kwitansi</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Detail Sarana & Penandatangan */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Sarana Transportasi</label>
                   <input
                     type="text"
                     className="form-input"
                     value={formData.saranaTransportasi}
                     onChange={(e) => setFormData({ ...formData, saranaTransportasi: e.target.value })}
-                    placeholder="Contoh: UDARA, DARAT DAN AIR"
-                    required
+                    placeholder="UDARA, DARAT DAN AIR"
                   />
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">9. Keterangan Lain (Pembiayaan) *</label>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Keterangan Lain (Pembiayaan)</label>
                   <input
                     type="text"
                     className="form-input"
                     value={formData.keteranganLain}
                     onChange={(e) => setFormData({ ...formData, keteranganLain: e.target.value })}
                     placeholder="Catatan pembiayaan BKI..."
-                    required
                   />
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'var(--bg-main)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color-strong)', marginBottom: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'var(--bg-main)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color-strong)', marginBottom: '1.25rem' }}>
                 <div className="form-group" style={{ margin: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                    <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>Penandatangan: Nama Kepala Cabang *</label>
+                    <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>Penandatangan: Nama Kepala Cabang</label>
                     <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'var(--accent-light)', padding: '0.1rem 0.4rem', borderRadius: '3px', fontWeight: 700 }}>
                       ⚙️ Otomatis Admin
                     </span>
@@ -273,17 +686,16 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   <input
                     type="text"
                     className="form-input"
-                    style={{ background: 'var(--bg-card-solid)', fontWeight: 700, color: 'var(--text-primary)' }}
+                    style={{ background: 'var(--bg-card-solid)', fontWeight: 700 }}
                     value={adminSettings?.kepalaCabang || formData.kepalaCabang}
                     onChange={(e) => setFormData({ ...formData, kepalaCabang: e.target.value })}
-                    placeholder="MUHSON NURROCHMAT"
                     required
                   />
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                    <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>NUP Kepala Cabang *</label>
+                    <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>NUP Kepala Cabang</label>
                     <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'var(--accent-light)', padding: '0.1rem 0.4rem', borderRadius: '3px', fontWeight: 700 }}>
                       ⚙️ Otomatis Admin
                     </span>
@@ -291,221 +703,39 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   <input
                     type="text"
                     className="form-input"
-                    style={{ background: 'var(--bg-card-solid)', fontWeight: 700, color: 'var(--text-primary)' }}
+                    style={{ background: 'var(--bg-card-solid)', fontWeight: 700 }}
                     value={adminSettings?.nup || formData.nup}
                     onChange={(e) => setFormData({ ...formData, nup: e.target.value })}
-                    placeholder="48199-KI"
                     required
                   />
                 </div>
               </div>
 
-              {/* Location Tariff & CITO Section */}
-              <div style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color-strong)', padding: '1.25rem', borderRadius: 'var(--radius-md)', marginBottom: '1.1rem' }}>
-                <div className="form-group">
-                  <label className="form-label" style={{ color: 'var(--accent-primary)', fontWeight: 700 }}>
-                    Pilih Lokasi Pelabuhan / Galangan (Menentukan Tarif Dasar)
-                  </label>
-                  <select
-                    className="form-select"
-                    value={formData.lokasi}
-                    onChange={(e) => handleLocationChange(e.target.value)}
-                  >
-                    {LOCATION_TARIFFS.map((loc) => (
-                      <option key={loc.id} value={loc.name}>
-                        {loc.name} — ({formatRupiah(loc.rate)})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', alignItems: 'center' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Tarif Dasar Lokasi (Rp)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="100000"
-                      className="form-input"
-                      value={formData.tarifDasar}
-                      onChange={(e) => setFormData({ ...formData, tarifDasar: Number(e.target.value) || 0 })}
-                    />
-                  </div>
-
-                  {/* CITO / Hari Libur Checkbox */}
-                  <div
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.65rem',
-                      padding: '0.65rem 0.85rem',
-                      background: formData.isCito ? 'rgba(239, 68, 68, 0.12)' : 'var(--bg-card-solid)',
-                      border: `1.5px solid ${formData.isCito ? '#ef4444' : 'var(--border-color)'}`,
-                      borderRadius: 'var(--radius-md)',
-                      cursor: 'pointer',
-                      marginTop: '1.5rem'
-                    }}
-                    onClick={() => setFormData({ ...formData, isCito: !formData.isCito })}
-                  >
-                    <input
-                      type="checkbox"
-                      id="citoCheck"
-                      checked={formData.isCito}
-                      onChange={(e) => setFormData({ ...formData, isCito: e.target.checked })}
-                      style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                    />
-                    <label htmlFor="citoCheck" style={{ cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, color: formData.isCito ? '#ef4444' : 'var(--text-primary)' }}>
-                      CITO / Hari Libur (+50%)
-                    </label>
-                  </div>
-                </div>
-              </div>
-
-              {/* Travel Ticket Upload & Price Section */}
-              <div
-                style={{
-                  background: 'var(--bg-main)',
-                  border: '1px solid var(--border-color-strong)',
-                  padding: '1.15rem',
-                  borderRadius: 'var(--radius-md)',
-                  marginBottom: '1.1rem'
-                }}
-              >
-                <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                  <Ticket size={16} />
-                  <span>Tiket Perjalanan & Biaya Transportasi</span>
-                </div>
-
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '0.85rem' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Nominal Biaya Tiket (Rp)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="25000"
-                      className="form-input"
-                      value={formData.biayaTiket}
-                      onChange={(e) => setFormData({ ...formData, biayaTiket: Number(e.target.value) || 0 })}
-                      placeholder="Contoh: 1250000"
-                    />
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label">Moda Transportasi</label>
-                    <select
-                      className="form-select"
-                      value={formData.kategoriTransportasi}
-                      onChange={(e) => setFormData({ ...formData, kategoriTransportasi: e.target.value })}
-                    >
-                      <option value="Pesawat Terbang">✈️ Pesawat Terbang</option>
-                      <option value="Kapal Laut / Speedboat">🚢 Kapal Laut / Speedboat</option>
-                      <option value="Kereta Api">🚆 Kereta Api</option>
-                      <option value="Travel / Mobil Dinas">🚗 Travel / Mobil Dinas</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Upload Berkas / Foto Tiket Perjalanan (Foto/PDF)</label>
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    className="form-input"
-                    onChange={handleTicketFileUpload}
-                    style={{ padding: '0.4rem' }}
-                  />
-                  {formData.fileTiketName && (
-                    <div style={{ fontSize: '0.75rem', color: '#10b981', fontWeight: 700, marginTop: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Paperclip size={13} />
-                      <span>File Terlampir: {formData.fileTiketName}</span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Grand Total Summary */}
-                <div style={{ marginTop: '0.85rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)', fontSize: '0.825rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <div>
-                    <span>Honor: {formatRupiah(baseRate + citoSurcharge)}</span>
-                    {ticketFee > 0 && <span style={{ color: '#10b981', fontWeight: 700, marginLeft: '0.5rem' }}>+ Tiket: {formatRupiah(ticketFee)}</span>}
-                  </div>
-                  <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
-                    Total Estimasi: {formatRupiah(totalEstimasiGrand)}
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
-                  <label className="form-label">Tanggal Mulai *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.tglMulai}
-                    onChange={(e) => setFormData({ ...formData, tglMulai: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group">
-                  <label className="form-label">Tanggal Selesai *</label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.tglSelesai}
-                    onChange={(e) => setFormData({ ...formData, tglSelesai: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Status Tugas</label>
-                <select
-                  className="form-select"
-                  value={formData.status}
-                  onChange={(e) => setFormData({ ...formData, status: e.target.value })}
-                >
-                  <option value="Belum Mulai">Belum Mulai</option>
-                  <option value="Berjalan">Berjalan</option>
-                  <option value="Selesai">Selesai</option>
-                </select>
-              </div>
-
-              <div className="form-group">
-                <label className="form-label">Catatan Instruksi</label>
-                <textarea
-                  className="form-textarea"
-                  value={formData.catatan}
-                  onChange={(e) => setFormData({ ...formData, catatan: e.target.value })}
-                  placeholder="Instruksi khusus inspeksi (ketebalan plat, sea trial, pengujian pompa fire fighting)..."
-                />
-              </div>
-            </div>
-
-            <div className="modal-footer" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <button type="button" className="btn btn-secondary" onClick={onClose}>
-                Batal
-              </button>
-
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  className="btn btn-secondary"
-                  style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
-                  onClick={handleSaveAndPrint}
-                  title="Simpan data dan langsung cetak PDF Surat Tugas"
-                >
-                  <Printer size={16} color="var(--accent-primary)" />
-                  <span>Simpan & Cetak Surat Tugas</span>
+              {/* Action Buttons */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={onClose}>
+                  Batal
                 </button>
 
-                <button type="submit" className="btn btn-primary">
-                  <Save size={16} />
-                  <span>Simpan Surat Tugas</span>
-                </button>
+                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                  <button
+                    type="button"
+                    className="btn btn-secondary"
+                    style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
+                    onClick={handleSaveAndPrint}
+                  >
+                    <Printer size={16} color="var(--accent-primary)" />
+                    <span>Simpan & Cetak Surat</span>
+                  </button>
+
+                  <button type="submit" className="btn btn-primary">
+                    <Save size={16} />
+                    <span>Simpan Surat Tugas</span>
+                  </button>
+                </div>
               </div>
-            </div>
-          </form>
+            </form>
+          </div>
         </div>
       </div>
     </ModalPortal>

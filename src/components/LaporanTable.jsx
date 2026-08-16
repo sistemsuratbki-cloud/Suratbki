@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, ClipboardList, Check, Anchor, User, Calendar, Printer, FileSpreadsheet, Lock, Unlock, Clock } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ClipboardList, Anchor, User, Calendar, Printer, FileSpreadsheet, Lock, Unlock, Clock, Paperclip, Filter } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired } from '../utils/formatters';
+import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah } from '../utils/formatters';
 import { LaporanModal } from './LaporanModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
-import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { ConfirmModal } from './ConfirmModal';
 
 export const LaporanTable = () => {
@@ -13,27 +12,37 @@ export const LaporanTable = () => {
   const { role } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Semua');
+  const [selectedMonth, setSelectedMonth] = useState('Semua');
+  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
-
-  const [isSuratPrintModalOpen, setIsSuratPrintModalOpen] = useState(false);
-  const [selectedSuratPrintItem, setSelectedSuratPrintItem] = useState(null);
+  const [isPrintAllMode, setIsPrintAllMode] = useState(false);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const [isRequestModalOpen, setIsRequestModalOpen] = useState(false);
-  const [itemToRequest, setItemToRequest] = useState(null);
-
   const canAddLaporan = role === 'admin' || role === 'surveyor' || role === 'kacab';
   const canEditLaporan = role === 'admin' || role === 'surveyor' || role === 'kacab';
-  const canApprove = role === 'admin' || role === 'kacab';
   const canDelete = role === 'admin';
+
+  const monthNames = [
+    { value: '01', label: 'JANUARI' },
+    { value: '02', label: 'FEBRUARI' },
+    { value: '03', label: 'MARET' },
+    { value: '04', label: 'APRIL' },
+    { value: '05', label: 'MEI' },
+    { value: '06', label: 'JUNI' },
+    { value: '07', label: 'JULI' },
+    { value: '08', label: 'AGUSTUS' },
+    { value: '09', label: 'SEPTEMBER' },
+    { value: '10', label: 'OKTOBER' },
+    { value: '11', label: 'NOVEMBER' },
+    { value: '12', label: 'DESEMBER' }
+  ];
 
   const handleOpenAdd = () => {
     setEditingItem(null);
@@ -45,46 +54,16 @@ export const LaporanTable = () => {
     setIsModalOpen(true);
   };
 
-  const handlePromptRequestEdit = (item) => {
-    setItemToRequest(item);
-    setIsRequestModalOpen(true);
-  };
-
-  const handleConfirmRequestEdit = () => {
-    if (itemToRequest) {
-      requestEditApproval(itemToRequest.id);
-      setItemToRequest(null);
-      setIsRequestModalOpen(false);
-    }
-  };
-
-  const handleOpenPrint = (item) => {
+  const handleOpenPrintSingle = (item) => {
     setSelectedPrintItem(item);
+    setIsPrintAllMode(false);
     setIsPrintModalOpen(true);
   };
 
-  const handleApprove = (item) => {
-    if (!canApprove) return;
-    updateLaporanSurvei(item.id, {
-      ...item,
-      status: 'Disetujui'
-    });
-  };
-
-  const handleStatusAdvance = (item) => {
-    let nextStatus = item.status;
-    if (role === 'surveyor') {
-      nextStatus = item.status === 'Draf' ? 'Terkirim' : 'Draf';
-    } else if (canApprove) {
-      if (item.status === 'Draf') nextStatus = 'Terkirim';
-      else if (item.status === 'Terkirim') nextStatus = 'Disetujui';
-      else if (item.status === 'Disetujui') nextStatus = 'Draf';
-    }
-
-    updateLaporanSurvei(item.id, {
-      ...item,
-      status: nextStatus
-    });
+  const handleOpenPrintAll = () => {
+    setSelectedPrintItem(null);
+    setIsPrintAllMode(true);
+    setIsPrintModalOpen(true);
   };
 
   const promptDelete = (item) => {
@@ -99,65 +78,87 @@ export const LaporanTable = () => {
     }
   };
 
+  const currentMonthLabel = selectedMonth === 'Semua'
+    ? `TAHUN ${selectedYear}`
+    : `BULAN ${monthNames.find(m => m.value === selectedMonth)?.label || 'MEI'} ${selectedYear}`;
+
+  // Filter Data
   const filteredData = laporanSurvei.filter((item) => {
     const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-    const suratNomor = linkedSurat ? linkedSurat.nomor : '';
+    const dateStr = item.tglLapor || item.tanggal || linkedSurat?.tglMulai || '';
+
+    // Month & Year Filter
+    if (selectedMonth !== 'Semua') {
+      if (dateStr) {
+        const itemMonth = dateStr.substring(5, 7);
+        if (itemMonth !== selectedMonth) return false;
+      }
+    }
+    if (selectedYear !== 'Semua') {
+      if (dateStr) {
+        const itemYear = dateStr.substring(0, 4);
+        if (itemYear !== selectedYear) return false;
+      }
+    }
+
     const namaKapal = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '');
+    const noAgenda = item.noAgenda || item.nomor || (linkedSurat ? linkedSurat.nomor : '');
+    const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : '');
+    const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '');
 
     const matchesSearch =
-      item.petugas.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.petugas || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
       namaKapal.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.hasil.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      item.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      suratNomor.toLowerCase().includes(searchTerm.toLowerCase());
+      noAgenda.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      namaSurvey.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      lokasi.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.noSo || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.noCda || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (item.noWbs || '').toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesStatus = statusFilter === 'Semua' || item.status === statusFilter;
-
-    return matchesSearch && matchesStatus;
+    return matchesSearch;
   });
 
-  /* Export Laporan to Beautiful Formatted Excel (.xls) Function */
+  /* Total Nilai Calculation */
+  const totalNilaiPerjalanan = filteredData.reduce((acc, curr) => {
+    const val = Number(curr.nilai) || Number(curr.tarifDasar) || 0;
+    return acc + val;
+  }, 0);
+
+  /* Export to Excel Function matching the exact template */
   const handleExportExcel = () => {
     if (filteredData.length === 0) {
       alert('Tidak ada data laporan untuk diexport!');
       return;
     }
 
-    const currentDate = new Date().toLocaleDateString('id-ID', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-
     const rowsHtml = filteredData
       .map((item, index) => {
         const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-        const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : 'MV Samudra Jaya 08');
-        const suratNomor = linkedSurat ? linkedSurat.nomor : 'Tanpa Surat Tugas';
-        const perihal = linkedSurat ? linkedSurat.perihal : 'Survei Kelayakan Kapal';
-        const bgClass = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
+        const dateFormatted = formatDateIndo(item.tglLapor || item.tanggal || linkedSurat?.tglMulai);
+        const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
+        const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
+        const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
+        const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
+        const noAgenda = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
+        const noCda = item.noCda || '-';
+        const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
+        const noWbs = item.noWbs || '-';
 
-        let statusStyle = 'background-color: #e2e8f0; color: #475569;';
-        if (item.status === 'Disetujui') {
-          statusStyle = 'background-color: #d1fae5; color: #047857; font-weight: bold;';
-        } else if (item.status === 'Terkirim') {
-          statusStyle = 'background-color: #fef3c7; color: #b45309; font-weight: bold;';
-        }
+        const bgClass = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
 
         return `
           <tr style="${bgClass}">
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center; font-weight: bold;">${item.id}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: bold; color: #003366;">${vesselName}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">${suratNomor}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px;">${perihal}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; font-weight: 600;">${item.petugas}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">${formatDateIndo(item.tglLapor)}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; max-width: 350px;">${item.hasil || '-'}</td>
-            <td style="border: 1px solid #cbd5e1; padding: 8px; text-align: center;">
-              <span style="display: inline-block; padding: 4px 10px; border-radius: 12px; font-size: 11px; ${statusStyle}">
-                ${item.status}
-              </span>
-            </td>
+            <td style="border: 1px solid #000000; padding: 6px 8px; text-align: center;">${index + 1}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px; text-align: center;">${dateFormatted}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px; font-weight: bold; text-transform: uppercase;">${vesselName}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px;">${lokasi}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px; text-align: right;">${formatRupiah(nilaiNum)}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px; text-transform: uppercase;">${namaSurvey}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px;">${noAgenda}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px;">${noCda}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px;">${noSo}</td>
+            <td style="border: 1px solid #000000; padding: 6px 8px;">${noWbs}</td>
           </tr>
         `;
       })
@@ -167,46 +168,39 @@ export const LaporanTable = () => {
       <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
       <head>
         <meta charset="utf-8" />
-        <!--[if gte mso 9]>
-        <xml>
-          <x:ExcelWorkbook>
-            <x:ExcelWorksheets>
-              <x:ExcelWorksheet>
-                <x:Name>Laporan Survei BKI</x:Name>
-                <x:WorksheetOptions>
-                  <x:DisplayGridlines/>
-                </x:WorksheetOptions>
-              </x:ExcelWorksheet>
-            </x:ExcelWorksheets>
-          </x:ExcelWorkbook>
-        </xml>
-        <![endif]-->
         <style>
-          body { font-family: 'Arial', sans-serif; color: #0f172a; }
+          body { font-family: 'Calibri', 'Arial', sans-serif; color: #000000; }
         </style>
       </head>
       <body>
-        <div style="margin-bottom: 15px;">
-          <h2 style="color: #003366; margin: 0; padding-bottom: 4px; font-size: 18px;">PT BIRO KLASIFIKASI INDONESIA (PERSERO) — CABANG PONTIANAK</h2>
-          <h3 style="color: #1e3a8a; margin: 0; font-size: 14px; font-weight: normal;">REKAPITULASI LAPORAN HASIL SURVEI KELAISAN KAPAL</h3>
-          <p style="color: #64748b; font-size: 12px; margin-top: 4px;">Tanggal Export: <strong>${currentDate}</strong> | Total Laporan: <strong>${filteredData.length} Data</strong></p>
+        <div style="text-align: center; margin-bottom: 20px;">
+          <h3 style="margin: 0; padding: 0; font-size: 14pt; font-weight: bold; text-transform: uppercase;">DAFTAR PERJALANAN DINAS SURVEY</h3>
+          <h3 style="margin: 0; padding: 0; font-size: 13pt; font-weight: bold; text-transform: uppercase;">CABANG MADYA KLAS PONTIANAK</h3>
+          <h4 style="margin: 4px 0 0 0; padding: 0; font-size: 11pt; font-weight: bold; text-transform: uppercase;">${currentMonthLabel}</h4>
         </div>
 
-        <table style="border-collapse: collapse; width: 100%; font-size: 13px; font-family: Arial, sans-serif;">
+        <table style="border-collapse: collapse; width: 100%; font-size: 10pt; font-family: Calibri, Arial, sans-serif;">
           <thead>
-            <tr style="background-color: #003366; color: #ffffff; font-weight: bold; text-align: center;">
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 110px;">ID LAPORAN</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 180px;">NAMA KAPAL (VESSEL)</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 180px;">NOMOR SURAT TUGAS</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 220px;">PERIHAL SURVEI</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 160px;">MARINE SURVEYOR</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 130px;">TGL PELAPORAN</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 350px;">TEMUAN & HASIL INSPEKSI</th>
-              <th style="border: 1px solid #001f3f; padding: 10px; width: 130px;">STATUS WORKFLOW</th>
+            <tr style="background-color: #f2f2f2; font-weight: bold; text-align: center;">
+              <th style="border: 1px solid #000000; padding: 8px 6px; width: 45px;">NO.</th>
+              <th style="border: 1px solid #000000; padding: 8px 10px; width: 110px;">TANGGAL</th>
+              <th style="border: 1px solid #000000; padding: 8px 12px; width: 200px;">NAMA KAPAL</th>
+              <th style="border: 1px solid #000000; padding: 8px 12px; width: 160px;">LOKASI SURVEY</th>
+              <th style="border: 1px solid #000000; padding: 8px 10px; width: 130px;">NILAI</th>
+              <th style="border: 1px solid #000000; padding: 8px 12px; width: 180px;">NAMA SURVEY</th>
+              <th style="border: 1px solid #000000; padding: 8px 10px; width: 150px;">NO AGENDA</th>
+              <th style="border: 1px solid #000000; padding: 8px 10px; width: 120px;">NO CDA</th>
+              <th style="border: 1px solid #000000; padding: 8px 10px; width: 130px;">NO.SO</th>
+              <th style="border: 1px solid #000000; padding: 8px 10px; width: 130px;">NO.WBS</th>
             </tr>
           </thead>
           <tbody>
             ${rowsHtml}
+            <tr style="font-weight: bold; background-color: #f8fafc;">
+              <td colspan="4" style="border: 1px solid #000000; padding: 8px; text-align: right;">TOTAL:</td>
+              <td style="border: 1px solid #000000; padding: 8px; text-align: right;">${formatRupiah(totalNilaiPerjalanan)}</td>
+              <td colspan="5" style="border: 1px solid #000000; padding: 8px;"></td>
+            </tr>
           </tbody>
         </table>
       </body>
@@ -217,7 +211,7 @@ export const LaporanTable = () => {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `Laporan_Survei_BKI_Pontianak_${new Date().toISOString().split('T')[0]}.xls`;
+    link.download = `Daftar_Perjalanan_Dinas_Survey_BKI_Pontianak_${selectedMonth}_${selectedYear}.xls`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -225,43 +219,76 @@ export const LaporanTable = () => {
 
   return (
     <div className="card-section">
-      <div className="card-header">
+      {/* Title & Filter Header */}
+      <div className="card-header" style={{ alignItems: 'flex-start' }}>
         <div className="card-title-group">
-          <ClipboardList size={22} color="var(--accent-primary)" />
+          <ClipboardList size={24} color="var(--accent-primary)" />
           <div>
-            <h2 className="card-title">Laporan Survei Kelayakan Kapal</h2>
-            <div className="card-subtitle">Pantau, serahkan, dan verifikasi persetujuan hasil inspeksi kapal</div>
+            <h2 className="card-title" style={{ fontSize: '1.25rem', letterSpacing: '0.02em', textTransform: 'uppercase' }}>
+              DAFTAR PERJALANAN DINAS SURVEY
+            </h2>
+            <div className="card-subtitle" style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
+              CABANG MADYA KLAS PONTIANAK — {currentMonthLabel}
+            </div>
           </div>
         </div>
 
-        <div className="card-actions">
+        <div className="card-actions" style={{ flexWrap: 'wrap' }}>
+          {/* Search Box */}
           <div className="search-box">
             <Search className="search-icon" size={16} />
             <input
               type="text"
               className="form-input"
-              placeholder="Cari nama kapal, surveyor, hasil..."
+              placeholder="Cari kapal, lokasi, nomor SO/WBS..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
 
+          {/* Month Selector */}
           <select
             className="form-select"
-            style={{ width: 'auto' }}
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            style={{ width: 'auto', fontWeight: 600 }}
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(e.target.value)}
           >
-            <option value="Semua">Semua Status</option>
-            <option value="Draf">Draf</option>
-            <option value="Terkirim">Terkirim</option>
-            <option value="Disetujui">Disetujui</option>
+            <option value="Semua">Semua Bulan</option>
+            {monthNames.map((m) => (
+              <option key={m.value} value={m.value}>
+                Bulan {m.label}
+              </option>
+            ))}
           </select>
 
+          {/* Year Selector */}
+          <select
+            className="form-select"
+            style={{ width: 'auto', fontWeight: 600 }}
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(e.target.value)}
+          >
+            <option value="2026">2026</option>
+            <option value="2025">2025</option>
+            <option value="2024">2024</option>
+          </select>
+
+          {/* Cetak Rekap Button */}
+          <button
+            className="btn btn-secondary btn-sm"
+            onClick={handleOpenPrintAll}
+            title="Cetak format cetak tabel resmi"
+            style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
+          >
+            <Printer size={15} />
+            <span>Cetak Rekap</span>
+          </button>
+
+          {/* Export Excel */}
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleExportExcel}
-            title="Download Laporan Format Excel Berwarna (.xls)"
+            title="Download Format Excel Sesuai Template (.xls)"
             style={{ borderColor: '#10b981', color: '#10b981', fontWeight: 700 }}
           >
             <FileSpreadsheet size={15} color="#10b981" />
@@ -271,179 +298,109 @@ export const LaporanTable = () => {
           {canAddLaporan && (
             <button className="btn btn-primary btn-sm" onClick={handleOpenAdd}>
               <Plus size={16} />
-              <span>Catat Laporan</span>
+              <span>Tambah Data</span>
             </button>
           )}
         </div>
       </div>
 
+      {/* ====== 10 KOLOM TABEL RESMI ====== */}
       <div className="table-wrapper">
-        <table className="data-table">
+        <table className="data-table" style={{ fontSize: '0.85rem' }}>
           <thead>
-            <tr>
-              <th>ID Laporan</th>
-              <th>Nama Kapal (Vessel)</th>
-              <th>Surat Tugas Terkait</th>
-              <th>Marine Surveyor</th>
-              <th>Tgl Pelaporan</th>
-              <th>Temuan & Hasil Inspeksi</th>
-              <th>Status Workflow</th>
-              <th style={{ textAlign: 'right' }}>Aksi</th>
+            <tr style={{ textAlign: 'center' }}>
+              <th style={{ width: '45px', textAlign: 'center' }}>NO.</th>
+              <th style={{ width: '100px', textAlign: 'center' }}>TANGGAL</th>
+              <th style={{ minWidth: '160px', textAlign: 'left' }}>NAMA KAPAL</th>
+              <th style={{ minWidth: '130px', textAlign: 'left' }}>LOKASI SURVEY</th>
+              <th style={{ minWidth: '110px', textAlign: 'right' }}>NILAI</th>
+              <th style={{ minWidth: '160px', textAlign: 'left' }}>NAMA SURVEY</th>
+              <th style={{ minWidth: '140px', textAlign: 'left' }}>NO AGENDA</th>
+              <th style={{ minWidth: '110px', textAlign: 'left' }}>NO CDA</th>
+              <th style={{ minWidth: '110px', textAlign: 'left' }}>NO.SO</th>
+              <th style={{ minWidth: '110px', textAlign: 'left' }}>NO.WBS</th>
+              <th style={{ width: '100px', textAlign: 'center' }}>AKSI</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="table-empty">
-                  <div className="table-empty-icon">⚓</div>
-                  <p>Tidak ada laporan survei kapal yang ditemukan.</p>
+                <td colSpan="11" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                  <Anchor size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
+                  <p style={{ fontWeight: 700 }}>Tidak ada data perjalanan dinas survey untuk periode ini.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Klik tombol "Tambah Data" untuk menginput data baru.</p>
                 </td>
               </tr>
             ) : (
-              filteredData.map((item) => {
+              filteredData.map((item, index) => {
                 const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-                const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : 'MV Samudra Jaya 08');
+                const dateVal = item.tglLapor || item.tanggal || linkedSurat?.tglMulai;
+                const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
+                const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
+                const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
+                const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
+                const noAgenda = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
+                const noCda = item.noCda || '-';
+                const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
+                const noWbs = item.noWbs || '-';
 
                 return (
                   <tr key={item.id}>
-                    <td>
-                      <span style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
-                        {item.id}
-                      </span>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {index + 1}
+                    </td>
+                    <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
+                      {formatDateIndo(dateVal)}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: '#1e3a8a' }}>
-                        <Anchor size={15} color="#1e3a8a" />
-                        <span>{vesselName}</span>
+                      <div style={{ fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
+                        {vesselName}
                       </div>
-                    </td>
-                    <td style={{ maxWidth: '240px' }}>
-                      {linkedSurat ? (
-                        <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--accent-primary)' }}>
-                            {linkedSurat.nomor}
-                          </div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                            {linkedSurat.perihal}
-                          </div>
+                      {item.petugas && (
+                        <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                          Surveyor: {item.petugas}
                         </div>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)', fontStyle: 'italic' }}>Tanpa Surat Tugas</span>
                       )}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <User size={14} color="var(--text-secondary)" />
-                        <span style={{ fontWeight: 600 }}>{item.petugas}</span>
-                      </div>
+                      <span style={{ fontWeight: 600 }}>{lokasi}</span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 800, color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>
+                      {formatRupiah(nilaiNum)}
                     </td>
                     <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.85rem' }}>
-                        <Calendar size={13} color="var(--text-muted)" />
-                        <span>{formatDateIndo(item.tglLapor)}</span>
-                      </div>
-                    </td>
-                    <td style={{ maxWidth: '320px' }}>
-                      <div
-                        style={{
-                          fontSize: '0.875rem',
-                          color: 'var(--text-primary)',
-                          background: 'var(--bg-main)',
-                          padding: '0.5rem 0.75rem',
-                          borderRadius: 'var(--radius-sm)',
-                          lineHeight: '1.4'
-                        }}
-                      >
-                        {item.hasil}
-                      </div>
+                      <div style={{ fontWeight: 600, textTransform: 'uppercase' }}>{namaSurvey}</div>
                     </td>
                     <td>
-                      <button
-                        onClick={() => handleStatusAdvance(item)}
-                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                        title="Klik untuk memperbarui status laporan"
-                      >
-                        <span className={`badge ${getStatusBadgeClass(item.status)}`}>
-                          <span className="badge-dot" />
-                          {item.status}
-                        </span>
-                      </button>
+                      <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{noAgenda}</span>
                     </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                    <td>
+                      <span style={{ fontSize: '0.775rem' }}>{noCda}</span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.775rem', fontWeight: 700, color: '#0284c7' }}>{noSo}</span>
+                    </td>
+                    <td>
+                      <span style={{ fontSize: '0.775rem', color: 'var(--text-muted)' }}>{noWbs}</span>
+                    </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
                         <button
                           className="btn btn-secondary btn-icon btn-sm"
-                          onClick={() => handleOpenPrint(item)}
-                          title="Cetak / Download PDF Laporan"
+                          onClick={() => handleOpenPrintSingle(item)}
+                          title="Cetak Lembar Laporan"
                         >
-                          <Printer size={15} color="var(--accent-primary)" />
+                          <Printer size={14} />
                         </button>
 
-                        {canApprove && item.status !== 'Disetujui' && (
-                          <button
-                            className="btn btn-primary btn-sm"
-                            onClick={() => handleApprove(item)}
-                            title="Setujui Laporan Ini"
-                            style={{ background: '#10b981', borderColor: '#10b981' }}
-                          >
-                            <Check size={14} />
-                            <span>Setujui</span>
-                          </button>
-                        )}
-
                         {canEditLaporan && (
-                          <>
-                            {role === 'surveyor' && isEditWindowExpired(item.tglLapor) && !item.isUnlockedByAdmin ? (
-                              item.editRequested ? (
-                                <span
-                                  className="badge"
-                                  style={{
-                                    background: 'rgba(245, 158, 11, 0.15)',
-                                    color: '#d97706',
-                                    border: '1px solid rgba(245, 158, 11, 0.3)',
-                                    fontSize: '0.725rem',
-                                    padding: '0.3rem 0.55rem',
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.3rem'
-                                  }}
-                                  title="Permintaan edit telah dikirim ke Admin. Menunggu persetujuan."
-                                >
-                                  <Clock size={13} />
-                                  <span>Menunggu Approval Admin</span>
-                                </span>
-                              ) : (
-                                <button
-                                  className="btn btn-secondary btn-icon btn-sm"
-                                  onClick={() => handlePromptRequestEdit(item)}
-                                  title="Batas waktu edit mandiri (2 hari) telah berakhir. Klik untuk Minta Izin Edit ke Admin"
-                                  style={{ borderColor: '#ef4444', color: '#ef4444', background: 'rgba(239, 68, 68, 0.08)' }}
-                                >
-                                  <Lock size={15} color="#ef4444" />
-                                </button>
-                              )
-                            ) : (
-                              <button
-                                className="btn btn-secondary btn-icon btn-sm"
-                                onClick={() => handleOpenEdit(item)}
-                                title="Ubah Data Laporan Survei"
-                              >
-                                <Edit2 size={15} />
-                              </button>
-                            )}
-
-                            {canApprove && item.editRequested && (
-                              <button
-                                className="btn btn-primary btn-sm"
-                                onClick={() => approveEditRequest(item.id)}
-                                title="Setujui dan Buka Kunci Edit Surveyor"
-                                style={{ background: '#f59e0b', borderColor: '#f59e0b', fontSize: '0.75rem', padding: '0.25rem 0.55rem' }}
-                              >
-                                <Unlock size={14} />
-                                <span>Setujui Edit Surveyor</span>
-                              </button>
-                            )}
-                          </>
+                          <button
+                            className="btn btn-secondary btn-icon btn-sm"
+                            onClick={() => handleOpenEdit(item)}
+                            title="Edit Data"
+                          >
+                            <Edit2 size={14} />
+                          </button>
                         )}
 
                         {canDelete && (
@@ -452,7 +409,7 @@ export const LaporanTable = () => {
                             onClick={() => promptDelete(item)}
                             title="Hapus Data"
                           >
-                            <Trash2 size={15} />
+                            <Trash2 size={14} />
                           </button>
                         )}
                       </div>
@@ -462,52 +419,48 @@ export const LaporanTable = () => {
               })
             )}
           </tbody>
+          {filteredData.length > 0 && (
+            <tfoot>
+              <tr style={{ background: 'var(--bg-main)', fontWeight: 800 }}>
+                <td colSpan="4" style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>
+                  TOTAL NILAI PERJALANAN DINAS ({filteredData.length} Kegiatan):
+                </td>
+                <td style={{ textAlign: 'right', padding: '0.75rem', color: 'var(--accent-primary)', fontSize: '0.95rem' }}>
+                  {formatRupiah(totalNilaiPerjalanan)}
+                </td>
+                <td colSpan="6"></td>
+              </tr>
+            </tfoot>
+          )}
         </table>
       </div>
 
-      {canEditLaporan && (
-        <LaporanModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          editItem={editingItem}
-          onPrintSuratTugas={(surat) => {
-            setSelectedSuratPrintItem(surat);
-            setIsSuratPrintModalOpen(true);
-          }}
-        />
-      )}
+      <LaporanModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        editItem={editingItem}
+      />
 
       <LaporanPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         laporan={selectedPrintItem}
+        isPrintAll={isPrintAllMode}
+        allData={filteredData}
+        currentPeriod={currentMonthLabel}
+        totalNilai={totalNilaiPerjalanan}
         suratTugas={suratTugas}
-      />
-
-      <SuratTugasPrintModal
-        isOpen={isSuratPrintModalOpen}
-        onClose={() => setIsSuratPrintModalOpen(false)}
-        suratTugas={selectedSuratPrintItem}
       />
 
       <ConfirmModal
         isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
+        title="Hapus Data Perjalanan Dinas"
+        message={`Apakah Anda yakin ingin menghapus data perjalanan dinas untuk kapal "${itemToDelete?.namaKapal || 'ini'}"?`}
+        confirmLabel="Hapus Data"
+        cancelLabel="Batal"
+        isDanger={true}
         onConfirm={handleConfirmDelete}
-        title="Konfirmasi Hapus Laporan Survei"
-        message={itemToDelete ? `Apakah Anda yakin ingin menghapus Laporan Survei ${itemToDelete.id} untuk kapal ${itemToDelete.namaKapal || ''}?` : ''}
-        confirmText="Ya, Hapus Laporan"
-        type="danger"
-      />
-
-      <ConfirmModal
-        isOpen={isRequestModalOpen}
-        onClose={() => setIsRequestModalOpen(false)}
-        onConfirm={handleConfirmRequestEdit}
-        title="Minta Persetujuan Edit (Batas 2 Hari Lewat)"
-        message={itemToRequest ? `Laporan survei ${itemToRequest.id} (${itemToRequest.namaKapal}) telah melebihi batas waktu edit mandiri (2 hari). Kirim permintaan ke Admin/Kacab untuk membuka kunci edit?` : ''}
-        confirmText="Kirim Permintaan ke Admin"
-        type="warning"
+        onCancel={() => setIsConfirmOpen(false)}
       />
     </div>
   );

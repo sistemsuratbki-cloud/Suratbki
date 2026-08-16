@@ -13,30 +13,37 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
     window.print();
   };
 
-  const formattedNum = suratTugas.nomor
-    ? suratTugas.nomor.startsWith('NO.')
-      ? suratTugas.nomor
-      : `NO.${suratTugas.nomor}`
-    : 'NO.A 0    /SV.201/PK/KI-26';
+  const tglSurveyFormatted = formatDateIndo(suratTugas.tglMulai);
+  const lokasiSurvey = suratTugas.tempatSurvey || suratTugas.lokasi || 'DESAKA';
+  const jenisSurvey = suratTugas.jenisSurvey || suratTugas.perihal || 'DOKING, LOADLINE';
+  const pemohon = suratTugas.pemohon || 'PT. MITRA SAMUDRA NUSANTARA';
+  const namaKapal = suratTugas.namaKapal || 'BAHARI 279';
+  const noOrder = suratTugas.noOrder || 'RFQ2608005';
+  const noAgenda = suratTugas.noAgenda || suratTugas.nomor || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`;
+  const catatan = suratTugas.catatan || '-';
+  const surveyorName = suratTugas.petugas || 'ALFIAN BONE PUTRA';
+  const kepalaCabang = suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
 
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
-          style={{ maxWidth: '760px', background: '#ffffff', color: '#0f172a' }}
+          style={{ maxWidth: '780px', background: '#ffffff', color: '#000000' }}
           onClick={(e) => e.stopPropagation()}
         >
-          {/* Toolbar */}
+          {/* Modal Header Toolbar */}
           <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Anchor size={20} color="#003366" />
-              <h3 className="modal-title" style={{ color: '#0f172a' }}>Preview & Download Surat Tugas</h3>
+              <h3 className="modal-title" style={{ color: '#0f172a' }}>
+                Preview & Cetak Surat Penunjukan Survey (SPS)
+              </h3>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn btn-primary btn-sm" onClick={handlePrint}>
                 <Printer size={15} />
-                Cetak / Download PDF
+                Cetak / Download PDF (SPS)
               </button>
               <button className="btn btn-secondary btn-sm" onClick={onClose}>
                 <X size={16} />
@@ -45,204 +52,127 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
           </div>
 
           {/* Document Body */}
-          <div className="modal-body" style={{ padding: '1.25rem 1.5rem', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
+          <div className="modal-body" style={{ padding: '1.5rem 2rem', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
             <div
               className="printable-sheet"
               style={{
-                border: '1px solid #cbd5e1',
-                padding: '2rem 2.25rem',
+                border: '1.5px solid #cbd5e1',
+                padding: '2.25rem 2.5rem',
                 borderRadius: '4px',
-                fontFamily: "Arial, 'Helvetica Neue', sans-serif",
-                lineHeight: '1.5',
-                fontSize: '0.85rem',
+                fontFamily: "'Arial', 'Segoe UI', sans-serif",
+                lineHeight: '1.45',
+                fontSize: '10pt',
                 background: '#ffffff',
-                color: '#0f172a',
-                boxSizing: 'border-box',
+                color: '#000000',
+                boxSizing: 'border-box'
               }}
             >
-              {/* ====== KOP LOGOS ====== */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.75rem', paddingBottom: '0.5rem' }}>
-                <DanantaraLogo height={38} />
-                <IDSurveyLogo height={40} />
-                <BKILogo height={38} />
+              {/* ====== KOP LOGOS RESMI ====== */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', paddingBottom: '0.5rem' }}>
+                <DanantaraLogo height={42} />
+                <IDSurveyLogo height={44} />
+                <BKILogo height={42} />
               </div>
 
-              {/* ====== JUDUL SURAT ====== */}
-              <div style={{ textAlign: 'center', marginBottom: '1.75rem' }}>
-                <div style={{ fontSize: '1rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#0f172a' }}>
-                  SURAT TUGAS
+              {/* ====== JUDUL SURAT RESMI ====== */}
+              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+                <div style={{ fontSize: '11pt', fontWeight: 900, textTransform: 'uppercase', color: '#000000', letterSpacing: '0.02em' }}>
+                  PT.BIRO KLASIFIKASI INDONESIA (PERSERO)
                 </div>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, marginTop: '0.2rem', color: '#334155' }}>
-                  {formattedNum}
+                <div style={{ fontSize: '11pt', fontWeight: 900, textTransform: 'uppercase', color: '#000000', letterSpacing: '0.02em', marginTop: '0.15rem' }}>
+                  CABANG MADYA KLAS PONTIANAK
                 </div>
-              </div>
-
-              {/* ====== PARAGRAF PEMBUKA ====== */}
-              <div style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '1rem', color: '#0f172a' }}>
-                DITUGASKAN KEPADA :
-              </div>
-
-              {/* ====== TABEL RINCIAN PENUGASAN (1 - 9) ====== */}
-              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', lineHeight: '1.65', color: '#0f172a' }}>
-                <tbody>
-                  <tr>
-                    <td style={{ width: '28px', verticalAlign: 'top', paddingBottom: '0.35rem' }}>1.</td>
-                    <td style={{ width: '200px', verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>NAMA</td>
-                    <td style={{ width: '15px', verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase', fontWeight: 700 }}>
-                      {suratTugas.petugas}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>2.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>PANGKAT</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {suratTugas.pangkat || 'GRADE 6 A'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>3.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>JABATAN</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {suratTugas.jabatan || 'SURVEYOR'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}></td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>UNTUK PERGI KE</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase', fontWeight: 700 }}>
-                      {suratTugas.lokasi}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>5.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>KEPERLUAN</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase', fontWeight: 700 }}>
-                      <div>{suratTugas.perihal || 'DINAS SURVEY KLAS'}</div>
-                      {suratTugas.namaKapal && <div>{suratTugas.namaKapal}</div>}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>6.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>BERANGKAT</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {formatDateIndo(suratTugas.tglMulai).toUpperCase()}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>7.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>KEMBALI</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {formatDateIndo(suratTugas.tglSelesai).toUpperCase()}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>8.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>SARANA TRANSPORTASI</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {suratTugas.saranaTransportasi || 'UDARA, DARAT DAN AIR'}
-                    </td>
-                  </tr>
-                  <tr>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>9.</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', fontWeight: 600 }}>KETERANGAN LAIN</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem' }}>:</td>
-                    <td style={{ verticalAlign: 'top', paddingBottom: '0.35rem', textTransform: 'uppercase' }}>
-                      {suratTugas.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK'}
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-
-              {/* ====== TANDA TANGAN ====== */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2.5rem', fontSize: '0.82rem', lineHeight: '1.45' }}>
-                <div style={{ width: '310px', textAlign: 'left' }}>
-                  <div style={{ display: 'flex' }}>
-                    <span style={{ width: '130px', fontWeight: 600 }}>DIKELUARKAN</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span style={{ fontWeight: 700 }}>PONTIANAK</span>
-                  </div>
-                  <div style={{ display: 'flex', marginBottom: '1.25rem' }}>
-                    <span style={{ width: '130px', fontWeight: 600 }}>PADA TANGGAL</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span style={{ textTransform: 'uppercase' }}>{formatDateIndo(suratTugas.tglMulai).toUpperCase()}</span>
-                  </div>
-                  <div style={{ fontWeight: 700, textTransform: 'uppercase', marginBottom: '4rem' }}>
-                    KEPALA CABANG MADYA KLAS PONTIANAK
-                  </div>
-                  <div style={{ display: 'flex' }}>
-                    <span style={{ width: '60px', fontWeight: 600 }}>NAMA</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span style={{ fontWeight: 800, textDecoration: 'underline', textTransform: 'uppercase' }}>
-                      {suratTugas.kepalaCabang || 'MUHSON NURROCHMAT'}
-                    </span>
-                  </div>
-                  <div style={{ display: 'flex' }}>
-                    <span style={{ width: '60px', fontWeight: 600 }}>NUP</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span>{suratTugas.nup || '48199-KI'}</span>
-                  </div>
+                <div style={{ fontSize: '12pt', fontWeight: 900, textTransform: 'uppercase', color: '#000000', letterSpacing: '0.04em', marginTop: '1.15rem' }}>
+                  SURAT PENUNJUKAN SURVEY (SPS)
                 </div>
               </div>
 
-              {/* ====== FOOTER TEMBUSAN & ALAMAT ====== */}
-              <div style={{ marginTop: '2.5rem', paddingTop: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', fontSize: '0.72rem', color: '#334155', lineHeight: '1.4' }}>
-                {/* Left side */}
-                <div>
-                  <div style={{ fontWeight: 700, marginBottom: '0.1rem' }}>Tembusan :</div>
-                  <div>1. Yth.Kepala Divisi keuangan</div>
-                  <div style={{ marginBottom: '0.85rem', color: '#64748b' }}>C:/surat tugas kacab/~srt/2026</div>
-
-                  <div style={{ fontWeight: 800, color: '#0f172a' }}>PT. Biro Klasifikasi Indonesia (Persero)</div>
-                  <div style={{ fontWeight: 700 }}>Pontianak Class Middle Branch</div>
-                  <div>Jl. Gusti Hamzah No. 211</div>
-                  <div>PONTIANAK - 78116</div>
-                  <div>INDONESIA</div>
+              {/* ====== BODY PENUGASAN ====== */}
+              <div style={{ marginBottom: '1.25rem' }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', fontSize: '10pt', fontWeight: 700 }}>
+                  <span style={{ width: '220px' }}>NAMA SURVEYOR</span>
+                  <span style={{ width: '20px' }}>:</span>
+                  <span style={{ textTransform: 'uppercase' }}>{surveyorName}</span>
                 </div>
+                <div style={{ marginTop: '1rem', fontWeight: 700, textTransform: 'uppercase', fontSize: '10pt' }}>
+                  UNTUK MELAKSANAKAN SURVEY
+                </div>
+              </div>
 
-                {/* Right side */}
-                <div style={{ textAlign: 'left', minWidth: '170px' }}>
-                  <div style={{ display: 'flex' }}>
-                    <span style={{ width: '60px', fontWeight: 600 }}>Phone</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span>(0561) 739579</span>
-                  </div>
-                  <div style={{ display: 'flex' }}>
-                    <span style={{ width: '60px', fontWeight: 600 }}>Fax</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span>:-</span>
-                  </div>
-                  <div style={{ display: 'flex', marginBottom: '0.75rem' }}>
-                    <span style={{ width: '60px', fontWeight: 600 }}>E-Mail</span>
-                    <span style={{ width: '15px' }}>:</span>
-                    <span>pk@bki.co.id</span>
-                  </div>
+              {/* ====== TABEL RINCIAN OBJEK PENUGASAN ====== */}
+              <div style={{ paddingLeft: '1.5rem', marginBottom: '3rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', lineHeight: '1.8' }}>
+                  <tbody>
+                    <tr>
+                      <td style={{ width: '200px', fontWeight: 700, verticalAlign: 'top' }}>NAMA KAPAL / OBJEK</td>
+                      <td style={{ width: '20px', verticalAlign: 'top' }}>:</td>
+                      <td style={{ fontWeight: 900, textTransform: 'uppercase', verticalAlign: 'top' }}>{namaKapal}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>PEMOHON</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ textTransform: 'uppercase', verticalAlign: 'top' }}>{pemohon}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>JENIS SURVEY</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ textTransform: 'uppercase', verticalAlign: 'top' }}>{jenisSurvey}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>TEMPAT SURVEY KLAS</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ textTransform: 'uppercase', verticalAlign: 'top' }}>{lokasiSurvey}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>TANGGAL SURVEY</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ textTransform: 'uppercase', verticalAlign: 'top' }}>
+                        {tglSurveyFormatted.toUpperCase()} <span style={{ marginLeft: '1.5rem', fontWeight: 800 }}>/ TENTATIVE</span>
+                      </td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>NOMOR AGENDA</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ verticalAlign: 'top' }}>{noAgenda}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>NO.ORDER</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ fontWeight: 900, textTransform: 'uppercase', verticalAlign: 'top' }}>{noOrder}</td>
+                    </tr>
+                    <tr>
+                      <td style={{ fontWeight: 700, verticalAlign: 'top' }}>CATATAN</td>
+                      <td style={{ verticalAlign: 'top' }}>:</td>
+                      <td style={{ verticalAlign: 'top' }}>{catatan}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
 
+              {/* ====== TANDA TANGAN KEPALA CABANG ====== */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2.5rem', fontSize: '10pt', lineHeight: '1.5' }}>
+                <div style={{ width: '280px', textAlign: 'left' }}>
+                  <div style={{ marginBottom: '4.5rem' }}>
+                    Pontianak, {tglSurveyFormatted}
+                  </div>
                   <div>
-                    <a href="https://www.idsurvey.co.id" target="_blank" rel="noopener noreferrer" style={{ color: '#0066cc', fontWeight: 700, textDecoration: 'underline' }}>
-                      www.idsurvey.co.id
-                    </a>
+                    <span style={{ fontWeight: 900, textDecoration: 'underline', textTransform: 'uppercase', fontSize: '10.5pt' }}>
+                      {kepalaCabang}
+                    </span>
                   </div>
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Footer */}
+          {/* Modal Footer */}
           <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <button className="btn btn-secondary" onClick={onClose}>
               Tutup
             </button>
             <button className="btn btn-primary" onClick={handlePrint}>
               <Printer size={16} />
-              Cetak / Save PDF
+              Cetak / Save PDF (SPS)
             </button>
           </div>
         </div>

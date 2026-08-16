@@ -64,23 +64,26 @@ export function isPasswordHashed(storedValue) {
 }
 
 
-// ============================================================
-// 2. XSS INPUT SANITIZATION
-// ============================================================
+export function unescapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&#x2F;/gi, '/')
+    .replace(/&#x27;/gi, "'")
+    .replace(/&quot;/gi, '"')
+    .replace(/&lt;/gi, '<')
+    .replace(/&gt;/gi, '>')
+    .replace(/&amp;/gi, '&');
+}
 
 /**
- * Escape dangerous HTML characters to prevent XSS injection.
- * Use this on all user text inputs before saving to state/localStorage.
+ * Clean dangerous HTML tags to prevent XSS injection.
+ * Use this on user text inputs before saving to state/localStorage.
  */
 export function sanitizeInput(str) {
   if (typeof str !== 'string') return str;
-  return str
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;')
-    .replace(/\//g, '&#x2F;');
+  return unescapeHtml(str)
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/<[^>]+>/g, '');
 }
 
 /**
@@ -131,19 +134,15 @@ export function validatePasswordStrength(password) {
     score += 1;
   }
 
-  if (!/[A-Z]/.test(password)) {
-    errors.push('Harus ada minimal 1 huruf besar (A-Z)');
-  } else {
+  if (/[A-Z]/.test(password)) {
     score += 1;
   }
 
-  if (!/[a-z]/.test(password)) {
-    errors.push('Harus ada minimal 1 huruf kecil (a-z)');
+  if (/[a-z]/.test(password)) {
+    score += 1;
   }
 
-  if (!/[0-9]/.test(password)) {
-    errors.push('Harus ada minimal 1 angka (0-9)');
-  } else {
+  if (/[0-9]/.test(password)) {
     score += 1;
   }
 
@@ -152,7 +151,7 @@ export function validatePasswordStrength(password) {
 
   return {
     isValid: errors.length === 0,
-    score,
+    score: Math.min(score, 4),
     label: labels[Math.min(score, 4)],
     color: colors[Math.min(score, 4)],
     errors

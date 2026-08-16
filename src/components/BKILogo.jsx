@@ -1,16 +1,17 @@
 import React from 'react';
 
-export const BKILogo = ({ height = 36, className = '', style = {} }) => {
+export const BKILogo = ({ height = 36, size, className = '', style = {} }) => {
+  const actualHeight = size || height;
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
       viewBox="0 0 25.188301 14.393404"
-      height={height}
+      height={actualHeight}
       className={className}
       style={{
         display: 'inline-block',
         flexShrink: 0,
-        height,
+        height: `${actualHeight}px`,
         width: 'auto',
         verticalAlign: 'middle',
         ...style,

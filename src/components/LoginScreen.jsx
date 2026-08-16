@@ -1,15 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Shield, ArrowRight, UserCheck, Wallet, User, KeyRound, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
+import { ArrowRight, KeyRound, Lock, Eye, EyeOff, AlertTriangle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { BKILogo } from './BKILogo';
+import { IDSurveyLogo } from './IDSurveyLogo';
 import { checkLoginLock } from '../utils/security';
 
 export const LoginScreen = () => {
-  const { login, demoUsers } = useAuth();
+  const { login } = useAuth();
 
-  const [selectedUserId, setSelectedUserId] = useState(demoUsers[1]?.id || demoUsers[0]?.id);
-  const [identifierInput, setIdentifierInput] = useState(demoUsers[1]?.username || 'budi');
+  const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -47,14 +47,6 @@ export const LoginScreen = () => {
     return () => clearInterval(timer);
   }, [lockCountdown]);
 
-  const handleUserSelect = (user) => {
-    setSelectedUserId(user.id);
-    setIdentifierInput(user.username || user.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
-    // Do NOT auto-fill password — user must type it manually
-    setPasswordInput('');
-    setErrorMessage('');
-  };
-
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setErrorMessage('');
@@ -91,22 +83,6 @@ export const LoginScreen = () => {
     }
   }, [identifierInput, passwordInput, lockCountdown, login]);
 
-  const getRoleIcon = (role) => {
-    switch (role) {
-      case 'admin':
-        return <Shield size={18} />;
-      case 'surveyor':
-        return <UserCheck size={18} />;
-      case 'keuangan':
-        return <Wallet size={18} />;
-      case 'kacab':
-        return <User size={18} />;
-      default:
-        return <User size={18} />;
-    }
-  };
-
-  const selectedUserObj = demoUsers.find((u) => u.id === selectedUserId) || demoUsers[0];
   const isLocked = lockCountdown > 0;
 
   const formatCountdown = (seconds) => {
@@ -134,9 +110,9 @@ export const LoginScreen = () => {
           position: 'absolute',
           top: '-10%',
           left: '-5%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(30, 58, 138, 0.25) 0%, rgba(0,0,0,0) 70%)',
+          width: '550px',
+          height: '550px',
+          background: 'radial-gradient(circle, rgba(30, 58, 138, 0.22) 0%, rgba(0,0,0,0) 70%)',
           borderRadius: '50%',
           pointerEvents: 'none'
         }}
@@ -146,9 +122,9 @@ export const LoginScreen = () => {
           position: 'absolute',
           bottom: '-10%',
           right: '-5%',
-          width: '500px',
-          height: '500px',
-          background: 'radial-gradient(circle, rgba(16, 185, 129, 0.2) 0%, rgba(0,0,0,0) 70%)',
+          width: '550px',
+          height: '550px',
+          background: 'radial-gradient(circle, rgba(0, 180, 167, 0.18) 0%, rgba(0,0,0,0) 70%)',
           borderRadius: '50%',
           pointerEvents: 'none'
         }}
@@ -156,121 +132,70 @@ export const LoginScreen = () => {
 
       <div
         style={{
-          maxWidth: '1020px',
+          maxWidth: '960px',
           width: '100%',
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: '2rem',
+          gap: '2.5rem',
           alignItems: 'center',
           zIndex: 2
         }}
       >
-        {/* Left Side: BKI Pontianak Branding */}
+        {/* Left Side: BKI & IDSurvey Branding */}
         <div>
-          <div className="brand" style={{ marginBottom: '1.5rem' }}>
-            <BKILogo size={64} />
-            <div>
-              <h1 style={{ fontSize: '1.75rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                BKI Cabang Pontianak
-              </h1>
-              <div style={{ fontSize: '0.875rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                PT Biro Klasifikasi Indonesia (Persero)
-              </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
+            <BKILogo size={52} />
+            <div style={{ height: '36px', width: '1.5px', background: 'var(--border-color)' }} />
+            <IDSurveyLogo height={38} />
+          </div>
+
+          <div style={{ marginBottom: '1.25rem' }}>
+            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25 }}>
+              Sistem Informasi Surat Tugas & Survei Kapal
+            </h1>
+            <div style={{ fontSize: '0.95rem', color: 'var(--accent-primary)', fontWeight: 700, marginTop: '0.35rem' }}>
+              PT Biro Klasifikasi Indonesia (Persero) — Cabang Pontianak
             </div>
           </div>
 
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.95rem', lineHeight: '1.6' }}>
-            Sistem Informasi Terpadu Surat Tugas, Kwitansi Honorarium, dan Pengisian Laporan Survei Klasifikasi Kapal Wilayah Kalimantan Barat.
+          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', lineHeight: '1.65', margin: 0 }}>
+            Portal resmi pengelolaan Surat Tugas Survei, Kwitansi Honorarium Surveyor, dan Laporan Kelaiklautan Kapal untuk wilayah kerja Kalimantan Barat.
           </p>
-
-
         </div>
 
-        {/* Right Side: User Account Selection */}
+        {/* Right Side: Professional Secure Login Form */}
         <div
           className="card-section"
           style={{
-            padding: '2rem',
+            padding: '2.25rem',
             margin: 0,
             background: 'var(--bg-card-solid)',
-            borderColor: 'var(--border-color-strong)'
+            borderColor: 'var(--border-color-strong)',
+            boxShadow: 'var(--shadow-lg)'
           }}
         >
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-              Pilih Akun Personel BKI Pontianak
+          <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
+            <div
+              style={{
+                width: '46px',
+                height: '46px',
+                borderRadius: '12px',
+                background: 'var(--accent-light)',
+                color: 'var(--accent-primary)',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                marginBottom: '0.75rem'
+              }}
+            >
+              <Lock size={22} />
+            </div>
+            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+              Login ke Akun Anda
             </h2>
-            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-              Klik salah satu akun lalu masukkan password untuk login:
+            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+              Masukkan username atau email dan password resmi Anda:
             </p>
-          </div>
-
-          {/* User Selection List */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '1.25rem', maxHeight: '240px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-            {demoUsers.map((user) => {
-              const isSelected = selectedUserId === user.id;
-              return (
-                <div
-                  key={user.id}
-                  onClick={() => handleUserSelect(user)}
-                  style={{
-                    padding: '0.75rem 0.9rem',
-                    borderRadius: 'var(--radius-md)',
-                    border: `2px solid ${isSelected ? 'var(--accent-primary)' : 'var(--border-color)'}`,
-                    background: isSelected ? 'var(--accent-light)' : 'var(--bg-main)',
-                    cursor: 'pointer',
-                    transition: 'all 0.15s ease',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '0.75rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <div
-                      style={{
-                        width: '36px',
-                        height: '36px',
-                        borderRadius: '10px',
-                        background: user.avatarBg,
-                        color: '#fff',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 800,
-                        fontSize: '0.9rem',
-                        flexShrink: 0
-                      }}
-                    >
-                      {getRoleIcon(user.role)}
-                    </div>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
-                        {user.name}
-                      </div>
-                      <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)' }}>
-                        Akun: <strong style={{ color: 'var(--accent-primary)' }}>@{user.username || user.role}</strong> • {user.roleLabel}
-                      </div>
-                    </div>
-                  </div>
-
-                  {isSelected && (
-                    <span
-                      style={{
-                        fontSize: '0.65rem',
-                        background: 'var(--accent-primary)',
-                        color: '#fff',
-                        padding: '0.15rem 0.45rem',
-                        borderRadius: '4px',
-                        fontWeight: 700
-                      }}
-                    >
-                      DIPILIH
-                    </span>
-                  )}
-                </div>
-              );
-            })}
           </div>
 
           {/* Lockout Warning Banner */}
@@ -280,7 +205,7 @@ export const LoginScreen = () => {
               background: 'rgba(239, 68, 68, 0.12)',
               border: '1.5px solid #ef4444',
               borderRadius: 'var(--radius-md)',
-              marginBottom: '1rem',
+              marginBottom: '1.25rem',
               display: 'flex',
               alignItems: 'center',
               gap: '0.65rem'
@@ -298,13 +223,13 @@ export const LoginScreen = () => {
           )}
 
           {errorMessage && !isLocked && (
-            <div style={{ padding: '0.6rem 0.85rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1rem' }}>
+            <div style={{ padding: '0.65rem 0.9rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1.25rem' }}>
               ⚠️ {errorMessage}
             </div>
           )}
 
           <form onSubmit={handleSubmit}>
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                 <KeyRound size={14} color="var(--accent-primary)" />
                 <span>Username atau Email BKI *</span>
@@ -314,14 +239,15 @@ export const LoginScreen = () => {
                 className="form-input"
                 value={identifierInput}
                 onChange={(e) => setIdentifierInput(e.target.value)}
-                placeholder="Ketik username atau email BKI (budi, siti, admin@bki.co.id)..."
+                placeholder="Masukkan username atau email BKI..."
                 required
                 disabled={isLocked}
                 autoComplete="username"
+                autoFocus
               />
             </div>
 
-            <div className="form-group">
+            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
                 <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0 }}>
                   <Lock size={14} color="var(--accent-primary)" />
@@ -352,7 +278,7 @@ export const LoginScreen = () => {
                   style={{ paddingRight: '2.5rem' }}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Masukkan password..."
+                  placeholder="Masukkan password akun Anda..."
                   required
                   disabled={isLocked}
                   autoComplete="current-password"
@@ -379,7 +305,7 @@ export const LoginScreen = () => {
 
             {/* Failed attempts indicator */}
             {failedAttempts > 0 && failedAttempts < 5 && !isLocked && (
-              <div style={{ fontSize: '0.725rem', color: '#f59e0b', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+              <div style={{ fontSize: '0.725rem', color: '#f59e0b', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                 <AlertTriangle size={13} />
                 <span>Percobaan gagal: {failedAttempts}/5 — Akun akan dikunci setelah 5x gagal</span>
               </div>
@@ -388,11 +314,11 @@ export const LoginScreen = () => {
             <button
               type="submit"
               className="btn btn-primary"
-              style={{ width: '100%', padding: '0.8rem', marginTop: '0.5rem', opacity: isLocked || isLoading ? 0.6 : 1 }}
+              style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem', opacity: isLocked || isLoading ? 0.6 : 1, fontSize: '0.95rem' }}
               disabled={isLocked || isLoading}
             >
               {isLoading ? (
-                <span>Memverifikasi...</span>
+                <span>Memverifikasi Kredensial...</span>
               ) : isLocked ? (
                 <>
                   <Lock size={16} />
@@ -400,12 +326,16 @@ export const LoginScreen = () => {
                 </>
               ) : (
                 <>
-                  <span>Masuk Sebagai {selectedUserObj ? selectedUserObj.name : 'Personel'}</span>
+                  <span>Masuk ke Sistem</span>
                   <ArrowRight size={18} />
                 </>
               )}
             </button>
           </form>
+
+          <div style={{ textAlign: 'center', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+            🔒 Portal Resmi PT Biro Klasifikasi Indonesia (Persero) • IDSurvey
+          </div>
         </div>
       </div>
 

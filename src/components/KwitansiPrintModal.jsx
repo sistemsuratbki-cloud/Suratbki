@@ -1,19 +1,30 @@
 import React from 'react';
-import { X, Printer, Ticket, Paperclip } from 'lucide-react';
+import { X, Printer, Ticket, Paperclip, Anchor } from 'lucide-react';
 import { formatRupiah, formatDateIndo } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
+import { useData } from '../context/DataContext';
+import { DanantaraLogo } from './DanantaraLogo';
+import { IDSurveyLogo } from './IDSurveyLogo';
+import { BKILogo } from './BKILogo';
+import { unescapeHtml } from '../utils/security';
 
 export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }) => {
+  const { adminSettings } = useData();
   if (!isOpen || !kwitansi) return null;
 
   const linkedSurat = suratTugasList.find((s) => s.id === kwitansi.suratId);
-  const ticketFee = kwitansi.biayaTiket || linkedSurat?.biayaTiket || 0;
-  const transportCategory = kwitansi.kategoriTransportasi || linkedSurat?.kategoriTransportasi || 'Pesawat Terbang';
-  const ticketFile = kwitansi.fileTiketName || linkedSurat?.fileTiketName || '';
+  const baseRate = Number(kwitansi.tarifDasar) || Number(linkedSurat?.tarifDasar) || 3000000;
+  const isCito = !!kwitansi.isCito || !!linkedSurat?.isCito;
+  const jumlahHariLibur = Number(kwitansi.jumlahHariLibur) || Number(linkedSurat?.jumlahHariLibur) || 0;
+  const citoMultiplier = jumlahHariLibur > 0 ? (0.5 * jumlahHariLibur) : (isCito ? 0.5 : 0);
+  const citoSurcharge = Math.round(baseRate * citoMultiplier);
 
-  const netFee = kwitansi.jumlah - ticketFee;
-  const baseRate = kwitansi.tarifDasar || Math.round(netFee / (kwitansi.isCito ? 1.5 : 1));
-  const citoSurcharge = kwitansi.isCito ? Math.round(baseRate * 0.5) : 0;
+  const hotelFee = Number(kwitansi.tiketHotel) || Number(linkedSurat?.tiketHotel) || 0;
+  const flightFee = Number(kwitansi.tiketPesawatTaxi) || Number(kwitansi.biayaTiket) || Number(linkedSurat?.tiketPesawatTaxi) || Number(linkedSurat?.biayaTiket) || 0;
+  const totalReimbursement = hotelFee + flightFee;
+  const grandTotal = Number(kwitansi.jumlah) || (baseRate + citoSurcharge + totalReimbursement);
+
+  const kepalaCabang = adminSettings?.kepalaCabang || linkedSurat?.kepalaCabang || 'MUHSON NURROCHMAT';
 
   const handlePrint = () => {
     window.print();
@@ -24,15 +35,18 @@ export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }
       <div className="modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
-          style={{ maxWidth: '750px', background: '#ffffff', color: '#0f172a' }}
+          style={{ maxWidth: '780px', background: '#ffffff', color: '#0f172a' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-            <h3 className="modal-title" style={{ color: '#0f172a' }}>Preview Kwitansi BKI Cabang Pontianak</h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Anchor size={20} color="#003366" />
+              <h3 className="modal-title" style={{ color: '#0f172a' }}>Preview & Cetak Kwitansi Honorarium BKI</h3>
+            </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
               <button className="btn btn-primary btn-sm" onClick={handlePrint}>
                 <Printer size={15} />
-                Cetak / Save PDF (BKI Format)
+                Cetak / Download PDF
               </button>
               <button className="btn btn-secondary btn-sm" onClick={onClose}>
                 <X size={16} />
@@ -45,140 +59,127 @@ export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }
             <div
               className="printable-sheet"
               style={{
-                border: '2px double #003366',
-                padding: '1.5rem',
-                borderRadius: '8px',
-                fontFamily: 'serif',
+                border: '2px solid #003366',
+                padding: '1.75rem 2rem',
+                borderRadius: '6px',
+                fontFamily: "'Arial', 'Segoe UI', sans-serif",
                 background: '#ffffff',
                 color: '#0f172a',
+                fontSize: '9.5pt',
+                lineHeight: '1.5'
               }}
             >
-              {/* Header Letterhead */}
-              <div style={{ textAlign: 'center', marginBottom: '1.25rem', borderBottom: '2px solid #003366', paddingBottom: '0.75rem' }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 700, letterSpacing: '0.1em', color: '#1e3a8a' }}>
-                  BKI — BIRO KLASIFIKASI INDONESIA
+              {/* Header Letterhead Logos */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingBottom: '0.5rem', borderBottom: '2px solid #003366' }}>
+                <DanantaraLogo height={38} />
+                <IDSurveyLogo height={40} />
+                <BKILogo height={38} />
+              </div>
+
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
+                <div style={{ fontSize: '11pt', fontWeight: 900, textTransform: 'uppercase', color: '#003366', letterSpacing: '0.04em' }}>
+                  KWITANSI PEMBAYARAN HONORARIUM SURVEYOR
                 </div>
-                <h2 style={{ fontSize: '1.3rem', fontWeight: 900, textTransform: 'uppercase', color: '#003366', margin: '0.2rem 0' }}>
-                  PT BIRO KLASIFIKASI INDONESIA (PERSERO)
-                </h2>
-                <div style={{ fontSize: '0.875rem', fontWeight: 800, color: '#0f172a' }}>
-                  CABANG PONTIANAK — KALIMANTAN BARAT
-                </div>
-                <div style={{ fontSize: '0.75rem', color: '#475569', marginTop: '0.15rem' }}>
-                  Jl. Rahadi Usman No. 1, Pelabuhan Dwikora Pontianak • Email: pontianak@bki.co.id
+                <div style={{ fontSize: '9pt', fontWeight: 700, color: '#475569', marginTop: '0.2rem' }}>
+                  Nomor Kwitansi: {kwitansi.id} {isCito && <span style={{ color: '#dc2626', fontWeight: 800 }}>[⚡ CITO / LIBUR +50%]</span>}
                 </div>
               </div>
 
-              <div style={{ textAlign: 'center', marginBottom: '1.15rem' }}>
-                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, textTransform: 'uppercase', color: '#003366', letterSpacing: '0.05em' }}>
-                  KWITANSI PEMBAYARAN HONORARIUM INSPEKSI & SURVEI KLASIFIKASI
-                </h3>
-                <div style={{ fontSize: '0.8rem', color: '#475569', marginTop: '0.15rem' }}>
-                  Nomor Bukti: {kwitansi.id} {kwitansi.isCito && <span style={{ color: '#dc2626', fontWeight: 700 }}>[CITO / HARI LIBUR +50%]</span>}
-                </div>
-              </div>
-
-              <table style={{ width: '100%', fontSize: '0.875rem', borderCollapse: 'separate', borderSpacing: '0 0.5rem' }}>
+              <table style={{ width: '100%', fontSize: '9.5pt', borderCollapse: 'separate', borderSpacing: '0 0.5rem' }}>
                 <tbody>
                   <tr>
-                    <td style={{ width: '175px', fontWeight: 700 }}>Telah Diterima Dari</td>
+                    <td style={{ width: '190px', fontWeight: 700 }}>Telah Diterima Dari</td>
                     <td style={{ width: '15px' }}>:</td>
                     <td style={{ fontWeight: 600 }}>PT Biro Klasifikasi Indonesia (Persero) Cabang Pontianak</td>
                   </tr>
                   <tr>
-                    <td style={{ fontWeight: 700 }}>Nama Class Surveyor</td>
+                    <td style={{ fontWeight: 700 }}>Nama Penerima (Surveyor)</td>
                     <td>:</td>
-                    <td style={{ fontWeight: 700, color: '#1e40af' }}>{kwitansi.penerima}</td>
+                    <td style={{ fontWeight: 800, textTransform: 'uppercase', color: '#003366' }}>{kwitansi.penerima}</td>
                   </tr>
                   <tr>
-                    <td style={{ fontWeight: 700 }}>Untuk Pembayaran</td>
-                    <td>:</td>
+                    <td style={{ fontWeight: 700, verticalAlign: 'top' }}>Untuk Pembayaran</td>
+                    <td style={{ verticalAlign: 'top' }}>:</td>
                     <td>
-                      {linkedSurat ? (
-                        <div>
-                          Honorarium Survei Klasifikasi Kapal <strong>{linkedSurat.namaKapal || 'MV Samudra Jaya'}</strong> — {linkedSurat.perihal} (Lokasi: {linkedSurat.lokasi})
-                        </div>
-                      ) : (
-                        'Honorarium Inspeksi Kelayakan & Klasifikasi Kapal BKI'
-                      )}
-                    </td>
-                  </tr>
-                  {kwitansi.isCito && (
-                    <tr>
-                      <td style={{ fontWeight: 700 }}>Kategori Tarif</td>
-                      <td>:</td>
-                      <td>
-                        <span style={{ background: '#fee2e2', color: '#dc2626', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
-                          ⚡ CITO / HARI LIBUR (Surcharge +50%)
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                  {ticketFee > 0 && (
-                    <tr>
-                      <td style={{ fontWeight: 700 }}>Tiket Perjalanan</td>
-                      <td>:</td>
-                      <td>
-                        <span style={{ background: '#d1fae5', color: '#065f46', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700, fontSize: '0.8rem' }}>
-                          🎟️ {transportCategory}: {formatRupiah(ticketFee)} {ticketFile && `(${ticketFile})`}
-                        </span>
-                      </td>
-                    </tr>
-                  )}
-                  <tr>
-                    <td style={{ fontWeight: 700 }}>Rincian Biaya</td>
-                    <td>:</td>
-                    <td>
-                      <div style={{ fontSize: '0.85rem', color: '#334155' }}>
-                        Tarif Dasar Lokasi BKI: {formatRupiah(baseRate)}
-                        {kwitansi.isCito && <span> + CITO (50%): {formatRupiah(citoSurcharge)}</span>}
-                        {ticketFee > 0 && <span> + Tiket ({transportCategory}): {formatRupiah(ticketFee)}</span>}
+                      <div>
+                        Honorarium Penugasan Survei Kapal <strong>{kwitansi.namaKapal || linkedSurat?.namaKapal || 'BAHARI 279'}</strong> — {linkedSurat?.jenisSurvey || linkedSurat?.perihal || 'DINAS SURVEY KLAS'}
+                      </div>
+                      <div style={{ fontSize: '8.5pt', color: '#475569', marginTop: '0.15rem' }}>
+                        Tempat / Rute: <strong>{kwitansi.lokasi || linkedSurat?.tempatSurvey || linkedSurat?.lokasi || 'Pontianak'}</strong> • No. Agenda: {unescapeHtml(linkedSurat?.nomor || kwitansi.nomorSurat || '-')}
                       </div>
                     </td>
                   </tr>
+
+                  {/* Rincian Komponen Biaya */}
+                  <tr>
+                    <td style={{ fontWeight: 700, verticalAlign: 'top' }}>Rincian Biaya & Reimburse</td>
+                    <td style={{ verticalAlign: 'top' }}>:</td>
+                    <td>
+                      <div style={{ fontSize: '9pt', color: '#1e293b', background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '4px', border: '1px solid #e2e8f0', lineHeight: '1.6' }}>
+                        <div>1. Tarif Dasar Lokasi: <strong>{formatRupiah(baseRate)}</strong></div>
+                        {isCito && (
+                          <div style={{ color: '#dc2626' }}>
+                            2. Surcharge CITO / Hari Libur {jumlahHariLibur > 0 ? `(${jumlahHariLibur} Hari @ 50%)` : '(+50%)'}: <strong>{formatRupiah(citoSurcharge)}</strong>
+                          </div>
+                        )}
+                        {hotelFee > 0 && (
+                          <div style={{ color: '#0284c7' }}>
+                            3. Tiket Hotel / Penginapan: <strong>{formatRupiah(hotelFee)}</strong>
+                          </div>
+                        )}
+                        {flightFee > 0 && (
+                          <div style={{ color: '#059669' }}>
+                            4. Tiket Pesawat & Taxi (Transportasi): <strong>{formatRupiah(flightFee)}</strong>
+                          </div>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
                   <tr>
                     <td style={{ fontWeight: 700 }}>Total Pembayaran</td>
                     <td>:</td>
                     <td>
-                      <span style={{ fontSize: '1.15rem', fontWeight: 800, background: '#f1f5f9', color: kwitansi.isCito ? '#b91c1c' : '#003366', padding: '0.2rem 0.65rem', borderRadius: '4px', border: '1px solid #cbd5e1' }}>
-                        {formatRupiah(kwitansi.jumlah)}
+                      <span style={{ fontSize: '12pt', fontWeight: 900, background: '#f1f5f9', color: '#003366', padding: '0.25rem 0.75rem', borderRadius: '4px', border: '1.5px solid #003366' }}>
+                        {formatRupiah(grandTotal)}
                       </span>
                     </td>
                   </tr>
+
                   <tr>
-                    <td style={{ fontWeight: 700 }}>Status Transaksi</td>
+                    <td style={{ fontWeight: 700 }}>Status Approval Keuangan</td>
                     <td>:</td>
                     <td>
-                      <span style={{ fontWeight: 700, color: kwitansi.status === 'Sudah Dibayar' ? '#047857' : '#b45309' }}>
+                      <span style={{ fontWeight: 800, color: kwitansi.status === 'Sudah Dibayar' ? '#047857' : '#b45309' }}>
                         [{kwitansi.status.toUpperCase()}]
                       </span>
-                      {kwitansi.tglBayar && ` Tanggal: ${formatDateIndo(kwitansi.tglBayar)}`}
+                      {kwitansi.tglBayar && ` • Tanggal: ${formatDateIndo(kwitansi.tglBayar)}`}
                     </td>
                   </tr>
-                  {kwitansi.catatan && (
-                    <tr>
-                      <td style={{ fontWeight: 700 }}>Catatan Transaksi</td>
-                      <td>:</td>
-                      <td style={{ fontStyle: 'italic', color: '#64748b' }}>{kwitansi.catatan}</td>
-                    </tr>
-                  )}
                 </tbody>
               </table>
 
-              {/* Official Signatures */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '2rem', textAlign: 'center' }}>
+              {/* Tanda Tangan 3 Kolom: Surveyor, Keuangan, Kepala Cabang */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginTop: '2.5rem', textAlign: 'center', fontSize: '8.5pt' }}>
                 <div>
-                  <div style={{ fontSize: '0.8rem' }}>Disetujui Dibayar,</div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>Kepala Cabang BKI Pontianak</div>
-                  <div style={{ height: '45px' }} />
-                  <div style={{ fontWeight: 700, textDecoration: 'underline', fontSize: '0.85rem' }}>( Ir. H. Agus Susanto, MT )</div>
+                  <div style={{ fontWeight: 700 }}>Menyetujui,</div>
+                  <div>Kepala Cabang</div>
+                  <div style={{ height: '50px' }} />
+                  <div style={{ fontWeight: 800, textDecoration: 'underline', textTransform: 'uppercase' }}>{kepalaCabang}</div>
                 </div>
 
                 <div>
-                  <div style={{ fontSize: '0.8rem' }}>Pontianak, {formatDateIndo(kwitansi.tglBayar || new Date().toISOString())}</div>
-                  <div style={{ fontSize: '0.8rem', fontWeight: 700 }}>Penerima Honor (Class Surveyor)</div>
-                  <div style={{ height: '45px' }} />
-                  <div style={{ fontWeight: 700, textDecoration: 'underline', fontSize: '0.85rem' }}>( {kwitansi.penerima} )</div>
+                  <div style={{ fontWeight: 700 }}>Verifikasi,</div>
+                  <div>Bagian Keuangan</div>
+                  <div style={{ height: '50px' }} />
+                  <div style={{ fontWeight: 800, textDecoration: 'underline', textTransform: 'uppercase' }}>( DIVISI KEUANGAN )</div>
+                </div>
+
+                <div>
+                  <div style={{ fontWeight: 700 }}>Pontianak, {formatDateIndo(kwitansi.tglBayar || new Date().toISOString())}</div>
+                  <div>Penerima Honor (Surveyor)</div>
+                  <div style={{ height: '50px' }} />
+                  <div style={{ fontWeight: 800, textDecoration: 'underline', textTransform: 'uppercase' }}>{kwitansi.penerima}</div>
                 </div>
               </div>
             </div>
@@ -187,6 +188,10 @@ export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }
           <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
             <button className="btn btn-secondary" onClick={onClose}>
               Tutup
+            </button>
+            <button className="btn btn-primary" onClick={handlePrint}>
+              <Printer size={16} />
+              Cetak / Save PDF (Kwitansi)
             </button>
           </div>
         </div>
