@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Receipt, Printer } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Receipt, Printer, Plane } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, getStatusBadgeClass } from '../utils/formatters';
@@ -248,6 +248,28 @@ export const KwitansiTable = () => {
                           >
                             <Trash2 size={15} />
                           </button>
+                        )}
+                        {item.fileTiketTransportData && (
+                          <a
+                            href={item.fileTiketTransportData}
+                            download={item.fileTiketTransportName || 'tiket'}
+                            className="btn btn-secondary btn-icon btn-sm"
+                            title={`Unduh Tiket: ${item.fileTiketTransportName}`}
+                            style={{ borderColor: '#0284c7', color: '#0284c7' }}
+                          >
+                            <Plane size={15} />
+                          </a>
+                        )}
+                        {item.fileKwitansiHotelData && (
+                          <a
+                            href={item.fileKwitansiHotelData}
+                            download={item.fileKwitansiHotelName || 'hotel'}
+                            className="btn btn-secondary btn-icon btn-sm"
+                            title={`Unduh Kwitansi Hotel: ${item.fileKwitansiHotelName}`}
+                            style={{ borderColor: '#059669', color: '#059669' }}
+                          >
+                            <Receipt size={15} />
+                          </a>
                         )}
                       </div>
                     </td>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Calculator, Plane, Building2, ShieldCheck, Sparkles, MapPin, Calendar, FileText } from 'lucide-react';
+import { X, Save, Calculator, Plane, Building2, ShieldCheck, Sparkles, MapPin, Calendar, FileText, Receipt } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { formatRupiah } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
@@ -21,7 +21,11 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
     jumlah: 3000000,
     tglBayar: '',
     status: 'Belum Dibayar',
-    catatan: ''
+    catatan: '',
+    fileTiketTransportName: '',
+    fileTiketTransportData: '',
+    fileKwitansiHotelName: '',
+    fileKwitansiHotelData: ''
   });
 
   useEffect(() => {
@@ -50,7 +54,11 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
         jumlah: total,
         tglBayar: editItem.tglBayar || new Date().toISOString().split('T')[0],
         status: editItem.status || 'Belum Dibayar',
-        catatan: editItem.catatan || ''
+        catatan: editItem.catatan || '',
+        fileTiketTransportName: editItem.fileTiketTransportName || linkedSurat?.fileTiketTransportName || linkedSurat?.fileTiketName || '',
+        fileTiketTransportData: editItem.fileTiketTransportData || linkedSurat?.fileTiketTransportData || '',
+        fileKwitansiHotelName: editItem.fileKwitansiHotelName || linkedSurat?.fileKwitansiHotelName || '',
+        fileKwitansiHotelData: editItem.fileKwitansiHotelData || linkedSurat?.fileKwitansiHotelData || ''
       });
     } else {
       const defaultSurat = suratTugas.length > 0 ? suratTugas[0] : null;
@@ -77,7 +85,11 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
         jumlah: total,
         tglBayar: new Date().toISOString().split('T')[0],
         status: 'Belum Dibayar',
-        catatan: defaultSurat ? `Honorarium Survei ${defaultSurat.namaKapal} (${defaultSurat.tempatSurvey || defaultSurat.lokasi})` : ''
+        catatan: defaultSurat ? `Honorarium Survei ${defaultSurat.namaKapal} (${defaultSurat.tempatSurvey || defaultSurat.lokasi})` : '',
+        fileTiketTransportName: defaultSurat?.fileTiketTransportName || defaultSurat?.fileTiketName || '',
+        fileTiketTransportData: defaultSurat?.fileTiketTransportData || '',
+        fileKwitansiHotelName: defaultSurat?.fileKwitansiHotelName || '',
+        fileKwitansiHotelData: defaultSurat?.fileKwitansiHotelData || ''
       });
     }
   }, [editItem, isOpen, suratTugas]);
@@ -109,7 +121,11 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
         tiketHotel: hotel,
         tiketPesawatTaxi: flight,
         jumlah: total,
-        catatan: `Honorarium Survei ${selectedSurat.namaKapal} (${selectedSurat.tempatSurvey || selectedSurat.lokasi})`
+        catatan: `Honorarium Survei ${selectedSurat.namaKapal} (${selectedSurat.tempatSurvey || selectedSurat.lokasi})`,
+        fileTiketTransportName: selectedSurat.fileTiketTransportName || selectedSurat.fileTiketName || prev.fileTiketTransportName,
+        fileTiketTransportData: selectedSurat.fileTiketTransportData || prev.fileTiketTransportData,
+        fileKwitansiHotelName: selectedSurat.fileKwitansiHotelName || prev.fileKwitansiHotelName,
+        fileKwitansiHotelData: selectedSurat.fileKwitansiHotelData || prev.fileKwitansiHotelData
       }));
     } else {
       setFormData((prev) => ({
@@ -166,6 +182,29 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
   const hotelFee = Number(formData.tiketHotel) || 0;
   const flightFee = Number(formData.tiketPesawatTaxi) || 0;
   const grandTotal = baseRate + citoSurcharge + hotelFee + flightFee;
+
+  const handleFileUpload = (fieldKey, e) => {
+    const file = e.target.files[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [fieldKey]: file.name,
+          [`${fieldKey.replace('Name', 'Data')}`]: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleRemoveFile = (fieldKey) => {
+    setFormData((prev) => ({
+      ...prev,
+      [fieldKey]: '',
+      [`${fieldKey.replace('Name', 'Data')}`]: ''
+    }));
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -333,6 +372,67 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
                     <span style={{ fontSize: '1.25rem', fontWeight: 900, color: 'var(--accent-primary)' }}>
                       {formatRupiah(grandTotal)}
                     </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Upload Lampiran Bukti */}
+              <div
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1.5px solid var(--border-color-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  📎 LAMPIRAN BUKTI BIAYA
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <Plane size={16} color="#0284c7" />
+                      <span>Upload Tiket Pesawat/Transport</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="form-input"
+                      onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
+                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    />
+                    {formData.fileTiketTransportName && (
+                      <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(2, 132, 199, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span>📸 {formData.fileTiketTransportName}</span>
+                        <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                      <Receipt size={16} color="#059669" />
+                      <span>Upload Kwitansi Hotel/Penginapan</span>
+                    </label>
+                    <input
+                      type="file"
+                      accept="image/*,.pdf"
+                      className="form-input"
+                      onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
+                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    />
+                    {formData.fileKwitansiHotelName && (
+                      <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                        <span>📄 {formData.fileKwitansiHotelName}</span>
+                        <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                          <X size={13} />
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>

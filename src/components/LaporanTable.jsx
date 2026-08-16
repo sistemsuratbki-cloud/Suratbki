@@ -744,6 +744,29 @@ export const LaporanTable = () => {
                             <Trash2 size={14} />
                           </button>
                         )}
+                        
+                        {item.fileFotoData && (
+                          <a
+                            href={item.fileFotoData}
+                            download={item.fileFotoName || 'foto'}
+                            className="btn btn-secondary btn-icon btn-sm"
+                            title={`Unduh Foto: ${item.fileFotoName}`}
+                            style={{ borderColor: '#0284c7', color: '#0284c7' }}
+                          >
+                            <Paperclip size={14} />
+                          </a>
+                        )}
+                        {item.fileVisitData && (
+                          <a
+                            href={item.fileVisitData}
+                            download={item.fileVisitName || 'visit'}
+                            className="btn btn-secondary btn-icon btn-sm"
+                            title={`Unduh Visit: ${item.fileVisitName}`}
+                            style={{ borderColor: '#059669', color: '#059669' }}
+                          >
+                            <FileText size={14} />
+                          </a>
+                        )}
                       </div>
                     </td>
                   </tr>

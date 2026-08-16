@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
-import { Sun, Moon, RotateCcw, LogOut, User } from 'lucide-react';
+import { Sun, Moon, RotateCcw, LogOut, User, Menu } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmModal } from './ConfirmModal';
 import { BKILogo } from './BKILogo';
 
-export const Header = ({ theme, setTheme }) => {
+export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
   const { resetDemoData } = useData();
   const { currentUser, logout, resetUsers } = useAuth();
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -38,6 +38,13 @@ export const Header = ({ theme, setTheme }) => {
   return (
     <header className="main-header">
       <div className="header-left" style={{ gap: '0.65rem' }}>
+        <button 
+          className="mobile-menu-btn btn-icon btn-secondary" 
+          onClick={() => setIsMobileMenuOpen(true)}
+          style={{ display: 'none' }} // Handled via CSS later, but let's just use CSS for it
+        >
+          <Menu size={20} />
+        </button>
         <BKILogo size={26} />
         <span className="header-panel-title">{getRolePanelTitle()}</span>
       </div>

@@ -5,7 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
 import { BKILogo } from './BKILogo';
 
-export const Sidebar = ({ activeTab, setActiveTab }) => {
+export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei, tariffs } = useData();
   const { currentUser, role, usersList, logout } = useAuth();
 
@@ -73,7 +73,7 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
   });
 
   return (
-    <aside className="sidebar">
+    <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>
       {/* BKI Brand Logo Header */}
       <div className="sidebar-brand" style={{ gap: '0.65rem' }}>
         <BKILogo size={34} />
@@ -95,7 +95,10 @@ export const Sidebar = ({ activeTab, setActiveTab }) => {
             <button
               key={item.id}
               className={`sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
+              }}
             >
               <Icon size={19} className="sidebar-link-icon" />
               <span className="sidebar-link-text">{item.label}</span>

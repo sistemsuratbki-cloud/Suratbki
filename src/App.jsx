@@ -22,6 +22,7 @@ function AppContent() {
   });
 
   const [activeTab, setActiveTab] = useState('calendar');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -34,10 +35,26 @@ function AppContent() {
 
   return (
     <div className="app-container-v2">
-      <Sidebar activeTab={activeTab} setActiveTab={setActiveTab} />
+      {isMobileMenuOpen && (
+        <div 
+          className="mobile-overlay" 
+          onClick={() => setIsMobileMenuOpen(false)}
+        />
+      )}
+      
+      <Sidebar 
+        activeTab={activeTab} 
+        setActiveTab={setActiveTab} 
+        isMobileMenuOpen={isMobileMenuOpen}
+        setIsMobileMenuOpen={setIsMobileMenuOpen}
+      />
 
       <div className="main-panel">
-        <Header theme={theme} setTheme={setTheme} />
+        <Header 
+          theme={theme} 
+          setTheme={setTheme} 
+          setIsMobileMenuOpen={setIsMobileMenuOpen}
+        />
 
         <main className="main-content-v2">
           {activeTab === 'calendar' && (

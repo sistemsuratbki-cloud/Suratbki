@@ -29,9 +29,13 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     hasil: '',
     status: 'Draf',
     fileFotoName: '',
+    fileFotoData: '',
     fileVisitName: '',
+    fileVisitData: '',
     fileTiketTransportName: '',
-    fileKwitansiHotelName: ''
+    fileTiketTransportData: '',
+    fileKwitansiHotelName: '',
+    fileKwitansiHotelData: ''
   });
 
   useEffect(() => {
@@ -52,9 +56,13 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         hasil: editItem.hasil || '',
         status: editItem.status || 'Draf',
         fileFotoName: editItem.fileFotoName || '',
+        fileFotoData: editItem.fileFotoData || '',
         fileVisitName: editItem.fileVisitName || '',
+        fileVisitData: editItem.fileVisitData || '',
         fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
-        fileKwitansiHotelName: editItem.fileKwitansiHotelName || ''
+        fileTiketTransportData: editItem.fileTiketTransportData || '',
+        fileKwitansiHotelName: editItem.fileKwitansiHotelName || '',
+        fileKwitansiHotelData: editItem.fileKwitansiHotelData || ''
       });
     } else {
       const defaultSurat = suratTugas.length > 0 ? suratTugas[0] : null;
@@ -76,9 +84,13 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         hasil: defaultSurat?.catatan || '',
         status: 'Draf',
         fileFotoName: defaultSurat?.fileFotoName || '',
+        fileFotoData: defaultSurat?.fileFotoData || '',
         fileVisitName: defaultSurat?.fileVisitName || '',
+        fileVisitData: defaultSurat?.fileVisitData || '',
         fileTiketTransportName: defaultSurat?.fileTiketTransportName || defaultSurat?.fileTiketName || '',
-        fileKwitansiHotelName: defaultSurat?.fileKwitansiHotelName || ''
+        fileTiketTransportData: defaultSurat?.fileTiketTransportData || '',
+        fileKwitansiHotelName: defaultSurat?.fileKwitansiHotelName || '',
+        fileKwitansiHotelData: defaultSurat?.fileKwitansiHotelData || ''
       });
     }
   }, [editItem, isOpen, suratTugas, currentUser, defaultLoc, defaultRate]);
@@ -104,9 +116,13 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         tglLapor: selectedSurat.tglMulai || prev.tglLapor,
         isCito: !!selectedSurat.isCito,
         fileFotoName: selectedSurat.fileFotoName || prev.fileFotoName,
+        fileFotoData: selectedSurat.fileFotoData || prev.fileFotoData,
         fileVisitName: selectedSurat.fileVisitName || prev.fileVisitName,
+        fileVisitData: selectedSurat.fileVisitData || prev.fileVisitData,
         fileTiketTransportName: selectedSurat.fileTiketTransportName || selectedSurat.fileTiketName || prev.fileTiketTransportName,
-        fileKwitansiHotelName: selectedSurat.fileKwitansiHotelName || prev.fileKwitansiHotelName
+        fileTiketTransportData: selectedSurat.fileTiketTransportData || prev.fileTiketTransportData,
+        fileKwitansiHotelName: selectedSurat.fileKwitansiHotelName || prev.fileKwitansiHotelName,
+        fileKwitansiHotelData: selectedSurat.fileKwitansiHotelData || prev.fileKwitansiHotelData
       }));
     } else {
       setFormData((prev) => ({ ...prev, suratId }));
@@ -116,17 +132,23 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   const handleFileUpload = (fieldKey, e) => {
     const file = e.target.files[0];
     if (file) {
-      setFormData((prev) => ({
-        ...prev,
-        [fieldKey]: file.name
-      }));
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          [fieldKey]: file.name,
+          [`${fieldKey.replace('Name', 'Data')}`]: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
     }
   };
 
   const handleRemoveFile = (fieldKey) => {
     setFormData((prev) => ({
       ...prev,
-      [fieldKey]: ''
+      [fieldKey]: '',
+      [`${fieldKey.replace('Name', 'Data')}`]: ''
     }));
   };
 
