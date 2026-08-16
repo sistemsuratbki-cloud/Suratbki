@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, ClipboardList, Anchor, User, Calendar, Printer, FileSpreadsheet, Lock, Unlock, Clock, Paperclip, Filter } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, ClipboardList, Anchor, User, Calendar, Printer, FileSpreadsheet, Lock, Unlock, Clock, Paperclip, Filter, CheckCircle2 } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah } from '../utils/formatters';
+import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
 import { LaporanModal } from './LaporanModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -102,7 +103,7 @@ export const LaporanTable = () => {
     }
 
     const namaKapal = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '');
-    const noAgenda = item.noAgenda || item.nomor || (linkedSurat ? linkedSurat.nomor : '');
+    const noAgenda = cleanDocNumber(item.noAgenda || item.nomor || (linkedSurat ? linkedSurat.nomor : ''));
     const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : '');
     const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '');
 
@@ -125,96 +126,96 @@ export const LaporanTable = () => {
     return acc + val;
   }, 0);
 
-  /* Export to Excel Function matching the exact template */
+  /* Native Excel (.xlsx) Export using SheetJS */
   const handleExportExcel = () => {
-    if (filteredData.length === 0) {
-      alert('Tidak ada data laporan untuk diexport!');
-      return;
-    }
+    try {
+      const dataToExport = filteredData.length > 0 ? filteredData : laporanSurvei;
 
-    const rowsHtml = filteredData
-      .map((item, index) => {
+      if (dataToExport.length === 0) {
+        alert('Belum ada data laporan perjalanan dinas survey untuk diekspor ke Excel!');
+        return;
+      }
+
+      // Structure rows for sheet
+      const wsData = [
+        ['DAFTAR PERJALANAN DINAS SURVEY'],
+        ['CABANG MADYA KLAS PONTIANAK'],
+        [currentMonthLabel],
+        [], // empty line
+        [
+          'NO.',
+          'TANGGAL',
+          'NAMA KAPAL',
+          'LOKASI SURVEY',
+          'NILAI',
+          'NAMA SURVEY',
+          'NO AGENDA',
+          'NO CDA',
+          'NO.SO',
+          'NO.WBS'
+        ]
+      ];
+
+      let sumNilai = 0;
+
+      dataToExport.forEach((item, index) => {
         const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-        const dateFormatted = formatDateIndo(item.tglLapor || item.tanggal || linkedSurat?.tglMulai);
-        const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
+        const dateVal = item.tglLapor || item.tanggal || linkedSurat?.tglMulai || '';
+        const dateFormatted = dateVal ? formatDateIndo(dateVal) : '-';
+        const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();
         const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
         const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
-        const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
-        const noAgenda = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
+        const namaSurvey = (item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS')).toUpperCase();
+        const noAgenda = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
         const noCda = item.noCda || '-';
         const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
         const noWbs = item.noWbs || '-';
 
-        const bgClass = index % 2 === 0 ? 'background-color: #ffffff;' : 'background-color: #f8fafc;';
+        sumNilai += nilaiNum;
 
-        return `
-          <tr style="${bgClass}">
-            <td style="border: 1px solid #000000; padding: 6px 8px; text-align: center;">${index + 1}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px; text-align: center;">${dateFormatted}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px; font-weight: bold; text-transform: uppercase;">${vesselName}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px;">${lokasi}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px; text-align: right;">${formatRupiah(nilaiNum)}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px; text-transform: uppercase;">${namaSurvey}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px;">${noAgenda}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px;">${noCda}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px;">${noSo}</td>
-            <td style="border: 1px solid #000000; padding: 6px 8px;">${noWbs}</td>
-          </tr>
-        `;
-      })
-      .join('');
+        wsData.push([
+          index + 1,
+          dateFormatted,
+          vesselName,
+          lokasi,
+          nilaiNum,
+          namaSurvey,
+          noAgenda,
+          noCda,
+          noSo,
+          noWbs
+        ]);
+      });
 
-    const excelTemplate = `
-      <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-      <head>
-        <meta charset="utf-8" />
-        <style>
-          body { font-family: 'Calibri', 'Arial', sans-serif; color: #000000; }
-        </style>
-      </head>
-      <body>
-        <div style="text-align: center; margin-bottom: 20px;">
-          <h3 style="margin: 0; padding: 0; font-size: 14pt; font-weight: bold; text-transform: uppercase;">DAFTAR PERJALANAN DINAS SURVEY</h3>
-          <h3 style="margin: 0; padding: 0; font-size: 13pt; font-weight: bold; text-transform: uppercase;">CABANG MADYA KLAS PONTIANAK</h3>
-          <h4 style="margin: 4px 0 0 0; padding: 0; font-size: 11pt; font-weight: bold; text-transform: uppercase;">${currentMonthLabel}</h4>
-        </div>
+      // Add Total row
+      wsData.push(['TOTAL', '', '', '', sumNilai, '', '', '', '', '']);
 
-        <table style="border-collapse: collapse; width: 100%; font-size: 10pt; font-family: Calibri, Arial, sans-serif;">
-          <thead>
-            <tr style="background-color: #f2f2f2; font-weight: bold; text-align: center;">
-              <th style="border: 1px solid #000000; padding: 8px 6px; width: 45px;">NO.</th>
-              <th style="border: 1px solid #000000; padding: 8px 10px; width: 110px;">TANGGAL</th>
-              <th style="border: 1px solid #000000; padding: 8px 12px; width: 200px;">NAMA KAPAL</th>
-              <th style="border: 1px solid #000000; padding: 8px 12px; width: 160px;">LOKASI SURVEY</th>
-              <th style="border: 1px solid #000000; padding: 8px 10px; width: 130px;">NILAI</th>
-              <th style="border: 1px solid #000000; padding: 8px 12px; width: 180px;">NAMA SURVEY</th>
-              <th style="border: 1px solid #000000; padding: 8px 10px; width: 150px;">NO AGENDA</th>
-              <th style="border: 1px solid #000000; padding: 8px 10px; width: 120px;">NO CDA</th>
-              <th style="border: 1px solid #000000; padding: 8px 10px; width: 130px;">NO.SO</th>
-              <th style="border: 1px solid #000000; padding: 8px 10px; width: 130px;">NO.WBS</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${rowsHtml}
-            <tr style="font-weight: bold; background-color: #f8fafc;">
-              <td colspan="4" style="border: 1px solid #000000; padding: 8px; text-align: right;">TOTAL:</td>
-              <td style="border: 1px solid #000000; padding: 8px; text-align: right;">${formatRupiah(totalNilaiPerjalanan)}</td>
-              <td colspan="5" style="border: 1px solid #000000; padding: 8px;"></td>
-            </tr>
-          </tbody>
-        </table>
-      </body>
-      </html>
-    `;
+      const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-    const blob = new Blob([excelTemplate], { type: 'application/vnd.ms-excel;charset=utf-8' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `Daftar_Perjalanan_Dinas_Survey_BKI_Pontianak_${selectedMonth}_${selectedYear}.xls`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+      // Auto column widths
+      ws['!cols'] = [
+        { wch: 6 },  // NO.
+        { wch: 16 }, // TANGGAL
+        { wch: 25 }, // NAMA KAPAL
+        { wch: 20 }, // LOKASI SURVEY
+        { wch: 18 }, // NILAI
+        { wch: 26 }, // NAMA SURVEY
+        { wch: 24 }, // NO AGENDA
+        { wch: 18 }, // NO CDA
+        { wch: 18 }, // NO.SO
+        { wch: 18 }  // NO.WBS
+      ];
+
+      // Create workbook
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Laporan Perjalanan Dinas');
+
+      const fileName = `Daftar_Perjalanan_Dinas_Survey_BKI_${selectedMonth}_${selectedYear}.xlsx`;
+      XLSX.writeFile(wb, fileName);
+    } catch (err) {
+      console.error('Export Excel Error:', err);
+      alert('Gagal mengekspor Excel: ' + err.message);
+    }
   };
 
   return (
@@ -284,15 +285,15 @@ export const LaporanTable = () => {
             <span>Cetak Rekap</span>
           </button>
 
-          {/* Export Excel */}
+          {/* Export Excel (Native XLSX) */}
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleExportExcel}
-            title="Download Format Excel Sesuai Template (.xls)"
+            title="Download Format Excel Resmi (.xlsx)"
             style={{ borderColor: '#10b981', color: '#10b981', fontWeight: 700 }}
           >
             <FileSpreadsheet size={15} color="#10b981" />
-            <span>Export Excel</span>
+            <span>Export Excel (.xlsx)</span>
           </button>
 
           {canAddLaporan && (
@@ -328,7 +329,7 @@ export const LaporanTable = () => {
                 <td colSpan="11" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <Anchor size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
                   <p style={{ fontWeight: 700 }}>Tidak ada data perjalanan dinas survey untuk periode ini.</p>
-                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Klik tombol "Tambah Data" untuk menginput data baru.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>Data otomatis masuk ketika form pengisian survei disimpan, atau klik tombol "Tambah Data".</p>
                 </td>
               </tr>
             ) : (
@@ -339,7 +340,7 @@ export const LaporanTable = () => {
                 const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
                 const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
                 const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
-                const noAgenda = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
+                const noAgenda = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
                 const noCda = item.noCda || '-';
                 const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
                 const noWbs = item.noWbs || '-';
