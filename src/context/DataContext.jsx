@@ -4,7 +4,7 @@ import {
   INITIAL_KWITANSI_HONOR,
   INITIAL_LAPORAN_SURVEI
 } from '../utils/initialData';
-import { INITIAL_LOCATION_TARIFFS } from '../utils/tariffData';
+import { INITIAL_LOCATION_TARIFFS, INITIAL_GRADE_TARIFFS } from '../utils/tariffData';
 import { cleanDocNumber } from '../utils/formatters';
 
 const cleanEntityObject = (item) => {
@@ -42,15 +42,21 @@ export const DataProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : INITIAL_LOCATION_TARIFFS;
   });
 
+  const [gradeTariffs, setGradeTariffs] = useState(() => {
+    const saved = localStorage.getItem('st_grade_tariffs');
+    return saved ? JSON.parse(saved) : INITIAL_GRADE_TARIFFS;
+  });
+
   const [adminSettings, setAdminSettings] = useState(() => {
     const saved = localStorage.getItem('st_admin_settings');
-    return saved
-      ? JSON.parse(saved)
-      : {
-          kepalaCabang: 'MUHSON NURROCHMAT',
-          nup: '48199-KI',
-          namaCabang: 'CABANG MADYA KLAS PONTIANAK'
-        };
+    const parsed = saved ? JSON.parse(saved) : {};
+    return {
+      kepalaCabang: 'MUHSON NURROCHMAT',
+      nup: '48199-KI',
+      namaCabang: 'CABANG MADYA KLAS PONTIANAK',
+      tatLuarKota: 750000,
+      ...parsed
+    };
   });
 
   // Sync to LocalStorage (Cleaned)
@@ -74,6 +80,10 @@ export const DataProvider = ({ children }) => {
   }, [tariffs]);
 
   useEffect(() => {
+    localStorage.setItem('st_grade_tariffs', JSON.stringify(gradeTariffs));
+  }, [gradeTariffs]);
+
+  useEffect(() => {
     localStorage.setItem('st_admin_settings', JSON.stringify(adminSettings));
   }, [adminSettings]);
 
@@ -87,13 +97,10 @@ export const DataProvider = ({ children }) => {
 
       suratTugas.forEach((st) => {
         const baseRate = Number(st.tarifDasar) || 3000000;
-        const isCito = !!st.isCito || Number(st.jumlahHariLibur) > 0;
-        const citoMultiplier = Number(st.jumlahHariLibur) > 0 ? (0.5 * Number(st.jumlahHariLibur)) : (isCito ? 0.5 : 0);
-        const citoFee = Math.round(baseRate * citoMultiplier);
         const ticketTransport = Number(st.tiketPesawatTaxi) || Number(st.biayaTiket) || 0;
         const ticketHotel = Number(st.tiketHotel) || 0;
         const totalTicket = ticketTransport + ticketHotel;
-        const totalHonor = Number(st.jumlahEstimasi) || (baseRate + citoFee + totalTicket);
+        const totalHonor = Number(st.jumlahEstimasi) || (baseRate + totalTicket);
 
         // 1. Check Kwitansi
         const existingKw = updatedKwitansiList.find((k) => k.suratId === st.id);
@@ -106,8 +113,6 @@ export const DataProvider = ({ children }) => {
             penerima: st.petugas,
             lokasi: st.tempatSurvey || st.lokasi,
             tarifDasar: baseRate,
-            isCito: isCito,
-            jumlahHariLibur: Number(st.jumlahHariLibur) || 0,
             biayaTiket: totalTicket,
             tiketHotel: ticketHotel,
             tiketPesawatTaxi: ticketTransport,
@@ -119,7 +124,7 @@ export const DataProvider = ({ children }) => {
             jumlah: totalHonor,
             status: 'Belum Dibayar',
             tglBayar: st.tglMulai || new Date().toISOString().split('T')[0],
-            catatan: `Honorarium ${isCito ? 'CITO / Hari Libur' : 'Standar'} (${st.tempatSurvey || st.lokasi})`
+            catatan: `Honorarium Standar (${st.tempatSurvey || st.lokasi})`
           }));
           kwitansiUpdated = true;
         }
@@ -143,7 +148,7 @@ export const DataProvider = ({ children }) => {
             noSo: st.noSo || st.noOrder || `SO-${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`,
             noWbs: st.noWbs || `WBS.BKI.PTK.${new Date().getFullYear()}.${Date.now().toString().slice(-3)}`,
             petugas: st.petugas,
-            isCito: isCito,
+            isCito: !!st.isCito,
             hasil: st.catatan || `Survei kelaiklautan kapal ${st.namaKapal}`,
             status: 'Terkirim',
             fileFotoName: st.fileFotoName || '',
@@ -212,6 +217,40 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem('st_tariffs', JSON.stringify(INITIAL_LOCATION_TARIFFS));
   };
 
+  // CRUD Actions for Grade / Uang Harian
+  const addGradeTariff = (data) => {
+    const newGrade = {
+      ...data,
+      id: data.id || `grd-${Date.now().toString().slice(-6)}`,
+      uangHarian: Number(data.uangHarian) || 0
+    };
+    setGradeTariffs((prev) => [...prev, newGrade]);
+    return newGrade;
+  };
+
+  const updateGradeTariff = (id, updatedData) => {
+    setGradeTariffs((prev) =>
+      prev.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              ...updatedData,
+              uangHarian: Number(updatedData.uangHarian) !== undefined ? Number(updatedData.uangHarian) : item.uangHarian
+            }
+          : item
+      )
+    );
+  };
+
+  const deleteGradeTariff = (id) => {
+    setGradeTariffs((prev) => prev.filter((item) => item.id !== id));
+  };
+
+  const resetGradeTariffs = () => {
+    setGradeTariffs(INITIAL_GRADE_TARIFFS);
+    localStorage.setItem('st_grade_tariffs', JSON.stringify(INITIAL_GRADE_TARIFFS));
+  };
+
   // CRUD Actions for Surat Tugas / SPS
   const addSuratTugas = (data) => {
     const newId = `ST-${Date.now().toString().slice(-6)}`;
@@ -225,13 +264,10 @@ export const DataProvider = ({ children }) => {
 
     // ====== AUTOMATIC GENERATION OF KWITANSI HONORARIUM ======
     const baseRate = Number(cleanedData.tarifDasar) || 3000000;
-    const isCito = !!cleanedData.isCito || Number(cleanedData.jumlahHariLibur) > 0;
-    const citoMultiplier = Number(cleanedData.jumlahHariLibur) > 0 ? (0.5 * Number(cleanedData.jumlahHariLibur)) : (isCito ? 0.5 : 0);
-    const citoFee = Math.round(baseRate * citoMultiplier);
     const ticketTransport = Number(cleanedData.tiketPesawatTaxi) || Number(cleanedData.biayaTiket) || 0;
     const ticketHotel = Number(cleanedData.tiketHotel) || 0;
     const totalTicket = ticketTransport + ticketHotel;
-    const totalHonor = Number(cleanedData.jumlahEstimasi) || (baseRate + citoFee + totalTicket);
+    const totalHonor = Number(cleanedData.jumlahEstimasi) || (baseRate + totalTicket);
 
     const autoKwitansi = cleanEntityObject({
       id: `KW-${Date.now().toString().slice(-6)}`,
@@ -241,8 +277,6 @@ export const DataProvider = ({ children }) => {
       penerima: cleanedData.petugas,
       lokasi: cleanedData.tempatSurvey || cleanedData.lokasi,
       tarifDasar: baseRate,
-      isCito: isCito,
-      jumlahHariLibur: Number(cleanedData.jumlahHariLibur) || 0,
       biayaTiket: totalTicket,
       tiketHotel: ticketHotel,
       tiketPesawatTaxi: ticketTransport,
@@ -254,7 +288,7 @@ export const DataProvider = ({ children }) => {
       jumlah: totalHonor,
       status: 'Belum Dibayar',
       tglBayar: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
-      catatan: `Honorarium ${isCito ? 'CITO / Hari Libur' : 'Standar'} (${cleanedData.tempatSurvey || cleanedData.lokasi})`
+      catatan: `Honorarium Standar (${cleanedData.tempatSurvey || cleanedData.lokasi})`
     });
 
     setKwitansiHonor((prev) => [autoKwitansi, ...prev]);
@@ -276,7 +310,7 @@ export const DataProvider = ({ children }) => {
       noSo: cleanedData.noSo || cleanedData.noOrder || `SO-${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`,
       noWbs: cleanedData.noWbs || `WBS.BKI.PTK.${new Date().getFullYear()}.${Date.now().toString().slice(-3)}`,
       petugas: cleanedData.petugas,
-      isCito: isCito,
+      isCito: !!cleanedData.isCito,
       hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
       status: 'Terkirim',
       fileFotoName: cleanedData.fileFotoName || '',
@@ -298,13 +332,10 @@ export const DataProvider = ({ children }) => {
 
     // Auto-update linked Kwitansi Honor
     const baseRate = Number(cleanedData.tarifDasar) || 3000000;
-    const isCito = !!cleanedData.isCito || Number(cleanedData.jumlahHariLibur) > 0;
-    const citoMultiplier = Number(cleanedData.jumlahHariLibur) > 0 ? (0.5 * Number(cleanedData.jumlahHariLibur)) : (isCito ? 0.5 : 0);
-    const citoFee = Math.round(baseRate * citoMultiplier);
     const ticketTransport = Number(cleanedData.tiketPesawatTaxi) || Number(cleanedData.biayaTiket) || 0;
     const ticketHotel = Number(cleanedData.tiketHotel) || 0;
     const totalTicket = ticketTransport + ticketHotel;
-    const totalHonor = Number(cleanedData.jumlahEstimasi) || (baseRate + citoFee + totalTicket);
+    const totalHonor = Number(cleanedData.jumlahEstimasi) || (baseRate + totalTicket);
 
     setKwitansiHonor((prev) => {
       const exists = prev.some((k) => k.suratId === id);
@@ -318,8 +349,6 @@ export const DataProvider = ({ children }) => {
                 penerima: cleanedData.petugas || k.penerima,
                 lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || k.lokasi,
                 tarifDasar: baseRate,
-                isCito: isCito,
-                jumlahHariLibur: Number(cleanedData.jumlahHariLibur) || 0,
                 biayaTiket: totalTicket,
                 tiketHotel: ticketHotel,
                 tiketPesawatTaxi: ticketTransport,
@@ -341,8 +370,6 @@ export const DataProvider = ({ children }) => {
           penerima: cleanedData.petugas,
           lokasi: cleanedData.tempatSurvey || cleanedData.lokasi,
           tarifDasar: baseRate,
-          isCito: isCito,
-          jumlahHariLibur: Number(cleanedData.jumlahHariLibur) || 0,
           biayaTiket: totalTicket,
           tiketHotel: ticketHotel,
           tiketPesawatTaxi: ticketTransport,
@@ -354,7 +381,7 @@ export const DataProvider = ({ children }) => {
           jumlah: totalHonor,
           status: 'Belum Dibayar',
           tglBayar: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
-          catatan: `Honorarium ${isCito ? 'CITO / Hari Libur' : 'Standar'} (${cleanedData.tempatSurvey || cleanedData.lokasi})`
+          catatan: `Honorarium Standar (${cleanedData.tempatSurvey || cleanedData.lokasi})`
         });
         return [newKw, ...prev];
       }
@@ -377,7 +404,7 @@ export const DataProvider = ({ children }) => {
                 noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
                 noSo: cleanedData.noSo || cleanedData.noOrder || l.noSo,
                 petugas: cleanedData.petugas || l.petugas,
-                isCito: isCito,
+                isCito: !!cleanedData.isCito,
                 tglLapor: cleanedData.tglMulai || l.tglLapor,
                 tanggal: cleanedData.tglMulai || l.tanggal,
                 fileFotoName: cleanedData.fileFotoName || l.fileFotoName,
@@ -404,7 +431,7 @@ export const DataProvider = ({ children }) => {
           noSo: cleanedData.noSo || cleanedData.noOrder || `SO-${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`,
           noWbs: cleanedData.noWbs || `WBS.BKI.PTK.${new Date().getFullYear()}.${Date.now().toString().slice(-3)}`,
           petugas: cleanedData.petugas,
-          isCito: isCito,
+          isCito: !!cleanedData.isCito,
           hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
           status: 'Terkirim',
           fileFotoName: cleanedData.fileFotoName || '',
@@ -507,10 +534,12 @@ export const DataProvider = ({ children }) => {
     setKwitansiHonor([]);
     setLaporanSurvei([]);
     setTariffs(INITIAL_LOCATION_TARIFFS);
+    setGradeTariffs(INITIAL_GRADE_TARIFFS);
     localStorage.removeItem('st_surat_tugas');
     localStorage.removeItem('st_kwitansi_honor');
     localStorage.removeItem('st_laporan_survei');
     localStorage.removeItem('st_tariffs');
+    localStorage.removeItem('st_grade_tariffs');
   };
 
   return (
@@ -520,12 +549,17 @@ export const DataProvider = ({ children }) => {
         kwitansiHonor,
         laporanSurvei,
         tariffs,
+        gradeTariffs,
         adminSettings,
         updateAdminSettings,
         addTariff,
         updateTariff,
         deleteTariff,
         resetTariffs,
+        addGradeTariff,
+        updateGradeTariff,
+        deleteGradeTariff,
+        resetGradeTariffs,
         addSuratTugas,
         updateSuratTugas,
         deleteSuratTugas,

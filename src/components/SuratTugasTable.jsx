@@ -5,9 +5,10 @@ import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, getStatusBadgeClass, cleanDocNumber } from '../utils/formatters';
 import { SuratTugasModal } from './SuratTugasModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
+import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { ConfirmModal } from './ConfirmModal';
 
-export const SuratTugasTable = () => {
+export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const { suratTugas, deleteSuratTugas } = useData();
   const { role } = useAuth();
 
@@ -18,6 +19,7 @@ export const SuratTugasTable = () => {
   const [editingItem, setEditingItem] = useState(null);
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -39,6 +41,11 @@ export const SuratTugasTable = () => {
   const handleOpenPrint = (item) => {
     setSelectedPrintItem(item);
     setIsPrintModalOpen(true);
+  };
+
+  const handleOpenPdsPrint = (item) => {
+    setSelectedPrintItem(item);
+    setIsPdsPrintModalOpen(true);
   };
 
   const promptDelete = (item) => {
@@ -72,7 +79,7 @@ export const SuratTugasTable = () => {
         <div className="card-title-group">
           <FileText size={22} color="var(--accent-primary)" />
           <div>
-            <h2 className="card-title">Daftar Surat Penunjukan Survey (SPS)</h2>
+            <h2 className="card-title">Daftar {filterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'}</h2>
             <div className="card-subtitle">Kelola penugasan marine surveyor dan status operasional</div>
           </div>
         </div>
@@ -104,7 +111,7 @@ export const SuratTugasTable = () => {
           {canManage && (
             <button className="btn btn-primary" onClick={handleOpenAdd}>
               <Plus size={16} />
-              <span>Buat SPS Baru</span>
+              <span>Buat {filterType === 'PDS' ? 'PDS' : 'SPS'} Baru</span>
             </button>
           )}
         </div>
@@ -190,13 +197,24 @@ export const SuratTugasTable = () => {
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                      <button
-                        className="btn btn-primary btn-icon btn-sm"
-                        onClick={() => handleOpenPrint(item)}
-                        title="Download / Cetak PDF Surat Tugas BKI"
-                      >
-                        <Printer size={15} />
-                      </button>
+                      {filterType !== 'PDS' && (
+                        <button
+                          className="btn btn-primary btn-icon btn-sm"
+                          onClick={() => handleOpenPrint(item)}
+                          title="Download / Cetak PDF SPS"
+                        >
+                          <Printer size={15} />
+                        </button>
+                      )}
+                      {filterType !== 'SPS' && (
+                        <button
+                          className="btn btn-secondary btn-icon btn-sm"
+                          onClick={() => handleOpenPdsPrint(item)}
+                          title="Download / Cetak PDF PDS"
+                        >
+                          <FileText size={15} />
+                        </button>
+                      )}
 
                       {canManage && (
                         <button
@@ -237,6 +255,12 @@ export const SuratTugasTable = () => {
       <SuratTugasPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
+        suratTugas={selectedPrintItem}
+      />
+
+      <SuratTugasPdsPrintModal
+        isOpen={isPdsPrintModalOpen}
+        onClose={() => setIsPdsPrintModalOpen(false)}
         suratTugas={selectedPrintItem}
       />
 

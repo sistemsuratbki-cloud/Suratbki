@@ -24,7 +24,7 @@ import { TariffModal } from './TariffModal';
 import { ConfirmModal } from './ConfirmModal';
 
 export const TariffManagementTable = () => {
-  const { tariffs, deleteTariff, resetTariffs } = useData();
+  const { tariffs, deleteTariff, resetTariffs, adminSettings, updateAdminSettings } = useData();
   const { role, currentUser } = useAuth();
 
   // Role-Based Access Control: Admin, Kacab, and Keuangan/Finance only
@@ -32,6 +32,7 @@ export const TariffManagementTable = () => {
 
   const [searchTerm, setSearchTerm] = useState('');
   const [modaFilter, setModaFilter] = useState('Semua');
+  const [kategoriFilter, setKategoriFilter] = useState('Luar Kota');
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -40,6 +41,9 @@ export const TariffManagementTable = () => {
   const [tariffToDelete, setTariffToDelete] = useState(null);
 
   const [isConfirmResetOpen, setIsConfirmResetOpen] = useState(false);
+
+  const [isEditingTat, setIsEditingTat] = useState(false);
+  const [tatValue, setTatValue] = useState('');
 
   // If user lacks permission, show restricted notice
   if (!canManageTariffs) {
@@ -189,7 +193,9 @@ export const TariffManagementTable = () => {
       (modaFilter === 'Darat' && (item.moda || '').toLowerCase().includes('darat')) ||
       (modaFilter === 'Air' && ((item.moda || '').toLowerCase().includes('air') || (item.moda || '').toLowerCase().includes('speedboat')));
 
-    return matchesSearch && matchesModa;
+    const matchesKategori = (item.kategori || 'Luar Kota') === kategoriFilter;
+
+    return matchesSearch && matchesModa && matchesKategori;
   });
 
   // Calculate statistics
@@ -274,6 +280,68 @@ export const TariffManagementTable = () => {
         </div>
       </div>
 
+      {/* Edit TAT Card Section */}
+      <div className="card-section" style={{ padding: '1.25rem 1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '1rem' }}>
+        <div>
+          <h3 className="card-title" style={{ fontSize: '1.1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Navigation size={18} color="var(--accent-primary)" />
+            Pengaturan Tarif Asal Tujuan (TAT)
+          </h3>
+          <div className="card-subtitle" style={{ marginTop: '0.2rem' }}>
+            Biaya ini secara otomatis ditambahkan sebagai komponen transport untuk kategori Luar Kota
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+          {isEditingTat ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--text-secondary)' }}>Rp</span>
+              <input
+                type="number"
+                className="form-input"
+                style={{ width: '150px' }}
+                value={tatValue}
+                onChange={(e) => setTatValue(e.target.value)}
+                autoFocus
+                step="1000"
+              />
+              <button
+                className="btn btn-primary btn-sm"
+                onClick={() => {
+                  updateAdminSettings({ tatLuarKota: Number(tatValue) || 0 });
+                  setIsEditingTat(false);
+                }}
+              >
+                Simpan
+              </button>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsEditingTat(false)}
+              >
+                Batal
+              </button>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+              <div style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
+                {formatRupiah(adminSettings?.tatLuarKota ?? 750000)}
+              </div>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => {
+                  setTatValue(adminSettings?.tatLuarKota ?? 750000);
+                  setIsEditingTat(true);
+                }}
+                title="Ubah Tarif TAT"
+              >
+                <Edit2 size={15} />
+                <span>Ubah Nominal</span>
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+
       {/* Main Table Card */}
       <div className="card-section">
         <div className="card-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
@@ -285,6 +353,23 @@ export const TariffManagementTable = () => {
                 Menampilkan {filteredData.length} dari {tariffs.length} lokasi penugasan
               </div>
             </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: '0.5rem', background: 'var(--bg-main)', padding: '0.35rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
+            <button
+              className={`btn ${kategoriFilter === 'Dalam Kota' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setKategoriFilter('Dalam Kota')}
+            >
+              Dalam Kota
+            </button>
+            <button
+              className={`btn ${kategoriFilter === 'Luar Kota' ? 'btn-primary' : 'btn-secondary'}`}
+              style={{ padding: '0.4rem 1rem', fontSize: '0.85rem' }}
+              onClick={() => setKategoriFilter('Luar Kota')}
+            >
+              Luar Kota
+            </button>
           </div>
 
           <div className="card-actions" style={{ flexWrap: 'wrap', gap: '0.65rem' }}>
@@ -337,7 +422,7 @@ export const TariffManagementTable = () => {
                 <th>Rincian Perjalanan</th>
                 <th>Moda Transportasi</th>
                 <th style={{ textAlign: 'right' }}>Transport Dalam Tugas</th>
-                <th style={{ textAlign: 'right' }}>Estimasi CITO (+50%)</th>
+
                 <th style={{ textAlign: 'right', width: '110px' }}>Aksi</th>
               </tr>
             </thead>
@@ -352,7 +437,7 @@ export const TariffManagementTable = () => {
               ) : (
                 filteredData.map((item, index) => {
                   const rate = Number(item.rate) || 0;
-                  const citoRate = Math.round(rate * 1.5);
+
                   const ribuanFormat = (rate / 1000).toLocaleString('id-ID');
 
                   return (
@@ -379,11 +464,7 @@ export const TariffManagementTable = () => {
                           ({ribuanFormat} ribuan)
                         </div>
                       </td>
-                      <td style={{ textAlign: 'right' }}>
-                        <div style={{ fontWeight: 700, color: '#dc2626', fontSize: '0.875rem' }}>
-                          {formatRupiah(citoRate)}
-                        </div>
-                      </td>
+
                       <td style={{ textAlign: 'right' }}>
                         <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
                           <button

@@ -11,6 +11,7 @@ import { KwitansiTable } from './components/KwitansiTable';
 import { LaporanTable } from './components/LaporanTable';
 import { UserManagementTable } from './components/UserManagementTable';
 import { TariffManagementTable } from './components/TariffManagementTable';
+import { GradeTariffManagementTable } from './components/GradeTariffManagementTable';
 import { SettingsTab } from './components/SettingsTab';
 import { LoginScreen } from './components/LoginScreen';
 
@@ -67,10 +68,16 @@ function AppContent() {
             </>
           )}
 
-          {activeTab === 'surat' && <SuratTugasTable />}
+          {activeTab === 'surat_sps' && <SuratTugasTable filterType="SPS" />}
+          {activeTab === 'surat_pds' && <SuratTugasTable filterType="PDS" />}
           {activeTab === 'kwitansi' && <KwitansiTable />}
           {activeTab === 'laporan' && <LaporanTable />}
-          {activeTab === 'tariffs' && <TariffManagementTable />}
+          {activeTab === 'tariffs' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+              <GradeTariffManagementTable />
+              <TariffManagementTable />
+            </div>
+          )}
           {activeTab === 'users' && <UserManagementTable />}
           {activeTab === 'settings' && <SettingsTab />}
         </main>

@@ -34,12 +34,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
       const base = Number(editItem.tarifDasar) || Number(linkedSurat?.tarifDasar) || 3000000;
       const hotel = Number(editItem.tiketHotel) || Number(linkedSurat?.tiketHotel) || 0;
       const flight = Number(editItem.tiketPesawatTaxi) || Number(editItem.biayaTiket) || Number(linkedSurat?.tiketPesawatTaxi) || Number(linkedSurat?.biayaTiket) || 0;
-      const cito = !!editItem.isCito || !!linkedSurat?.isCito;
-      const libur = Number(editItem.jumlahHariLibur) || Number(linkedSurat?.jumlahHariLibur) || 0;
-
-      const citoMultiplier = libur > 0 ? (0.5 * libur) : (cito ? 0.5 : 0);
-      const citoFee = Math.round(base * citoMultiplier);
-      const total = Number(editItem.jumlah) || (base + citoFee + hotel + flight);
+      const total = Number(editItem.jumlah) || (base + hotel + flight);
 
       setFormData({
         ...editItem,
@@ -47,8 +42,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
         namaKapal: editItem.namaKapal || linkedSurat?.namaKapal || '',
         lokasi: editItem.lokasi || linkedSurat?.lokasi || linkedSurat?.tempatSurvey || '',
         tarifDasar: base,
-        isCito: cito,
-        jumlahHariLibur: libur,
+
         tiketHotel: hotel,
         tiketPesawatTaxi: flight,
         jumlah: total,
@@ -65,12 +59,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
       const base = Number(defaultSurat?.tarifDasar) || 3000000;
       const hotel = Number(defaultSurat?.tiketHotel) || 0;
       const flight = Number(defaultSurat?.tiketPesawatTaxi) || Number(defaultSurat?.biayaTiket) || 0;
-      const cito = !!defaultSurat?.isCito;
-      const libur = Number(defaultSurat?.jumlahHariLibur) || 0;
-
-      const citoMultiplier = libur > 0 ? (0.5 * libur) : (cito ? 0.5 : 0);
-      const citoFee = Math.round(base * citoMultiplier);
-      const total = base + citoFee + hotel + flight;
+      const total = base + hotel + flight;
 
       setFormData({
         suratId: defaultSurat ? defaultSurat.id : '',
@@ -78,8 +67,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
         namaKapal: defaultSurat ? defaultSurat.namaKapal : '',
         lokasi: defaultSurat ? (defaultSurat.tempatSurvey || defaultSurat.lokasi) : '',
         tarifDasar: base,
-        isCito: cito,
-        jumlahHariLibur: libur,
+
         tiketHotel: hotel,
         tiketPesawatTaxi: flight,
         jumlah: total,
@@ -102,12 +90,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
       const base = Number(selectedSurat.tarifDasar) || 3000000;
       const hotel = Number(selectedSurat.tiketHotel) || 0;
       const flight = Number(selectedSurat.tiketPesawatTaxi) || Number(selectedSurat.biayaTiket) || 0;
-      const cito = !!selectedSurat.isCito || Number(selectedSurat.jumlahHariLibur) > 0;
-      const libur = Number(selectedSurat.jumlahHariLibur) || 0;
-
-      const citoMultiplier = libur > 0 ? (0.5 * libur) : (cito ? 0.5 : 0);
-      const citoFee = Math.round(base * citoMultiplier);
-      const total = base + citoFee + hotel + flight;
+      const total = base + hotel + flight;
 
       setFormData((prev) => ({
         ...prev,
@@ -116,8 +99,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
         namaKapal: selectedSurat.namaKapal || prev.namaKapal,
         lokasi: selectedSurat.tempatSurvey || selectedSurat.lokasi || prev.lokasi,
         tarifDasar: base,
-        isCito: cito,
-        jumlahHariLibur: libur,
+
         tiketHotel: hotel,
         tiketPesawatTaxi: flight,
         jumlah: total,
@@ -302,7 +284,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
                     <input
                       type="number"
                       min="0"
-                      step="100000"
+                      step="1000"
                       className="form-input"
                       value={formData.tarifDasar}
                       onChange={(e) => handleBaseRateChange(e.target.value)}
@@ -333,7 +315,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
                     <input
                       type="number"
                       min="0"
-                      step="50000"
+                      step="1000"
                       className="form-input"
                       value={formData.tiketHotel}
                       onChange={(e) => handleHotelChange(e.target.value)}
@@ -349,7 +331,7 @@ export const KwitansiModal = ({ isOpen, onClose, editItem = null }) => {
                     <input
                       type="number"
                       min="0"
-                      step="50000"
+                      step="1000"
                       className="form-input"
                       value={formData.tiketPesawatTaxi}
                       onChange={(e) => handleFlightChange(e.target.value)}

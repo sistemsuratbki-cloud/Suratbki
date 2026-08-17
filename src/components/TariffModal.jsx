@@ -12,7 +12,8 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
     tujuan: '',
     rincian: '',
     rate: 2000000,
-    moda: 'Darat'
+    moda: 'Darat',
+    kategori: 'Luar Kota'
   });
 
   useEffect(() => {
@@ -21,14 +22,16 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
         tujuan: editItem.tujuan || editItem.name || '',
         rincian: editItem.rincian || '',
         rate: editItem.rate || 0,
-        moda: editItem.moda || 'Darat'
+        moda: editItem.moda || 'Darat',
+        kategori: editItem.kategori || 'Luar Kota'
       });
     } else {
       setFormData({
         tujuan: '',
         rincian: '',
         rate: 2000000,
-        moda: 'Darat'
+        moda: 'Darat',
+        kategori: 'Luar Kota'
       });
     }
   }, [editItem, isOpen]);
@@ -36,7 +39,7 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
   if (!isOpen) return null;
 
   const numericRate = Number(formData.rate) || 0;
-  const citoRate = Math.round(numericRate * 1.5);
+
   const ribuanFormat = (numericRate / 1000).toLocaleString('id-ID');
 
   const handleSubmit = (e) => {
@@ -58,7 +61,8 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
       rincian: formData.rincian.trim(),
       name: formData.tujuan.trim(),
       rate: numericRate,
-      moda: formData.moda
+      moda: formData.moda,
+      kategori: formData.kategori
     });
 
     if (editItem) {
@@ -145,7 +149,21 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                <div className="form-group">
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700 }}>
+                    Kategori Perjalanan *
+                  </label>
+                  <select
+                    className="form-select"
+                    value={formData.kategori}
+                    onChange={(e) => setFormData({ ...formData, kategori: e.target.value })}
+                  >
+                    <option value="Dalam Kota">Dalam Kota</option>
+                    <option value="Luar Kota">Luar Kota</option>
+                  </select>
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontWeight: 700 }}>
                     Moda Transportasi Utama *
                   </label>
@@ -170,7 +188,7 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
                   <input
                     type="number"
                     min="0"
-                    step="50000"
+                    step="1000"
                     className="form-input"
                     value={formData.rate}
                     onChange={(e) => setFormData({ ...formData, rate: Number(e.target.value) || 0 })}
@@ -197,7 +215,7 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
                   <span>Kalkulasi Otomatis Tarif Surat Keputusan (SK) BKI</span>
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.75rem' }}>
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                     <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
                       Tarif Standar (Hari Kerja)
@@ -207,18 +225,6 @@ export const TariffModal = ({ isOpen, onClose, editItem = null }) => {
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 700, marginTop: '0.1rem' }}>
                       ({ribuanFormat} ribuan)
-                    </div>
-                  </div>
-
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.75rem', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.725rem', color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 700 }}>
-                      Tarif CITO / Libur (+50%)
-                    </div>
-                    <div style={{ fontSize: '1.15rem', fontWeight: 800, color: '#dc2626', marginTop: '0.2rem' }}>
-                      {formatRupiah(citoRate)}
-                    </div>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                      Termasuk surcharge darurat
                     </div>
                   </div>
                 </div>

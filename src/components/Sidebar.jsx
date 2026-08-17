@@ -24,8 +24,14 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       badge: null
     },
     {
-      id: 'surat',
-      label: role === 'surveyor' ? 'Tugas Saya' : 'Surat Tugas BKI',
+      id: 'surat_sps',
+      label: role === 'surveyor' ? 'Tugas Saya (SPS)' : 'Surat Tugas BKI (SPS)',
+      icon: FileCheck,
+      badge: filteredSurat.length
+    },
+    {
+      id: 'surat_pds',
+      label: role === 'surveyor' ? 'Tugas Saya (PDS)' : 'Surat Tugas BKI (PDS)',
       icon: FileCheck,
       badge: filteredSurat.length
     },
@@ -48,7 +54,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
   if (role === 'admin' || role === 'kacab' || role === 'keuangan') {
     menuItems.push({
       id: 'tariffs',
-      label: 'Tarif Lokasi',
+      label: 'Manajemen Tarif',
       icon: Compass,
       badge: tariffs ? tariffs.length : null,
       badgeColor: '#0284c7'

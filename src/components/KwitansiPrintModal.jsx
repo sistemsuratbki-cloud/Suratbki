@@ -14,15 +14,11 @@ export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }
 
   const linkedSurat = suratTugasList.find((s) => s.id === kwitansi.suratId);
   const baseRate = Number(kwitansi.tarifDasar) || Number(linkedSurat?.tarifDasar) || 3000000;
-  const isCito = !!kwitansi.isCito || !!linkedSurat?.isCito;
-  const jumlahHariLibur = Number(kwitansi.jumlahHariLibur) || Number(linkedSurat?.jumlahHariLibur) || 0;
-  const citoMultiplier = jumlahHariLibur > 0 ? (0.5 * jumlahHariLibur) : (isCito ? 0.5 : 0);
-  const citoSurcharge = Math.round(baseRate * citoMultiplier);
-
-  const hotelFee = Number(kwitansi.tiketHotel) || Number(linkedSurat?.tiketHotel) || 0;
-  const flightFee = Number(kwitansi.tiketPesawatTaxi) || Number(kwitansi.biayaTiket) || Number(linkedSurat?.tiketPesawatTaxi) || Number(linkedSurat?.biayaTiket) || 0;
+  const hotelFee = Number(kwitansi.tiketHotel) || 0;
+  const flightFee = Number(kwitansi.tiketPesawatTaxi) || Number(kwitansi.biayaTiket) || 0;
   const totalReimbursement = hotelFee + flightFee;
-  const grandTotal = Number(kwitansi.jumlah) || (baseRate + citoSurcharge + totalReimbursement);
+
+  const grandTotal = Number(kwitansi.jumlah) || (baseRate + totalReimbursement);
 
   const kepalaCabang = adminSettings?.kepalaCabang || linkedSurat?.kepalaCabang || 'MUHSON NURROCHMAT';
 
@@ -81,7 +77,7 @@ export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }
                   KWITANSI PEMBAYARAN HONORARIUM SURVEYOR
                 </div>
                 <div style={{ fontSize: '9pt', fontWeight: 700, color: '#475569', marginTop: '0.2rem' }}>
-                  Nomor Kwitansi: {kwitansi.id} {isCito && <span style={{ color: '#dc2626', fontWeight: 800 }}>[⚡ CITO / LIBUR +50%]</span>}
+                  Nomor Kwitansi: {kwitansi.id}
                 </div>
               </div>
 
@@ -117,19 +113,14 @@ export const KwitansiPrintModal = ({ isOpen, onClose, kwitansi, suratTugasList }
                     <td>
                       <div style={{ fontSize: '9pt', color: '#1e293b', background: '#f8fafc', padding: '0.65rem 0.85rem', borderRadius: '4px', border: '1px solid #e2e8f0', lineHeight: '1.6' }}>
                         <div>1. Tarif Dasar Lokasi: <strong>{formatRupiah(baseRate)}</strong></div>
-                        {isCito && (
-                          <div style={{ color: '#dc2626' }}>
-                            2. Surcharge CITO / Hari Libur {jumlahHariLibur > 0 ? `(${jumlahHariLibur} Hari @ 50%)` : '(+50%)'}: <strong>{formatRupiah(citoSurcharge)}</strong>
-                          </div>
-                        )}
                         {hotelFee > 0 && (
                           <div style={{ color: '#0284c7' }}>
-                            3. Tiket Hotel / Penginapan: <strong>{formatRupiah(hotelFee)}</strong>
+                            2. Tiket Hotel / Penginapan: <strong>{formatRupiah(hotelFee)}</strong>
                           </div>
                         )}
                         {flightFee > 0 && (
                           <div style={{ color: '#059669' }}>
-                            4. Tiket Pesawat & Taxi (Transportasi): <strong>{formatRupiah(flightFee)}</strong>
+                            3. Tiket Pesawat & Taxi (Transportasi): <strong>{formatRupiah(flightFee)}</strong>
                           </div>
                         )}
                       </div>

@@ -25,7 +25,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     noSo: '',
     noWbs: '',
     petugas: '',
-    isCito: false,
+
     hasil: '',
     status: 'Draf',
     fileFotoName: '',
@@ -52,7 +52,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         noSo: editItem.noSo || editItem.noOrder || '',
         noWbs: editItem.noWbs || '',
         petugas: editItem.petugas || '',
-        isCito: !!editItem.isCito,
+
         hasil: editItem.hasil || '',
         status: editItem.status || 'Draf',
         fileFotoName: editItem.fileFotoName || '',
@@ -80,7 +80,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         noSo: defaultSurat?.noOrder || `SO-${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`,
         noWbs: `WBS.BKI.PTK.${new Date().getFullYear()}.${Date.now().toString().slice(-3)}`,
         petugas: defaultSurat?.petugas || currentUser?.name || 'ALFIAN BONE PUTRA',
-        isCito: defaultSurat ? !!defaultSurat.isCito : false,
+
         hasil: defaultSurat?.catatan || '',
         status: 'Draf',
         fileFotoName: defaultSurat?.fileFotoName || '',
@@ -114,7 +114,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         noAgenda: selectedSurat.nomor || prev.noAgenda,
         noSo: selectedSurat.noOrder || prev.noSo,
         tglLapor: selectedSurat.tglMulai || prev.tglLapor,
-        isCito: !!selectedSurat.isCito,
+
         fileFotoName: selectedSurat.fileFotoName || prev.fileFotoName,
         fileFotoData: selectedSurat.fileFotoData || prev.fileFotoData,
         fileVisitName: selectedSurat.fileVisitName || prev.fileVisitName,
@@ -299,7 +299,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     <input
                       type="number"
                       min="0"
-                      step="50000"
+                      step="1000"
                       className="form-input"
                       value={formData.nilai}
                       onChange={(e) => setFormData({ ...formData, nilai: Number(e.target.value) || 0 })}
@@ -315,14 +315,27 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       6. NAMA SURVEY *
                     </label>
-                    <input
-                      type="text"
-                      className="form-input"
+                    <select
+                      className="form-select"
                       value={formData.namaSurvey}
                       onChange={(e) => setFormData({ ...formData, namaSurvey: e.target.value })}
-                      placeholder="DINAS SURVEY KLAS / ANNUAL"
                       required
-                    />
+                    >
+                      <option value="">-- Pilih Jenis Survey --</option>
+                      <option value="Pembaharuan">Pembaharuan</option>
+                      <option value="Tahunan">Tahunan</option>
+                      <option value="Antara">Antara</option>
+                      <option value="Perpanjangan">Perpanjangan</option>
+                      <option value="Pengedokan">Pengedokan</option>
+                      <option value="UWILD">UWILD</option>
+                      <option value="Tunda Dok">Tunda Dok</option>
+                      <option value="Poros Cabut/Tunda/Ditempat (Per Poros)">Poros Cabut/Tunda/Ditempat (Per Poros)</option>
+                      <option value="Khusus (Per Jam)***">Khusus (Per Jam)***</option>
+                      <option value="Pembaruan LL">Pembaruan LL</option>
+                      <option value="Tahunan LL">Tahunan LL</option>
+                      <option value="Revalidasi LL">Revalidasi LL</option>
+                      <option value="Conveyance Survey">Conveyance Survey</option>
+                    </select>
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>

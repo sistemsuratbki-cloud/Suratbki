@@ -86,7 +86,7 @@ export const KwitansiTable = () => {
           <Receipt size={22} color="var(--accent-primary)" />
           <div>
             <h2 className="card-title">Daftar Kwitansi Honor Marine Surveyor</h2>
-            <div className="card-subtitle">Kalkulasi tarif pelabuhan, surcharge CITO / Hari Libur (+50%), & status pembayaran</div>
+            <div className="card-subtitle">Kalkulasi tarif pelabuhan & status pembayaran</div>
           </div>
         </div>
 
@@ -129,7 +129,7 @@ export const KwitansiTable = () => {
               <th>ID Kwitansi</th>
               <th>Surat / Kapal Terkait</th>
               <th>Penerima Honor</th>
-              <th>Kategori Tarif</th>
+
               <th>Total Honor (Rp)</th>
               <th>Tgl Bayar</th>
               <th>Status</th>
@@ -147,7 +147,7 @@ export const KwitansiTable = () => {
             ) : (
               filteredData.map((item) => {
                 const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-                const isCito = item.isCito || (linkedSurat && linkedSurat.isCito);
+
 
                 return (
                   <tr key={item.id}>
@@ -174,18 +174,7 @@ export const KwitansiTable = () => {
                       <div style={{ fontWeight: 600 }}>{item.penerima}</div>
                     </td>
                     <td>
-                      {isCito ? (
-                        <span className="badge badge-danger" style={{ fontSize: '0.7rem' }}>
-                          ⚡ CITO / Libur (+50%)
-                        </span>
-                      ) : (
-                        <span className="badge badge-completed" style={{ fontSize: '0.7rem' }}>
-                          Tarif Standar
-                        </span>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ fontWeight: 800, color: isCito ? '#dc2626' : 'var(--status-completed-text)', fontSize: '0.95rem' }}>
+                      <div style={{ fontWeight: 800, color: 'var(--status-completed-text)', fontSize: '0.95rem' }}>
                         {formatRupiah(item.jumlah)}
                       </div>
                     </td>

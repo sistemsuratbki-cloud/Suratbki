@@ -21,6 +21,7 @@ export const INITIAL_USERS = [
     name: 'Prasetyo, ST (Admin BKI)',
     email: 'admin@bki.co.id',
     role: 'admin',
+    grade: 'GRADE 6 A',
     roleLabel: 'Admin Utama BKI Pontianak',
     avatarBg: '#1e3a8a',
     description: 'Akses penuh seluruh sistem & manajemen pengguna BKI Cabang Pontianak'
@@ -32,6 +33,7 @@ export const INITIAL_USERS = [
     name: 'Budi Santoso, ST',
     email: 'budi@bki.co.id',
     role: 'surveyor',
+    grade: 'GRADE 6 A',
     roleLabel: 'Senior Class Surveyor - Lambung & Statutory',
     avatarBg: '#10b981',
     description: 'Inspektur Klasifikasi Lambung & Sertifikasi Keselamatan BKI'
@@ -43,6 +45,7 @@ export const INITIAL_USERS = [
     name: 'Siti Rahmawati, ST',
     email: 'siti@bki.co.id',
     role: 'surveyor',
+    grade: 'GRADE 6 B',
     roleLabel: 'Machinery & Marine Engineer Surveyor',
     avatarBg: '#059669',
     description: 'Inspektur Kelayakan Mesin Utama, Sistem Listrik & Sea Trial BKI'
@@ -54,6 +57,7 @@ export const INITIAL_USERS = [
     name: 'Ahmad Fauzi, ST',
     email: 'ahmad@bki.co.id',
     role: 'surveyor',
+    grade: 'GRADE 5 A',
     roleLabel: 'Hull Inspector - Tanker & Tugboat',
     avatarBg: '#047857',
     description: 'Inspektur Palka, Ketebalan Pelat & Garis Muat (Load Line) BKI'
@@ -65,6 +69,7 @@ export const INITIAL_USERS = [
     name: 'Dewi Lestari, ST',
     email: 'dewi@bki.co.id',
     role: 'surveyor',
+    grade: 'GRADE 5 B',
     roleLabel: 'NavCom & Statutory Surveyor',
     avatarBg: '#065f46',
     description: 'Inspektur Peralatan Navigasi, Radio & Sistem Komunikasi Kapal'
@@ -76,6 +81,7 @@ export const INITIAL_USERS = [
     name: 'Rian Hidayat, SE',
     email: 'keuangan@bki.co.id',
     role: 'keuangan',
+    grade: 'GRADE 5 B',
     roleLabel: 'Staff Keuangan BKI Pontianak',
     avatarBg: '#f59e0b',
     description: 'Kelola Kwitansi, Pembayaran Honorarium, & Tiket Perjalanan'
@@ -87,6 +93,7 @@ export const INITIAL_USERS = [
     name: 'Ir. H. Agus Susanto, MT',
     email: 'kacab@bki.co.id',
     role: 'kacab',
+    grade: 'GRADE 6 A',
     roleLabel: 'Kepala Cabang BKI Pontianak',
     avatarBg: '#64748b',
     description: 'Overview Dasbor Eksekutif & Persetujuan (Approval) BKI Cabang Pontianak'
@@ -328,6 +335,7 @@ export const AuthProvider = ({ children }) => {
       id: `usr-${Date.now().toString().slice(-6)}`,
       username: usernameGenerated,
       password: hashedPw,
+      grade: userData.grade || 'GRADE 6 A',
       roleLabel: userData.roleLabel || roleLabel,
       avatarBg: userData.avatarBg || (userData.role === 'surveyor' ? '#10b981' : userData.role === 'keuangan' ? '#f59e0b' : '#1e3a8a')
     };

@@ -19,7 +19,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const pemohon = suratTugas.pemohon || 'PT. MITRA SAMUDRA NUSANTARA';
   const namaKapal = suratTugas.namaKapal || 'BAHARI 279';
   const noOrder = suratTugas.noOrder || 'RFQ2608005';
-  const noAgenda = suratTugas.noAgenda || suratTugas.nomor || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`;
+  const noAgenda = suratTugas.agenda || suratTugas.noAgenda || '-';
   const catatan = suratTugas.catatan || '-';
   const surveyorName = suratTugas.petugas || 'ALFIAN BONE PUTRA';
   const kepalaCabang = suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';

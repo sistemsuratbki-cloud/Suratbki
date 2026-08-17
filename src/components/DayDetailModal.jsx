@@ -5,12 +5,13 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
+import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { sanitizeFormData } from '../utils/security';
 
 export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwitansiList, laporanList }) => {
   const { currentUser } = useAuth();
-  const { suratTugas, addSuratTugas, addLaporanSurvei, updateSuratTugas, updateKwitansiHonor, kwitansiHonor, adminSettings, tariffs } = useData();
+  const { suratTugas, addSuratTugas, addLaporanSurvei, updateSuratTugas, updateKwitansiHonor, kwitansiHonor, adminSettings, tariffs, gradeTariffs } = useData();
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
 
   const defaultLocName = activeTariffs[0]?.tujuan || activeTariffs[0]?.name || 'Kendawangan (Via Udara)';
@@ -19,6 +20,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
   const [activeTab, setActiveTab] = useState('view');
   const [printSuratItem, setPrintSuratItem] = useState(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
 
   const [printLaporanItem, setPrintLaporanItem] = useState(null);
   const [isLaporanPrintModalOpen, setIsLaporanPrintModalOpen] = useState(false);
@@ -58,54 +60,48 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
     fileTiketTransportName: '',
     fileKwitansiHotelName: '',
     hasil: '',
-    status: 'Terkirim'
+    status: 'Terkirim',
+    tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
   });
 
   useEffect(() => {
     if (selectedDate && isOpen) {
-      const activeSurat = tasksOnDate.length > 0 ? tasksOnDate[0] : (suratTugas[0] || null);
-
-      const matchedLoc = activeSurat?.lokasi
-        ? activeTariffs.find((t) => (t.name === activeSurat.lokasi || t.tujuan === activeSurat.lokasi))
-        : activeTariffs[0];
-
-      const initialLoc = activeSurat?.lokasi || matchedLoc?.tujuan || matchedLoc?.name || defaultLocName;
-      const initialRate = activeSurat?.tarifDasar || matchedLoc?.rate || defaultLocRate;
-
       setFormData({
-        nomor: cleanDocNumber(activeSurat?.nomor) || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
-        namaKapal: activeSurat?.namaKapal || '',
-        pemohon: activeSurat?.pemohon || '',
-        jenisSurvey: activeSurat?.jenisSurvey || activeSurat?.perihal || 'DINAS SURVEY KLAS',
-        perihal: activeSurat?.perihal || activeSurat?.jenisSurvey || 'DINAS SURVEY KLAS',
-        petugas: activeSurat?.petugas || currentUser?.name || 'ALFIAN BONE PUTRA',
-        pangkat: activeSurat?.pangkat || 'GRADE 6 A',
-        jabatan: activeSurat?.jabatan || 'SURVEYOR',
-        lokasi: initialLoc,
-        tempatSurvey: initialLoc,
-        tarifDasar: initialRate,
-        agenda: activeSurat?.agenda || activeSurat?.perihal || '',
-        noOrder: activeSurat?.noOrder || `ORD-${Date.now().toString().slice(-6)}`,
-        jumlahHariLibur: activeSurat?.jumlahHariLibur !== undefined ? activeSurat.jumlahHariLibur : (activeSurat?.isCito ? 1 : 0),
-        tiketHotel: activeSurat?.tiketHotel || 0,
-        tiketPesawatTaxi: activeSurat?.tiketPesawatTaxi || activeSurat?.biayaTiket || 0,
-        saranaTransportasi: activeSurat?.saranaTransportasi || 'UDARA, DARAT DAN AIR',
-        keteranganLain: activeSurat?.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
-        kepalaCabang: activeSurat?.kepalaCabang || adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
-        nup: activeSurat?.nup || adminSettings?.nup || '48199-KI',
-        tglMulai: activeSurat?.tglMulai || selectedDate,
-        tglSelesai: activeSurat?.tglSelesai || selectedDate,
-        suratId: activeSurat?.id || '',
-        isCito: activeSurat ? (!!activeSurat.isCito || Number(activeSurat.jumlahHariLibur) > 0) : false,
-        biayaTiket: activeSurat?.biayaTiket || 0,
-        kategoriTransportasi: activeSurat?.kategoriTransportasi || 'Pesawat Terbang',
+        nomor: `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
+        namaKapal: '',
+        pemohon: '',
+        jenisSurvey: '',
+        perihal: '',
+        petugas: currentUser?.name || 'ALFIAN BONE PUTRA',
+        pangkat: 'GRADE 6 A',
+        jabatan: 'SURVEYOR',
+        lokasi: '',
+        tempatSurvey: '',
+        tarifDasar: '',
+        agenda: '',
+        noOrder: 'RFQ-0000',
+        jumlahHariLibur: '',
+        tiketHotel: '',
+        tiketPesawatTaxi: '',
+        kategoriPerjalanan: '',
+        saranaTransportasi: 'UDARA, DARAT DAN AIR',
+        keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
+        kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
+        nup: adminSettings?.nup || '48199-KI',
+        tglMulai: selectedDate,
+        tglSelesai: selectedDate,
+        suratId: '',
+        isCito: false,
+        biayaTiket: 0,
+        kategoriTransportasi: 'Pesawat Terbang',
         // Uploads
-        fileFotoName: activeSurat?.fileFotoName || '',
-        fileVisitName: activeSurat?.fileVisitName || '',
-        fileTiketTransportName: activeSurat?.fileTiketTransportName || activeSurat?.fileTiketName || '',
-        fileKwitansiHotelName: activeSurat?.fileKwitansiHotelName || '',
+        fileFotoName: '',
+        fileVisitName: '',
+        fileTiketTransportName: '',
+        fileKwitansiHotelName: '',
         hasil: '',
-        status: 'Terkirim'
+        status: 'Terkirim',
+        tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
 
       if (currentUser?.role === 'surveyor' || tasksOnDate.length === 0) {
@@ -153,17 +149,40 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
     setIsPrintModalOpen(true);
   };
 
+  const handleOpenPdsPrint = (surat) => {
+    setPrintSuratItem(surat);
+    setIsPdsPrintModalOpen(true);
+  };
+
   const currentBaseRate = Number(formData.tarifDasar) || defaultLocRate;
   const jumlahLibur = Number(formData.jumlahHariLibur) || 0;
-  const isCitoActive = formData.isCito || jumlahLibur > 0;
-  const citoRateMultiplier = jumlahLibur > 0 ? (0.5 * jumlahLibur) : 0.5;
-  const currentCitoFee = isCitoActive ? Math.round(currentBaseRate * citoRateMultiplier) : 0;
-
   const currentHotelFee = Number(formData.tiketHotel) || 0;
   const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
+  
+  const biayaTAT = formData.kategoriPerjalanan === 'Luar Kota' && !formData.tanpaTAT ? (Number(adminSettings?.tatLuarKota) || 750000) : 0;
+  
   const totalBiayaTransportHotel = currentHotelFee + currentFlightTaxiFee;
-  const grandTotalEstimasi = currentBaseRate + currentCitoFee + totalBiayaTransportHotel;
   const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
+
+  // Calculate Uang Harian
+  const currentGradeTariff = (gradeTariffs || []).find((g) => g.grade === formData.pangkat);
+  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 0;
+  
+  let jumlahHari = 1;
+  if (formData.tglMulai && formData.tglSelesai) {
+    const start = new Date(formData.tglMulai);
+    const end = new Date(formData.tglSelesai);
+    if (!isNaN(start) && !isNaN(end)) {
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      jumlahHari = diffDays > 0 ? diffDays : 1;
+    }
+  }
+  const hariLibur = Number(formData.jumlahHariLibur) || 0;
+  const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
+  const totalUangHarian = !formData.tanpaUangHarian ? ((uangHarianPerHari * jumlahHari) + tambahanLibur) : 0;
+
+  const grandTotalEstimasi = currentBaseRate + totalBiayaTransportHotel + biayaTAT + totalUangHarian;
 
   const processSaveSurvey = () => {
     if (!formData.namaKapal || !formData.petugas) {
@@ -188,17 +207,20 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       tarifDasar: currentBaseRate,
       agenda: formData.agenda,
       noOrder: formData.noOrder,
-      jumlahHariLibur: jumlahLibur,
       tiketHotel: currentHotelFee,
       tiketPesawatTaxi: currentFlightTaxiFee,
+      kategoriPerjalanan: formData.kategoriPerjalanan,
       saranaTransportasi: formData.saranaTransportasi,
       keteranganLain: formData.keteranganLain,
       kepalaCabang: formData.kepalaCabang,
       nup: formData.nup,
       tglMulai: formData.tglMulai,
       tglSelesai: formData.tglSelesai,
-      isCito: isCitoActive,
-      biayaTiket: totalBiayaTransportHotel,
+      biayaTiket: totalBiayaTransportHotel + biayaTAT,
+      biayaTAT: biayaTAT,
+      uangHarian: uangHarianPerHari,
+      totalUangHarian: totalUangHarian,
+      jumlahHari: jumlahHari,
       kategoriTransportasi: formData.kategoriTransportasi,
       // 4 File Uploads
       fileFotoName: formData.fileFotoName,
@@ -206,7 +228,8 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       fileTiketTransportName: formData.fileTiketTransportName,
       fileKwitansiHotelName: formData.fileKwitansiHotelName,
       fileTiketName: formData.fileTiketTransportName,
-      jumlahEstimasi: grandTotalEstimasi
+      jumlahEstimasi: grandTotalEstimasi,
+      tembusan: formData.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
     };
 
     if (finalSuratId) {
@@ -225,10 +248,10 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
           updateKwitansiHonor(linkedKwitansi.id, sanitizeFormData({
             ...linkedKwitansi,
             tarifDasar: currentBaseRate,
-            isCito: isCitoActive,
+            isCito: false,
             biayaTiket: totalBiayaTransportHotel,
             jumlah: grandTotalEstimasi,
-            catatan: `Honorarium ${isCitoActive ? 'CITO (+50%)' : 'Standar'} + Transport/Hotel (${formatRupiah(totalBiayaTransportHotel)})`
+            catatan: `Honorarium Standar + Transport/Hotel (${formatRupiah(totalBiayaTransportHotel)})`
           }));
         }
       }
@@ -249,9 +272,8 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
 
     // Auto-update Laporan Survei fields if custom hasil/notes exist
     const existingLaporan = laporanList?.find(l => l.suratId === finalSuratId);
-    const citoPrefix = isCitoActive ? '[⚡ CITO / Hari Libur] ' : '';
     const tiketInfo = totalBiayaTransportHotel > 0 ? ` [🎟️ Hotel/Tiket: ${formatRupiah(totalBiayaTransportHotel)}]` : '';
-    const reportText = formData.hasil ? `${citoPrefix}${tiketInfo} [Kapal: ${formData.namaKapal} | Pemohon: ${formData.pemohon || '-'}] ${formData.hasil}` : `Survei kelaiklautan kapal ${formData.namaKapal}`;
+    const reportText = formData.hasil ? `${tiketInfo} [Kapal: ${formData.namaKapal} | Pemohon: ${formData.pemohon || '-'}] ${formData.hasil}` : `Survei kelaiklautan kapal ${formData.namaKapal}`;
 
     if (existingLaporan) {
       updateSuratTugas(finalSuratId, {
@@ -388,6 +410,14 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                               <Printer size={13} />
                               <span>Cetak ST</span>
                             </button>
+                            <button
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                              onClick={() => handleOpenPdsPrint(st)}
+                            >
+                              <FileText size={13} />
+                              <span>Cetak PDS</span>
+                            </button>
                             <span className={`badge ${getStatusBadgeClass(st.status)}`}>
                               <span className="badge-dot" />
                               {st.status}
@@ -420,6 +450,31 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                   })}
                 </div>
               )
+            ) : !formData.kategoriPerjalanan ? (
+              <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+                <h3 style={{ fontSize: '1.15rem', color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Pilih Kategori Perjalanan</h3>
+                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>
+                  Silakan pilih kategori lokasi survei untuk menyesuaikan formulir secara otomatis.
+                </p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px', margin: '0 auto' }}>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', fontWeight: 700 }}
+                    onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Dalam Kota', saranaTransportasi: 'DARAT DAN AIR' })}
+                  >
+                    🚗 DALAM KOTA
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', background: '#0ea5e9', borderColor: '#0ea5e9', fontWeight: 700 }}
+                    onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Luar Kota', saranaTransportasi: 'UDARA, DARAT DAN AIR' })}
+                  >
+                    ✈️ LUAR KOTA
+                  </button>
+                </div>
+              </div>
             ) : (
               /* Input Marine Survey Form (11 Fields + 4 Uploads) */
               <form onSubmit={handleSaveSurvey}>
@@ -511,13 +566,20 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         value={formData.jenisSurvey}
                         onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
                       >
-                        <option value="DINAS SURVEY KLAS">DINAS SURVEY KLAS</option>
-                        <option value="SURVEY TAHUNAN (ANNUAL SURVEY)">SURVEY TAHUNAN (ANNUAL SURVEY)</option>
-                        <option value="SURVEY ANTARA (INTERMEDIATE SURVEY)">SURVEY ANTARA (INTERMEDIATE SURVEY)</option>
-                        <option value="SURVEY PEMBARUAN KELAS (RENEWAL SURVEY)">SURVEY PEMBARUAN KELAS (RENEWAL SURVEY)</option>
-                        <option value="SURVEY KELAIKLAUTAN (STATUTORY)">SURVEY KELAIKLAUTAN (STATUTORY)</option>
-                        <option value="SURVEY KERUSAKAN (DAMAGE SURVEY)">SURVEY KERUSAKAN (DAMAGE SURVEY)</option>
-                        <option value="INSPEKSI KETEBALAN PELAT & LOAD LINE">INSPEKSI KETEBALAN PELAT & LOAD LINE</option>
+                        <option value="">-- Pilih Jenis Survey --</option>
+                        <option value="Pembaharuan">Pembaharuan</option>
+                        <option value="Tahunan">Tahunan</option>
+                        <option value="Antara">Antara</option>
+                        <option value="Perpanjangan">Perpanjangan</option>
+                        <option value="Pengedokan">Pengedokan</option>
+                        <option value="UWILD">UWILD</option>
+                        <option value="Tunda Dok">Tunda Dok</option>
+                        <option value="Poros Cabut/Tunda/Ditempat (Per Poros)">Poros Cabut/Tunda/Ditempat (Per Poros)</option>
+                        <option value="Khusus (Per Jam)***">Khusus (Per Jam)***</option>
+                        <option value="Pembaruan LL">Pembaruan LL</option>
+                        <option value="Tahunan LL">Tahunan LL</option>
+                        <option value="Revalidasi LL">Revalidasi LL</option>
+                        <option value="Conveyance Survey">Conveyance Survey</option>
                       </select>
                     </div>
 
@@ -532,17 +594,19 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         onChange={(e) => handleLocationChange(e.target.value)}
                         required
                       >
-                        {activeTariffs.map((loc) => (
-                          <option key={loc.id} value={loc.tujuan || loc.name}>
-                            {loc.tujuan || loc.name} — {formatRupiah(loc.rate)} {loc.rincian ? `(${loc.rincian})` : ''}
-                          </option>
-                        ))}
+                        {activeTariffs
+                          .filter(loc => (loc.kategori || 'Luar Kota') === formData.kategoriPerjalanan)
+                          .map((loc) => (
+                            <option key={loc.id} value={loc.tujuan || loc.name}>
+                              {loc.tujuan || loc.name} {loc.rincian ? `(${loc.rincian})` : ''}
+                            </option>
+                          ))}
                       </select>
                     </div>
                   </div>
 
-                  {/* 5. TANGGAL MULAI & 6. TANGGAL AKHIR */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  {/* 5. TANGGAL MULAI, 6. TANGGAL AKHIR & HARI LIBUR */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Calendar size={14} color="var(--accent-primary)" />
@@ -570,6 +634,22 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         required
                       />
                     </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Calendar size={14} color="var(--accent-primary)" />
+                        <span>HARI LIBUR (Jml)</span>
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        max={jumlahHari}
+                        className="form-input"
+                        value={formData.jumlahHariLibur !== undefined ? formData.jumlahHariLibur : ''}
+                        onChange={(e) => setFormData({ ...formData, jumlahHariLibur: e.target.value === '' ? '' : Number(e.target.value) })}
+                        placeholder="0"
+                      />
+                    </div>
                   </div>
 
                   {/* 7. AGENDA & 8. NO.ORDER */}
@@ -577,14 +657,14 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <FileText size={14} color="var(--accent-primary)" />
-                        <span>7. AGENDA *</span>
+                        <span>7. NO AGENDA *</span>
                       </label>
                       <input
                         type="text"
                         className="form-input"
                         value={formData.agenda}
                         onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
-                        placeholder="Contoh: Pemeriksaan Ketebalan Pelat & Sertifikasi Kelaiklautan"
+                        placeholder="isi dengan nomor agenda"
                         required
                       />
                     </div>
@@ -598,43 +678,26 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         className="form-input"
                         value={formData.noOrder}
                         onChange={(e) => setFormData({ ...formData, noOrder: e.target.value })}
-                        placeholder="Contoh: ORD-2026/08/001"
+                        placeholder="Contoh: RFQ-0000"
                         required
                       />
                     </div>
                   </div>
 
-                  {/* 9. JUMLAH HARI LIBUR, 10. TIKET HOTEL, 11. TIKET PESAWAT DAN TAXI */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700 }}>
-                        9. JUMLAH HARI LIBUR
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        max="30"
-                        className="form-input"
-                        value={formData.jumlahHariLibur}
-                        onChange={(e) => setFormData({ ...formData, jumlahHariLibur: Number(e.target.value) || 0, isCito: Number(e.target.value) > 0 })}
-                        placeholder="0 hari"
-                      />
-                      <span style={{ fontSize: '0.7rem', color: formData.jumlahHariLibur > 0 ? '#ef4444' : 'var(--text-muted)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
-                        {formData.jumlahHariLibur > 0 ? `⚡ Surcharge CITO (+${formData.jumlahHariLibur * 50}%)` : 'Hari kerja standar'}
-                      </span>
-                    </div>
+                  {/* 9. TIKET HOTEL, 10. TIKET PESAWAT DAN TAXI */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
 
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700 }}>
-                        10. TIKET HOTEL (Rp)
+                        10. KWITANSI HOTEL (Rp)
                       </label>
                       <input
                         type="number"
                         min="0"
-                        step="50000"
+                        step="1000"
                         className="form-input"
                         value={formData.tiketHotel}
-                        onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) || 0 })}
+                        onChange={(e) => setFormData({ ...formData, tiketHotel: e.target.value === '' ? '' : Number(e.target.value) })}
                         placeholder="0"
                       />
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
@@ -649,10 +712,10 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                       <input
                         type="number"
                         min="0"
-                        step="50000"
+                        step="1000"
                         className="form-input"
                         value={formData.tiketPesawatTaxi}
-                        onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) || 0 })}
+                        onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: e.target.value === '' ? '' : Number(e.target.value) })}
                         placeholder="0"
                       />
                       <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
@@ -682,6 +745,29 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     </span>
                   </div>
 
+                  <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                    {formData.kategoriPerjalanan === 'Luar Kota' && (
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.tanpaTAT || false}
+                          onChange={(e) => setFormData({ ...formData, tanpaTAT: e.target.checked })}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                        />
+                        Tanpa Biaya TAT
+                      </label>
+                    )}
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.tanpaUangHarian || false}
+                        onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked })}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                      />
+                      Tanpa Uang Harian
+                    </label>
+                  </div>
+
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
                     <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                       <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
@@ -690,17 +776,28 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                       </div>
                     </div>
 
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: isCitoActive ? '#dc2626' : 'var(--text-muted)' }}>CITO Hari Libur</div>
-                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: isCitoActive ? '#dc2626' : 'var(--text-muted)', marginTop: '0.1rem' }}>
-                        {isCitoActive ? `+${formatRupiah(currentCitoFee)}` : 'Non-CITO'}
-                      </div>
-                    </div>
+
 
                     <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                       <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Biaya Hotel & Tiket</div>
                       <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
                         {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
+                      </div>
+                    </div>
+
+                    {biayaTAT > 0 && (
+                      <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Tarif Asal Tujuan (TAT)</div>
+                        <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
+                          +{formatRupiah(biayaTAT)}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({jumlahHari} hr)</div>
+                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
+                        +{formatRupiah(totalUangHarian)}
                       </div>
                     </div>
 
@@ -830,6 +927,20 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                   </div>
                 </div>
 
+
+
+                {/* Tembusan */}
+                <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+                  <label className="form-label">Tembusan</label>
+                  <textarea
+                    className="form-textarea"
+                    style={{ minHeight: '60px' }}
+                    value={formData.tembusan}
+                    onChange={(e) => setFormData({ ...formData, tembusan: e.target.value })}
+                    placeholder="Contoh: 1. Yth. Kepala Divisi keuangan..."
+                  />
+                </div>
+
                 {/* Hasil & Catatan Temuan */}
                 <div className="form-group" style={{ marginBottom: '1.5rem' }}>
                   <label className="form-label">Hasil / Catatan Temuan Survei (Opsional)</label>
@@ -848,16 +959,6 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                   </button>
 
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
-                      onClick={handleSaveAndPrintSurvey}
-                    >
-                      <Printer size={16} color="var(--accent-primary)" />
-                      <span>Simpan & Cetak ST</span>
-                    </button>
-
                     <button type="submit" className="btn btn-primary">
                       <Save size={16} />
                       <span>Simpan Survei Kapal</span>
@@ -873,6 +974,12 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       <SuratTugasPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
+        suratTugas={printSuratItem}
+      />
+
+      <SuratTugasPdsPrintModal
+        isOpen={isPdsPrintModalOpen}
+        onClose={() => setIsPdsPrintModalOpen(false)}
         suratTugas={printSuratItem}
       />
 

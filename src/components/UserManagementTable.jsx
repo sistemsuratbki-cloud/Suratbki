@@ -136,6 +136,7 @@ export const UserManagementTable = () => {
               <th>Nama Pengguna</th>
               <th>Nama Akun (Username)</th>
               <th>Peran (Role)</th>
+              <th>Grade</th>
               <th>Jabatan / Spesialisasi</th>
               <th>Status Password</th>
               <th style={{ textAlign: 'right' }}>Aksi</th>
@@ -144,7 +145,7 @@ export const UserManagementTable = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="7" className="table-empty">
+                <td colSpan="8" className="table-empty">
                   <div className="table-empty-icon">👥</div>
                   <p>Tidak ada akun pengguna yang sesuai dengan kriteria pencarian.</p>
                 </td>
@@ -186,6 +187,11 @@ export const UserManagementTable = () => {
                     </div>
                   </td>
                   <td>{getRoleBadge(item.role)}</td>
+                  <td>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                      {item.grade || 'GRADE 6 A'}
+                    </div>
+                  </td>
                   <td>
                     <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                       {item.roleLabel || '-'}

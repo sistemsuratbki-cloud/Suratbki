@@ -9,8 +9,9 @@ export const RecentActivity = ({ setActiveTab }) => {
   const latestLaporan = laporanSurvei[0];
   const pendingKwitansi = kwitansiHonor.find((k) => k.status === 'Belum Dibayar') || kwitansiHonor[0];
 
-  const formatShortName = (name = '') => {
-    return name.split(' (')[0];
+  const formatShortName = (name) => {
+    if (!name) return '';
+    return String(name).split(' (')[0];
   };
 
   return (

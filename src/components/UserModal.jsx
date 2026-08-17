@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { X, Save, UserCheck, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validatePasswordStrength } from '../utils/security';
 
 export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   const { addUser, updateUser } = useAuth();
+  const { gradeTariffs } = useData();
 
   const [formData, setFormData] = useState({
     username: '',
@@ -13,6 +15,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
     name: '',
     email: '',
     role: 'surveyor',
+    grade: 'GRADE 6 A',
     roleLabel: 'Marine Surveyor',
     description: '',
     avatarBg: '#10b981'
@@ -36,6 +39,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
         name: '',
         email: '',
         role: 'surveyor',
+        grade: 'GRADE 6 A',
         roleLabel: 'Marine Surveyor',
         description: 'Petugas survei kelayakan kapal',
         avatarBg: '#10b981'
@@ -231,6 +235,21 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                 </div>
 
                 <div className="form-group">
+                  <label className="form-label">Grade / Pangkat *</label>
+                  <select
+                    className="form-select"
+                    value={formData.grade}
+                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                  >
+                    {(gradeTariffs || []).map((t) => (
+                      <option key={t.id} value={t.grade}>{t.grade}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Jabatan / Spesialisasi</label>
                   <input
                     type="text"

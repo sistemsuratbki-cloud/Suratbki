@@ -7,7 +7,7 @@ import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData } from '../utils/security';
 
 export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
-  const { addSuratTugas, updateSuratTugas, adminSettings, tariffs } = useData();
+  const { addSuratTugas, updateSuratTugas, adminSettings, tariffs, gradeTariffs } = useData();
   const { usersList, currentUser } = useAuth();
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
 
@@ -50,7 +50,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     fileTiketTransportName: '',
     fileKwitansiHotelName: '',
     status: 'Belum Mulai',
-    catatan: ''
+    catatan: '',
+    tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
   });
 
   useEffect(() => {
@@ -65,10 +66,11 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         lokasi: editItem.lokasi || editItem.tempatSurvey || defaultLocation,
         tempatSurvey: editItem.tempatSurvey || editItem.lokasi || defaultLocation,
         agenda: editItem.agenda || editItem.perihal || '',
-        noOrder: editItem.noOrder || '',
+        noOrder: editItem.noOrder || 'RFQ-0000',
         jumlahHariLibur: editItem.jumlahHariLibur !== undefined ? editItem.jumlahHariLibur : (editItem.isCito ? 1 : 0),
         tiketHotel: editItem.tiketHotel || 0,
         tiketPesawatTaxi: editItem.tiketPesawatTaxi || editItem.biayaTiket || 0,
+        kategoriPerjalanan: editItem.kategoriPerjalanan || '',
         pangkat: editItem.pangkat || 'GRADE 6 A',
         jabatan: editItem.jabatan || 'SURVEYOR',
         saranaTransportasi: editItem.saranaTransportasi || 'UDARA, DARAT DAN AIR',
@@ -83,7 +85,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         fileFotoName: editItem.fileFotoName || '',
         fileVisitName: editItem.fileVisitName || '',
         fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
-        fileKwitansiHotelName: editItem.fileKwitansiHotelName || ''
+        fileKwitansiHotelName: editItem.fileKwitansiHotelName || '',
+        tembusan: editItem.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
     } else {
       const nextNum = String(Math.floor(Math.random() * 900) + 100);
@@ -94,22 +97,23 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         nomor: `A 0    /SV.${nextNum}/PK/KI-26`,
         namaKapal: '',
         pemohon: '',
-        jenisSurvey: 'DINAS SURVEY KLAS',
-        perihal: 'DINAS SURVEY KLAS',
+        jenisSurvey: '',
+        perihal: '',
         petugas: defaultSurveyor,
         pangkat: 'GRADE 6 A',
         jabatan: 'SURVEYOR',
-        lokasi: defaultLocation,
-        tempatSurvey: defaultLocation,
-        tarifDasar: defaultRate,
+        lokasi: '',
+        tempatSurvey: '',
+        tarifDasar: '',
         agenda: '',
-        noOrder: `ORD-${Date.now().toString().slice(-6)}`,
-        jumlahHariLibur: 0,
-        tiketHotel: 0,
-        tiketPesawatTaxi: 0,
+        noOrder: 'RFQ-0000',
+        jumlahHariLibur: '',
+        tiketHotel: '',
+        tiketPesawatTaxi: '',
         isCito: false,
         biayaTiket: 0,
         kategoriTransportasi: 'Pesawat Terbang',
+        kategoriPerjalanan: '',
         saranaTransportasi: 'UDARA, DARAT DAN AIR',
         keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
         kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
@@ -121,7 +125,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         tglMulai: todayDate,
         tglSelesai: todayDate,
         status: 'Belum Mulai',
-        catatan: ''
+        catatan: '',
+        tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
     }
   }, [editItem, isOpen, adminSettings, activeTariffs, currentUser]);
@@ -157,16 +162,32 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
   };
 
   const currentBaseRate = Number(formData.tarifDasar) || defaultRate;
-  const jumlahLibur = Number(formData.jumlahHariLibur) || 0;
-  const isCitoActive = formData.isCito || jumlahLibur > 0;
-  const citoRateMultiplier = jumlahLibur > 0 ? (0.5 * jumlahLibur) : 0.5;
-  const currentCitoFee = isCitoActive ? Math.round(currentBaseRate * citoRateMultiplier) : 0;
-
   const currentHotelFee = Number(formData.tiketHotel) || 0;
   const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
+  const biayaTAT = formData.kategoriPerjalanan === 'Luar Kota' && !formData.tanpaTAT ? (Number(adminSettings?.tatLuarKota) || 750000) : 0;
+  
   const totalBiayaTransportHotel = currentHotelFee + currentFlightTaxiFee;
-  const totalEstimasiGrand = currentBaseRate + currentCitoFee + totalBiayaTransportHotel;
   const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
+
+  // Calculate Uang Harian
+  const currentGradeTariff = (gradeTariffs || []).find((g) => g.grade === formData.pangkat);
+  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 0;
+  
+  let jumlahHari = 1;
+  if (formData.tglMulai && formData.tglSelesai) {
+    const start = new Date(formData.tglMulai);
+    const end = new Date(formData.tglSelesai);
+    if (!isNaN(start) && !isNaN(end)) {
+      const diffTime = end.getTime() - start.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
+      jumlahHari = diffDays > 0 ? diffDays : 1;
+    }
+  }
+  const hariLibur = Number(formData.jumlahHariLibur) || 0;
+  const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
+  const totalUangHarian = !formData.tanpaUangHarian ? ((uangHarianPerHari * jumlahHari) + tambahanLibur) : 0;
+
+  const totalEstimasiGrand = currentBaseRate + totalBiayaTransportHotel + biayaTAT + totalUangHarian;
 
   const processSave = () => {
     if (!formData.namaKapal || !formData.petugas) {
@@ -182,13 +203,16 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
       lokasi: formData.lokasi || formData.tempatSurvey,
       agenda: formData.agenda || formData.perihal || '',
       tarifDasar: currentBaseRate,
-      isCito: isCitoActive,
-      jumlahHariLibur: jumlahLibur,
       tiketHotel: currentHotelFee,
       tiketPesawatTaxi: currentFlightTaxiFee,
-      biayaTiket: totalBiayaTransportHotel,
+      biayaTiket: totalBiayaTransportHotel + biayaTAT,
+      biayaTAT: biayaTAT,
+      uangHarian: uangHarianPerHari,
+      totalUangHarian: totalUangHarian,
+      jumlahHari: jumlahHari,
       fileTiketName: formData.fileTiketTransportName || formData.fileTiketName,
-      jumlahEstimasi: totalEstimasiGrand
+      jumlahEstimasi: totalEstimasiGrand,
+      tembusan: formData.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
     });
 
     if (editItem) {
@@ -217,6 +241,46 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
       }
     }
   };
+
+  if (!editItem && !formData.kategoriPerjalanan) {
+    return (
+      <ModalPortal>
+        <div className="modal-overlay" onClick={onClose}>
+          <div className="modal-content" style={{ maxWidth: '450px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header" style={{ justifyContent: 'center', borderBottom: 'none', paddingBottom: 0, position: 'relative' }}>
+              <h3 className="modal-title" style={{ fontSize: '1.25rem', color: 'var(--accent-primary)' }}>Pilih Kategori Perjalanan</h3>
+              <button className="btn btn-secondary btn-icon" onClick={onClose} style={{ position: 'absolute', right: '1rem', top: '1rem' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <div className="modal-body" style={{ padding: '1.5rem 2rem 2.5rem' }}>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem', fontSize: '0.9rem' }}>
+                Silakan pilih kategori lokasi survei untuk menyesuaikan formulir secara otomatis.
+              </p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', fontWeight: 700 }}
+                  onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Dalam Kota', saranaTransportasi: 'DARAT DAN AIR' })}
+                >
+                  🚗 DALAM KOTA
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', background: '#0ea5e9', borderColor: '#0ea5e9', fontWeight: 700 }}
+                  onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Luar Kota', saranaTransportasi: 'UDARA, DARAT DAN AIR' })}
+                >
+                  ✈️ LUAR KOTA
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </ModalPortal>
+    );
+  }
 
   return (
     <ModalPortal>
@@ -259,14 +323,28 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     <Shield size={14} color="var(--accent-primary)" />
                     <span>Nama Class Surveyor *</span>
                   </label>
-                  <input
-                    type="text"
-                    className="form-input"
+                  <select
+                    className="form-select"
                     value={formData.petugas}
-                    onChange={(e) => setFormData({ ...formData, petugas: e.target.value })}
-                    placeholder="Nama surveyor yang ditugaskan..."
+                    onChange={(e) => {
+                      const selectedUser = surveyorUsers.find(u => u.name === e.target.value);
+                      if (selectedUser) {
+                        setFormData({ 
+                          ...formData, 
+                          petugas: selectedUser.name,
+                          pangkat: selectedUser.grade || 'GRADE 6 A'
+                        });
+                      } else {
+                        setFormData({ ...formData, petugas: e.target.value });
+                      }
+                    }}
                     required
-                  />
+                  >
+                    <option value="">-- Pilih Surveyor --</option>
+                    {surveyorUsers.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
@@ -326,13 +404,20 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                       value={formData.jenisSurvey}
                       onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
                     >
-                      <option value="DINAS SURVEY KLAS">DINAS SURVEY KLAS</option>
-                      <option value="SURVEY TAHUNAN (ANNUAL SURVEY)">SURVEY TAHUNAN (ANNUAL SURVEY)</option>
-                      <option value="SURVEY ANTARA (INTERMEDIATE SURVEY)">SURVEY ANTARA (INTERMEDIATE SURVEY)</option>
-                      <option value="SURVEY PEMBARUAN KELAS (RENEWAL SURVEY)">SURVEY PEMBARUAN KELAS (RENEWAL SURVEY)</option>
-                      <option value="SURVEY KELAIKLAUTAN (STATUTORY)">SURVEY KELAIKLAUTAN (STATUTORY)</option>
-                      <option value="SURVEY KERUSAKAN (DAMAGE SURVEY)">SURVEY KERUSAKAN (DAMAGE SURVEY)</option>
-                      <option value="INSPEKSI KETEBALAN PELAT & LOAD LINE">INSPEKSI KETEBALAN PELAT & LOAD LINE</option>
+                      <option value="">-- Pilih Jenis Survey --</option>
+                      <option value="Pembaharuan">Pembaharuan</option>
+                      <option value="Tahunan">Tahunan</option>
+                      <option value="Antara">Antara</option>
+                      <option value="Perpanjangan">Perpanjangan</option>
+                      <option value="Pengedokan">Pengedokan</option>
+                      <option value="UWILD">UWILD</option>
+                      <option value="Tunda Dok">Tunda Dok</option>
+                      <option value="Poros Cabut/Tunda/Ditempat (Per Poros)">Poros Cabut/Tunda/Ditempat (Per Poros)</option>
+                      <option value="Khusus (Per Jam)***">Khusus (Per Jam)***</option>
+                      <option value="Pembaruan LL">Pembaruan LL</option>
+                      <option value="Tahunan LL">Tahunan LL</option>
+                      <option value="Revalidasi LL">Revalidasi LL</option>
+                      <option value="Conveyance Survey">Conveyance Survey</option>
                     </select>
                   </div>
 
@@ -347,11 +432,13 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                       onChange={(e) => handleLocationChange(e.target.value)}
                       required
                     >
-                      {activeTariffs.map((loc) => (
-                        <option key={loc.id} value={loc.tujuan || loc.name}>
-                          {loc.tujuan || loc.name} — {formatRupiah(loc.rate)} {loc.rincian ? `(${loc.rincian})` : ''}
-                        </option>
-                      ))}
+                      {activeTariffs
+                        .filter(loc => (loc.kategori || 'Luar Kota') === formData.kategoriPerjalanan)
+                        .map((loc) => (
+                          <option key={loc.id} value={loc.tujuan || loc.name}>
+                            {loc.tujuan || loc.name} {loc.rincian ? `(${loc.rincian})` : ''}
+                          </option>
+                        ))}
                     </select>
                     {currentMatchedTariff?.rincian && (
                       <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
@@ -361,8 +448,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   </div>
                 </div>
 
-                {/* 5. TANGGAL MULAI & 6. TANGGAL AKHIR */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                {/* 5. TANGGAL MULAI, 6. TANGGAL AKHIR & HARI LIBUR */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <Calendar size={14} color="var(--accent-primary)" />
@@ -390,6 +477,22 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                       required
                     />
                   </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Calendar size={14} color="var(--accent-primary)" />
+                      <span>HARI LIBUR (Jml)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max={jumlahHari}
+                      className="form-input"
+                      value={formData.jumlahHariLibur !== undefined ? formData.jumlahHariLibur : ''}
+                      onChange={(e) => setFormData({ ...formData, jumlahHariLibur: e.target.value === '' ? '' : Number(e.target.value) })}
+                      placeholder="0"
+                    />
+                  </div>
                 </div>
 
                 {/* 7. AGENDA & 8. NO.ORDER */}
@@ -397,14 +500,14 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <FileText size={14} color="var(--accent-primary)" />
-                      <span>7. AGENDA *</span>
+                      <span>7. NO AGENDA *</span>
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.agenda}
                       onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
-                      placeholder="Contoh: Pemeriksaan Ketebalan Pelat & Sertifikasi Kelaiklautan"
+                      placeholder="isi dengan nomor agenda"
                       required
                     />
                   </div>
@@ -418,43 +521,26 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                       className="form-input"
                       value={formData.noOrder}
                       onChange={(e) => setFormData({ ...formData, noOrder: e.target.value })}
-                      placeholder="Contoh: ORD-2026/08/001"
+                      placeholder="Contoh: RFQ-0000"
                       required
                     />
                   </div>
                 </div>
 
-                {/* 9. JUMLAH HARI LIBUR, 10. TIKET HOTEL, 11. TIKET PESAWAT DAN TAXI */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      9. JUMLAH HARI LIBUR
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="30"
-                      className="form-input"
-                      value={formData.jumlahHariLibur}
-                      onChange={(e) => setFormData({ ...formData, jumlahHariLibur: Number(e.target.value) || 0, isCito: Number(e.target.value) > 0 })}
-                      placeholder="0 hari"
-                    />
-                    <span style={{ fontSize: '0.7rem', color: formData.jumlahHariLibur > 0 ? '#ef4444' : 'var(--text-muted)', marginTop: '0.2rem', display: 'block', fontWeight: 600 }}>
-                      {formData.jumlahHariLibur > 0 ? `⚡ Surcharge CITO Libur (+${formData.jumlahHariLibur * 50}%)` : 'Hari kerja standar'}
-                    </span>
-                  </div>
+                {/* 9. TIKET HOTEL, 10. TIKET PESAWAT DAN TAXI */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
 
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
-                      10. TIKET HOTEL (Rp)
+                      10. KWITANSI HOTEL (Rp)
                     </label>
                     <input
                       type="number"
                       min="0"
-                      step="50000"
+                      step="1000"
                       className="form-input"
                       value={formData.tiketHotel}
-                      onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, tiketHotel: e.target.value === '' ? '' : Number(e.target.value) })}
                       placeholder="0"
                     />
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
@@ -469,10 +555,10 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     <input
                       type="number"
                       min="0"
-                      step="50000"
+                      step="1000"
                       className="form-input"
                       value={formData.tiketPesawatTaxi}
-                      onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) || 0 })}
+                      onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: e.target.value === '' ? '' : Number(e.target.value) })}
                       placeholder="0"
                     />
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
@@ -502,6 +588,29 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   </span>
                 </div>
 
+                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                  {formData.kategoriPerjalanan === 'Luar Kota' && (
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.tanpaTAT || false}
+                        onChange={(e) => setFormData({ ...formData, tanpaTAT: e.target.checked })}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                      />
+                      Tanpa Biaya TAT
+                    </label>
+                  )}
+                  <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.tanpaUangHarian || false}
+                      onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked })}
+                      style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                    />
+                    Tanpa Uang Harian
+                  </label>
+                </div>
+
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
@@ -510,17 +619,27 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     </div>
                   </div>
 
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.7rem', color: isCitoActive ? '#dc2626' : 'var(--text-muted)' }}>CITO Hari Libur</div>
-                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: isCitoActive ? '#dc2626' : 'var(--text-muted)', marginTop: '0.1rem' }}>
-                      {isCitoActive ? `+${formatRupiah(currentCitoFee)}` : 'Non-CITO'}
-                    </div>
-                  </div>
 
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
                     <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Hotel & Transport</div>
                     <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
                       {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
+                    </div>
+                  </div>
+
+                  {biayaTAT > 0 && (
+                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Tarif Asal Tujuan (TAT)</div>
+                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
+                        +{formatRupiah(biayaTAT)}
+                      </div>
+                    </div>
+                  )}
+
+                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({jumlahHari} hr)</div>
+                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
+                      +{formatRupiah(totalUangHarian)}
                     </div>
                   </div>
 
@@ -650,27 +769,28 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                 </div>
               </div>
 
-              {/* Detail Sarana & Penandatangan */}
+              {/* Detail Penandatangan / Keterangan */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Sarana Transportasi</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.saranaTransportasi}
-                    onChange={(e) => setFormData({ ...formData, saranaTransportasi: e.target.value })}
-                    placeholder="UDARA, DARAT DAN AIR"
-                  />
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label">Keterangan Lain (Pembiayaan)</label>
-                  <input
-                    type="text"
+                  <textarea
                     className="form-input"
+                    rows="2"
                     value={formData.keteranganLain}
                     onChange={(e) => setFormData({ ...formData, keteranganLain: e.target.value })}
                     placeholder="Catatan pembiayaan BKI..."
+                    style={{ resize: 'vertical' }}
+                  />
+                </div>
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label">Tembusan</label>
+                  <textarea
+                    className="form-input"
+                    rows="2"
+                    value={formData.tembusan}
+                    onChange={(e) => setFormData({ ...formData, tembusan: e.target.value })}
+                    placeholder="Contoh: 1. Yth. Kepala Divisi keuangan..."
+                    style={{ resize: 'vertical' }}
                   />
                 </div>
               </div>
