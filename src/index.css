@@ -1400,6 +1400,10 @@ body {
 
   /* Reset modal overlay for clean 1-page document print */
   .modal-overlay {
+    display: none !important;
+  }
+  
+  .modal-overlay:has(.printable-sheet) {
     position: static !important;
     background: transparent !important;
     padding: 0 !important;

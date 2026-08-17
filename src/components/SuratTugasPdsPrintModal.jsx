@@ -1,12 +1,16 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { X, Printer, FileText } from 'lucide-react';
 import { formatDateIndo } from '../utils/formatters';
+import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
 import { IDSurveyLogo } from './IDSurveyLogo';
 import { BKILogo } from './BKILogo';
 
 export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
+  const printRef = useRef(null);
+  const { adminSettings } = useData();
+
   if (!isOpen || !suratTugas) return null;
 
   const handlePrint = () => {
@@ -22,16 +26,16 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const lokasi = suratTugas.tempatSurvey || suratTugas.lokasi || '';
   
   const keperluan1 = suratTugas.jenisSurvey || suratTugas.perihal || '';
-  const keperluan2 = suratTugas.namaKapal || '';
+  const keperluan2 = `${suratTugas.namaKapal || ''} - ${suratTugas.pemohon || ''}`.toUpperCase();
   
   const sarana = suratTugas.saranaTransportasi || 'UDARA, DARAT DAN AIR';
-  const keterangan = suratTugas.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK';
+  const keterangan = adminSettings?.keteranganLain || suratTugas.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK';
   
   const tanggalDikeluarkan = tglMulai;
-  const kepalaCabang = suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
-  const nup = suratTugas.nup || '48199-KI';
+  const kepalaCabang = adminSettings?.kepalaCabang || suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
+  const nup = adminSettings?.nup || suratTugas.nup || '48199-KI';
 
-  const tembusan = suratTugas.tembusan || `1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026`;
+  const tembusan = adminSettings?.tembusan || suratTugas.tembusan || `1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026`;
 
   return (
     <ModalPortal>
@@ -66,9 +70,9 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
               className="printable-sheet"
               style={{
                 border: 'none',
-                padding: '2.5rem',
+                padding: '2rem 2.5rem',
                 fontFamily: "'Arial', 'Segoe UI', sans-serif",
-                lineHeight: '1.45',
+                lineHeight: '1.5',
                 fontSize: '11pt',
                 background: '#ffffff',
                 color: '#000000',
@@ -76,14 +80,14 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
               }}
             >
               {/* ====== KOP LOGOS RESMI ====== */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2.5rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                 <DanantaraLogo height={45} />
                 <IDSurveyLogo height={48} />
                 <BKILogo height={45} />
               </div>
 
               {/* ====== JUDUL SURAT ====== */}
-              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <div style={{ fontSize: '12pt', fontWeight: 700, textDecoration: 'underline', color: '#000000', marginBottom: '0.2rem' }}>
                   SURAT TUGAS
                 </div>
@@ -93,7 +97,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
 
               {/* ====== BODY PENUGASAN ====== */}
-              <div style={{ marginBottom: '1.5rem' }}>
+              <div style={{ marginBottom: '1rem' }}>
                 <div style={{ fontSize: '11pt', marginBottom: '1rem' }}>
                   DITUGASKAN KEPADA &nbsp; &nbsp;:
                 </div>
@@ -128,7 +132,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       <td style={{ verticalAlign: 'top' }}>5.</td>
                       <td style={{ verticalAlign: 'top' }}>KEPERLUAN</td>
                       <td style={{ verticalAlign: 'top' }}>:</td>
-                      <td style={{ verticalAlign: 'top' }}>
+                      <td style={{ verticalAlign: 'top', lineHeight: '1.5', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}>
                         <div>{keperluan1}</div>
                         <div style={{ fontWeight: 700 }}>{keperluan2}</div>
                       </td>
@@ -155,14 +159,14 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       <td style={{ verticalAlign: 'top' }}>9.</td>
                       <td style={{ verticalAlign: 'top' }}>KETERANGAN LAIN</td>
                       <td style={{ verticalAlign: 'top' }}>:</td>
-                      <td style={{ verticalAlign: 'top', paddingRight: '1rem' }}>{keterangan}</td>
+                      <td style={{ verticalAlign: 'top', paddingRight: '1rem', lineHeight: '1.5', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}>{keterangan}</td>
                     </tr>
                   </tbody>
                 </table>
               </div>
 
               {/* ====== TANDA TANGAN KEPALA CABANG ====== */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '3rem', fontSize: '11pt', lineHeight: '1.5' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', fontSize: '11pt', lineHeight: '1.5' }}>
                 <div style={{ width: '380px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11pt' }}>
                     <tbody>
@@ -179,7 +183,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                     </tbody>
                   </table>
                   
-                  <div style={{ marginTop: '1.5rem', marginBottom: '5rem' }}>
+                  <div style={{ marginTop: '1rem', marginBottom: '3.5rem' }}>
                     KEPALA CABANG MADYA KLAS PONTIANAK
                   </div>
 
@@ -201,14 +205,14 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
 
               {/* ====== TEMBUSAN & FOOTER ====== */}
-              <div style={{ marginTop: '3rem', fontSize: '10pt' }}>
+              <div style={{ marginTop: '1.5rem', fontSize: '10pt' }}>
                 <div style={{ marginBottom: '0.25rem' }}>Tembusan &nbsp; &nbsp;:</div>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', marginBottom: '2rem' }}>
+                <div style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5', marginBottom: '1rem' }}>
                   {tembusan}
                 </div>
                 
                 {/* FOOTER BKI */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', fontSize: '9pt', color: '#64748b', marginTop: '1.5rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', fontSize: '9pt', color: '#64748b', marginTop: '1rem' }}>
                   <div style={{ lineHeight: '1.4' }}>
                     <div style={{ fontWeight: 700 }}>PT. Biro Klasifikasi Indonesia (Persero)</div>
                     <div>Pontianak Class Middle Branch</div>

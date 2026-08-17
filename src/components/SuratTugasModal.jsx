@@ -769,68 +769,6 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                 </div>
               </div>
 
-              {/* Detail Penandatangan / Keterangan */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Keterangan Lain (Pembiayaan)</label>
-                  <textarea
-                    className="form-input"
-                    rows="2"
-                    value={formData.keteranganLain}
-                    onChange={(e) => setFormData({ ...formData, keteranganLain: e.target.value })}
-                    placeholder="Catatan pembiayaan BKI..."
-                    style={{ resize: 'vertical' }}
-                  />
-                </div>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label">Tembusan</label>
-                  <textarea
-                    className="form-input"
-                    rows="2"
-                    value={formData.tembusan}
-                    onChange={(e) => setFormData({ ...formData, tembusan: e.target.value })}
-                    placeholder="Contoh: 1. Yth. Kepala Divisi keuangan..."
-                    style={{ resize: 'vertical' }}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', background: 'var(--bg-main)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color-strong)', marginBottom: '1.25rem' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                    <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>Penandatangan: Nama Kepala Cabang</label>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'var(--accent-light)', padding: '0.1rem 0.4rem', borderRadius: '3px', fontWeight: 700 }}>
-                      ⚙️ Otomatis Admin
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={{ background: 'var(--bg-card-solid)', fontWeight: 700 }}
-                    value={adminSettings?.kepalaCabang || formData.kepalaCabang}
-                    onChange={(e) => setFormData({ ...formData, kepalaCabang: e.target.value })}
-                    required
-                  />
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.35rem' }}>
-                    <label className="form-label" style={{ margin: 0, fontWeight: 700 }}>NUP Kepala Cabang</label>
-                    <span style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', background: 'var(--accent-light)', padding: '0.1rem 0.4rem', borderRadius: '3px', fontWeight: 700 }}>
-                      ⚙️ Otomatis Admin
-                    </span>
-                  </div>
-                  <input
-                    type="text"
-                    className="form-input"
-                    style={{ background: 'var(--bg-card-solid)', fontWeight: 700 }}
-                    value={adminSettings?.nup || formData.nup}
-                    onChange={(e) => setFormData({ ...formData, nup: e.target.value })}
-                    required
-                  />
-                </div>
-              </div>
-
               {/* Action Buttons */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
                 <button type="button" className="btn btn-secondary" onClick={onClose}>

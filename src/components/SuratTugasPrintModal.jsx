@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { X, Printer, Anchor } from 'lucide-react';
+import { useData } from '../context/DataContext';
 import { formatDateIndo } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
@@ -7,6 +8,9 @@ import { IDSurveyLogo } from './IDSurveyLogo';
 import { BKILogo } from './BKILogo';
 
 export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
+  const printRef = useRef(null);
+  const { adminSettings } = useData();
+
   if (!isOpen || !suratTugas) return null;
 
   const handlePrint = () => {
@@ -22,7 +26,8 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const noAgenda = suratTugas.agenda || suratTugas.noAgenda || '-';
   const catatan = suratTugas.catatan || '-';
   const surveyorName = suratTugas.petugas || 'ALFIAN BONE PUTRA';
-  const kepalaCabang = suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
+  const kepalaCabang = adminSettings?.kepalaCabang || suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
+  const nup = adminSettings?.nup || suratTugas.nup || '48199-KI';
 
   return (
     <ModalPortal>
@@ -56,12 +61,12 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
             <div
               className="printable-sheet"
               style={{
-                border: '1.5px solid #cbd5e1',
-                padding: '2.25rem 2.5rem',
+                border: 'none',
+                padding: '2rem 2.5rem',
                 borderRadius: '4px',
                 fontFamily: "'Arial', 'Segoe UI', sans-serif",
                 lineHeight: '1.45',
-                fontSize: '10pt',
+                fontSize: '11pt',
                 background: '#ffffff',
                 color: '#000000',
                 boxSizing: 'border-box'
@@ -75,7 +80,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
 
               {/* ====== JUDUL SURAT RESMI ====== */}
-              <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+              <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                 <div style={{ fontSize: '11pt', fontWeight: 900, textTransform: 'uppercase', color: '#000000', letterSpacing: '0.02em' }}>
                   PT.BIRO KLASIFIKASI INDONESIA (PERSERO)
                 </div>
@@ -88,20 +93,20 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
 
               {/* ====== BODY PENUGASAN ====== */}
-              <div style={{ marginBottom: '1.25rem' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
                 <div style={{ display: 'flex', alignItems: 'flex-start', fontSize: '10pt', fontWeight: 700 }}>
                   <span style={{ width: '220px' }}>NAMA SURVEYOR</span>
                   <span style={{ width: '20px' }}>:</span>
-                  <span style={{ textTransform: 'uppercase' }}>{surveyorName}</span>
+                  <span style={{ textTransform: 'uppercase' }}></span>
                 </div>
-                <div style={{ marginTop: '1rem', fontWeight: 700, textTransform: 'uppercase', fontSize: '10pt' }}>
+                <div style={{ marginTop: '1.5rem', fontWeight: 700, textTransform: 'uppercase', fontSize: '10pt' }}>
                   UNTUK MELAKSANAKAN SURVEY
                 </div>
               </div>
 
               {/* ====== TABEL RINCIAN OBJEK PENUGASAN ====== */}
-              <div style={{ paddingLeft: '1.5rem', marginBottom: '3rem' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', lineHeight: '1.8' }}>
+              <div style={{ paddingLeft: '2rem', marginBottom: '2rem' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10pt', lineHeight: '2' }}>
                   <tbody>
                     <tr>
                       <td style={{ width: '200px', fontWeight: 700, verticalAlign: 'top' }}>NAMA KAPAL / OBJEK</td>
@@ -150,9 +155,9 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
 
               {/* ====== TANDA TANGAN KEPALA CABANG ====== */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2.5rem', fontSize: '10pt', lineHeight: '1.5' }}>
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2.5rem', fontSize: '11pt', lineHeight: '1.5' }}>
                 <div style={{ width: '280px', textAlign: 'left' }}>
-                  <div style={{ marginBottom: '4.5rem' }}>
+                  <div style={{ marginBottom: '3.5rem' }}>
                     Pontianak, {tglSurveyFormatted}
                   </div>
                   <div>

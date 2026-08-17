@@ -440,11 +440,12 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                           </div>
                         </div>
 
-                        {/* Financial summary if available */}
-                        <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-main)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                          <span>Estimasi Biaya & Honor: <strong>{formatRupiah(st.jumlahEstimasi || st.tarifDasar)}</strong></span>
-                          {st.isCito && <span style={{ color: '#ef4444', fontWeight: 700 }}>⚡ CITO Libur</span>}
-                        </div>
+                        {/* Status CITO (if any) */}
+                        {st.isCito && (
+                          <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-main)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                            <span style={{ color: '#ef4444', fontWeight: 700 }}>⚡ CITO Libur</span>
+                          </div>
+                        )}
                       </div>
                     );
                   })}

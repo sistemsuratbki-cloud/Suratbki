@@ -23,7 +23,9 @@ export const SettingsTab = () => {
 
   const [signatoryInput, setSignatoryInput] = useState({
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
-    nup: adminSettings?.nup || '48199-KI'
+    nup: adminSettings?.nup || '48199-KI',
+    keteranganLain: adminSettings?.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
+    tembusan: adminSettings?.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
   });
 
   const handleSaveAdminSettings = (e) => {
@@ -269,8 +271,8 @@ export const SettingsTab = () => {
           <div className="card-title-group">
             <Shield size={22} color="var(--accent-primary)" />
             <div>
-              <h3 className="card-title">Pengaturan Penandatangan Surat Tugas</h3>
-              <div className="card-subtitle">Nama Kepala Cabang & NUP ini akan otomatis digunakan pada seluruh dokumen Surat Tugas</div>
+              <h3 className="card-title">Pengaturan Format Cetak Surat Tugas</h3>
+              <div className="card-subtitle">Nama Penandatangan, NUP, Keterangan Biaya, dan Tembusan ini akan otomatis digunakan pada seluruh cetakan dokumen</div>
             </div>
           </div>
         </div>
@@ -308,9 +310,37 @@ export const SettingsTab = () => {
             </div>
           </div>
 
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginTop: '1rem' }}>
+            <div className="form-group">
+              <label className="form-label">Keterangan Lain (Pembiayaan) *</label>
+              <textarea
+                className="form-input"
+                rows="3"
+                value={signatoryInput.keteranganLain}
+                onChange={(e) => setSignatoryInput({ ...signatoryInput, keteranganLain: e.target.value })}
+                placeholder="Catatan pembiayaan BKI..."
+                style={{ resize: 'vertical' }}
+                required
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label">Tembusan *</label>
+              <textarea
+                className="form-input"
+                rows="3"
+                value={signatoryInput.tembusan}
+                onChange={(e) => setSignatoryInput({ ...signatoryInput, tembusan: e.target.value })}
+                placeholder="Contoh: 1. Yth. Kepala Divisi keuangan..."
+                style={{ resize: 'vertical' }}
+                required
+              />
+            </div>
+          </div>
+
           <button type="submit" className="btn btn-primary" style={{ marginTop: '0.25rem' }}>
             <Check size={16} />
-            <span>Simpan Pengaturan Penandatangan</span>
+            <span>Simpan Pengaturan Cetak</span>
           </button>
         </form>
       </div>
