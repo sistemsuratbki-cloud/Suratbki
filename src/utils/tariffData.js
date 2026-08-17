@@ -11,9 +11,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-1',
     no: 1,
-    name: 'Kediuk (Via Udara)',
-    tujuan: 'Kediuk (Via Udara)',
-    rincian: 'Ketapang - Kediuk',
+    name: 'KEDIUK (VIA UDARA)',
+    tujuan: 'KEDIUK (VIA UDARA)',
+    rincian: 'KETAPANG - KEDIUK',
     rate: 3000000,
     moda: 'Udara',
     kategori: 'Luar Kota'
@@ -21,9 +21,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-2',
     no: 2,
-    name: 'Kendawangan (Via Udara)',
-    tujuan: 'Kendawangan (Via Udara)',
-    rincian: 'Ketapang - Kendawangan',
+    name: 'KENDAWANGAN (VIA UDARA)',
+    tujuan: 'KENDAWANGAN (VIA UDARA)',
+    rincian: 'KETAPANG - KENDAWANGAN',
     rate: 2500000,
     moda: 'Udara',
     kategori: 'Luar Kota'
@@ -31,9 +31,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-3',
     no: 3,
-    name: 'Sungai Pawan/Pelabuhan Ketapang (Via Udara)',
-    tujuan: 'Sungai Pawan/Pelabuhan Ketapang (Via Udara)',
-    rincian: 'Ketapang - Sungai Pawan / Pelabuhan Ketapang',
+    name: 'SUNGAI PAWAN/PELABUHAN KETAPANG (VIA UDARA)',
+    tujuan: 'SUNGAI PAWAN/PELABUHAN KETAPANG (VIA UDARA)',
+    rincian: 'KETAPANG - SUNGAI PAWAN / PELABUHAN KETAPANG',
     rate: 2000000,
     moda: 'Udara',
     kategori: 'Luar Kota'
@@ -41,9 +41,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-4',
     no: 4,
-    name: 'Sintang hulu (Via Udara)',
-    tujuan: 'Sintang hulu (Via Udara)',
-    rincian: 'Sintang - Sintang hulu',
+    name: 'SINTANG HULU (VIA UDARA)',
+    tujuan: 'SINTANG HULU (VIA UDARA)',
+    rincian: 'SINTANG - SINTANG HULU',
     rate: 2000000,
     moda: 'Udara',
     kategori: 'Luar Kota'
@@ -51,9 +51,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-5',
     no: 5,
-    name: 'Sintang hulu (Via Darat)',
-    tujuan: 'Sintang hulu (Via Darat)',
-    rincian: 'Pontianak - Sintang hulu',
+    name: 'SINTANG HULU (VIA DARAT)',
+    tujuan: 'SINTANG HULU (VIA DARAT)',
+    rincian: 'PONTIANAK - SINTANG HULU',
     rate: 4000000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -61,9 +61,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-6',
     no: 6,
-    name: 'Teluk Melano (Via Udara)',
-    tujuan: 'Teluk Melano (Via Udara)',
-    rincian: 'Ketapang - Teluk Melano',
+    name: 'TELUK MELANO (VIA UDARA)',
+    tujuan: 'TELUK MELANO (VIA UDARA)',
+    rincian: 'KETAPANG - TELUK MELANO',
     rate: 2500000,
     moda: 'Udara',
     kategori: 'Luar Kota'
@@ -71,9 +71,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-7',
     no: 7,
-    name: 'Batu Ampar/Padang Tikar',
-    tujuan: 'Batu Ampar/Padang Tikar',
-    rincian: 'Pontianak - Batu Ampar/Padang Tikar',
+    name: 'BATU AMPAR/PADANG TIKAR',
+    tujuan: 'BATU AMPAR/PADANG TIKAR',
+    rincian: 'PONTIANAK - BATU AMPAR/PADANG TIKAR',
     rate: 3250000,
     moda: 'Air / Darat',
     kategori: 'Luar Kota'
@@ -81,9 +81,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-8',
     no: 8,
-    name: 'Jungkat',
-    tujuan: 'Jungkat',
-    rincian: 'Pontianak - Jungkat',
+    name: 'JUNGKAT',
+    tujuan: 'JUNGKAT',
+    rincian: 'PONTIANAK - JUNGKAT',
     rate: 1500000,
     moda: 'Darat / Air',
     kategori: 'Dalam Kota'
@@ -91,9 +91,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-9',
     no: 9,
-    name: 'Kijing',
-    tujuan: 'Kijing',
-    rincian: 'Pontianak - Kijing',
+    name: 'KIJING',
+    tujuan: 'KIJING',
+    rincian: 'PONTIANAK - KIJING',
     rate: 2500000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -101,9 +101,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-10',
     no: 10,
-    name: 'Kumpai',
-    tujuan: 'Kumpai',
-    rincian: 'Pontianak - Kumpai',
+    name: 'KUMPAI',
+    tujuan: 'KUMPAI',
+    rincian: 'PONTIANAK - KUMPAI',
     rate: 1500000,
     moda: 'Darat / Air',
     kategori: 'Dalam Kota'
@@ -111,9 +111,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-11',
     no: 11,
-    name: 'Meliau',
-    tujuan: 'Meliau',
-    rincian: 'Pontianak - Meliau',
+    name: 'MELIAU',
+    tujuan: 'MELIAU',
+    rincian: 'PONTIANAK - MELIAU',
     rate: 3300000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -121,9 +121,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-12',
     no: 12,
-    name: 'Muara Jungkat',
-    tujuan: 'Muara Jungkat',
-    rincian: 'Pontianak - Muara Jungkat',
+    name: 'MUARA JUNGKAT',
+    tujuan: 'MUARA JUNGKAT',
+    rincian: 'PONTIANAK - MUARA JUNGKAT',
     rate: 1750000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -131,9 +131,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-13',
     no: 13,
-    name: 'Muara Kubu',
-    tujuan: 'Muara Kubu',
-    rincian: 'Pontianak - Muara Kubu',
+    name: 'MUARA KUBU',
+    tujuan: 'MUARA KUBU',
+    rincian: 'PONTIANAK - MUARA KUBU',
     rate: 2500000,
     moda: 'Air / Darat',
     kategori: 'Luar Kota'
@@ -141,9 +141,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-14',
     no: 14,
-    name: 'Ola Ola Pinang',
-    tujuan: 'Ola Ola Pinang',
-    rincian: 'Pontianak - Ola Ola Pinang',
+    name: 'OLA OLA PINANG',
+    tujuan: 'OLA OLA PINANG',
+    rincian: 'PONTIANAK - OLA OLA PINANG',
     rate: 2000000,
     moda: 'Air / Darat',
     kategori: 'Luar Kota'
@@ -151,9 +151,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-15',
     no: 15,
-    name: 'Pala Datuk',
-    tujuan: 'Pala Datuk',
-    rincian: 'Pontianak - Pala Datuk',
+    name: 'PALA DATUK',
+    tujuan: 'PALA DATUK',
+    rincian: 'PONTIANAK - PALA DATUK',
     rate: 2500000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -161,9 +161,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-16',
     no: 16,
-    name: 'Pulau Temajo',
-    tujuan: 'Pulau Temajo',
-    rincian: 'Pontianak - Pulau Temajo',
+    name: 'PULAU TEMAJO',
+    tujuan: 'PULAU TEMAJO',
+    rincian: 'PONTIANAK - PULAU TEMAJO',
     rate: 3000000,
     moda: 'Air',
     kategori: 'Luar Kota'
@@ -171,9 +171,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-17',
     no: 17,
-    name: 'Rasau Jaya',
-    tujuan: 'Rasau Jaya',
-    rincian: 'Pontianak - Rasau Jaya',
+    name: 'RASAU JAYA',
+    tujuan: 'RASAU JAYA',
+    rincian: 'PONTIANAK - RASAU JAYA',
     rate: 1500000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -181,9 +181,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-18',
     no: 18,
-    name: 'Rimba Ramin',
-    tujuan: 'Rimba Ramin',
-    rincian: 'Pontianak - Rimba Ramin',
+    name: 'RIMBA RAMIN',
+    tujuan: 'RIMBA RAMIN',
+    rincian: 'PONTIANAK - RIMBA RAMIN',
     rate: 1500000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -191,9 +191,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-19',
     no: 19,
-    name: 'Sambas',
-    tujuan: 'Sambas',
-    rincian: 'Pontianak - Sambas',
+    name: 'SAMBAS',
+    tujuan: 'SAMBAS',
+    rincian: 'PONTIANAK - SAMBAS',
     rate: 4000000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -201,9 +201,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-20',
     no: 20,
-    name: 'Sanggau',
-    tujuan: 'Sanggau',
-    rincian: 'Pontianak - Sanggau',
+    name: 'SANGGAU',
+    tujuan: 'SANGGAU',
+    rincian: 'PONTIANAK - SANGGAU',
     rate: 4000000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -211,9 +211,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-21',
     no: 21,
-    name: 'Suka Lanting',
-    tujuan: 'Suka Lanting',
-    rincian: 'Pontianak - Suka Lanting',
+    name: 'SUKA LANTING',
+    tujuan: 'SUKA LANTING',
+    rincian: 'PONTIANAK - SUKA LANTING',
     rate: 2000000,
     moda: 'Air / Darat',
     kategori: 'Luar Kota'
@@ -221,9 +221,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-22',
     no: 22,
-    name: 'Sungai Durian',
-    tujuan: 'Sungai Durian',
-    rincian: 'Pontianak - Sungai Durian',
+    name: 'SUNGAI DURIAN',
+    tujuan: 'SUNGAI DURIAN',
+    rincian: 'PONTIANAK - SUNGAI DURIAN',
     rate: 1500000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -231,9 +231,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-23',
     no: 23,
-    name: 'Tayan',
-    tujuan: 'Tayan',
-    rincian: 'Pontianak - Tayan',
+    name: 'TAYAN',
+    tujuan: 'TAYAN',
+    rincian: 'PONTIANAK - TAYAN',
     rate: 2700000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -241,9 +241,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-24',
     no: 24,
-    name: 'Jangkang',
-    tujuan: 'Jangkang',
-    rincian: 'Pontianak - Jangkang',
+    name: 'JANGKANG',
+    tujuan: 'JANGKANG',
+    rincian: 'PONTIANAK - JANGKANG',
     rate: 2000000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -251,9 +251,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-25',
     no: 25,
-    name: 'Teluk Batang',
-    tujuan: 'Teluk Batang',
-    rincian: 'Pontianak - Teluk Batang',
+    name: 'TELUK BATANG',
+    tujuan: 'TELUK BATANG',
+    rincian: 'PONTIANAK - TELUK BATANG',
     rate: 4000000,
     moda: 'Air / Darat',
     kategori: 'Luar Kota'
@@ -261,9 +261,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-26',
     no: 26,
-    name: 'Singkawang',
-    tujuan: 'Singkawang',
-    rincian: 'Pontianak - Singkawang',
+    name: 'SINGKAWANG',
+    tujuan: 'SINGKAWANG',
+    rincian: 'PONTIANAK - SINGKAWANG',
     rate: 3000000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -271,9 +271,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-27',
     no: 27,
-    name: 'Sekadau',
-    tujuan: 'Sekadau',
-    rincian: 'Pontianak - Sekadau',
+    name: 'SEKADAU',
+    tujuan: 'SEKADAU',
+    rincian: 'PONTIANAK - SEKADAU',
     rate: 4000000,
     moda: 'Darat',
     kategori: 'Luar Kota'
@@ -281,9 +281,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-28',
     no: 28,
-    name: 'Labai',
-    tujuan: 'Labai',
-    rincian: 'Pontianak - Labai',
+    name: 'LABAI',
+    tujuan: 'LABAI',
+    rincian: 'PONTIANAK - LABAI',
     rate: 4000000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -291,9 +291,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-29',
     no: 29,
-    name: 'Kelampai (Via Udara)',
-    tujuan: 'Kelampai (Via Udara)',
-    rincian: 'Ketapang - Kelampai',
+    name: 'KELAMPAI (VIA UDARA)',
+    tujuan: 'KELAMPAI (VIA UDARA)',
+    rincian: 'KETAPANG - KELAMPAI',
     rate: 3500000,
     moda: 'Udara',
     kategori: 'Luar Kota'
@@ -301,9 +301,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-30',
     no: 30,
-    name: 'Sungai Bulan',
-    tujuan: 'Sungai Bulan',
-    rincian: 'Pontianak - Sungai Bulan',
+    name: 'SUNGAI BULAN',
+    tujuan: 'SUNGAI BULAN',
+    rincian: 'PONTIANAK - SUNGAI BULAN',
     rate: 2000000,
     moda: 'Darat / Air',
     kategori: 'Luar Kota'
@@ -311,9 +311,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-31',
     no: 31,
-    name: 'Wajok',
-    tujuan: 'Wajok',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'WAJOK',
+    tujuan: 'WAJOK',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -321,9 +321,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-32',
     no: 32,
-    name: 'Batu Layang',
-    tujuan: 'Batu Layang',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'BATU LAYANG',
+    tujuan: 'BATU LAYANG',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -331,9 +331,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-33',
     no: 33,
-    name: 'Siantan',
-    tujuan: 'Siantan',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'SIANTAN',
+    tujuan: 'SIANTAN',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -341,9 +341,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-34',
     no: 34,
-    name: 'Sui Rengas',
-    tujuan: 'Sui Rengas',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'SUI RENGAS',
+    tujuan: 'SUI RENGAS',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -351,9 +351,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-35',
     no: 35,
-    name: 'Arang Limbung',
-    tujuan: 'Arang Limbung',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'ARANG LIMBUNG',
+    tujuan: 'ARANG LIMBUNG',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -361,9 +361,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-36',
     no: 36,
-    name: 'Desa Kapor',
-    tujuan: 'Desa Kapor',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'DESA KAPOR',
+    tujuan: 'DESA KAPOR',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -371,9 +371,9 @@ export const INITIAL_LOCATION_TARIFFS = [
   {
     id: 'loc-37',
     no: 37,
-    name: 'Sui Raya',
-    tujuan: 'Sui Raya',
-    rincian: 'Pelabuhan di Wilayah Pontianak (Speedboat)',
+    name: 'SUI RAYA',
+    tujuan: 'SUI RAYA',
+    rincian: 'PELABUHAN DI WILAYAH PONTIANAK (SPEEDBOAT)',
     rate: 500000,
     moda: 'Air / Darat',
     kategori: 'Dalam Kota'
@@ -395,10 +395,7 @@ export const calculateHonorFee = (baseRate = 3000000, isCito = false) => {
 };
 
 export const INITIAL_GRADE_TARIFFS = [
-  { id: 'grd-1', grade: 'GRADE 6 A', uangHarian: 450000 },
-  { id: 'grd-2', grade: 'GRADE 6 B', uangHarian: 400000 },
-  { id: 'grd-3', grade: 'GRADE 5 A', uangHarian: 350000 },
-  { id: 'grd-4', grade: 'GRADE 5 B', uangHarian: 300000 },
-  { id: 'grd-5', grade: 'GRADE 4', uangHarian: 250000 },
-  { id: 'grd-6', grade: 'KONTRAK', uangHarian: 200000 }
+  { id: 'grd-1', grade: 'GRADE 7 C', uangHarian: 325000 },
+  { id: 'grd-2', grade: 'GRADE 6 A', uangHarian: 300000 },
+  { id: 'grd-3', grade: 'GRADE 5 C', uangHarian: 275000 }
 ];

@@ -162,6 +162,23 @@ export const AuthProvider = ({ children }) => {
         })
       );
 
+      if (!usersList.some(u => u.username === 'monitor')) {
+        needsMigration = true;
+        const hashedPw = await hashPassword('monitor123');
+        migratedUsers.push({
+          id: 'usr-monitor',
+          username: 'monitor',
+          password: hashedPw,
+          name: 'TV Display Monitor',
+          email: 'monitor@bki.co.id',
+          role: 'monitor',
+          grade: 'GRADE 6 A',
+          roleLabel: 'Layar Monitor Khusus',
+          avatarBg: '#0f172a',
+          description: 'Akun khusus untuk menampilkan informasi di layar TV'
+        });
+      }
+
       if (needsMigration) {
         setUsersList(migratedUsers);
         localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));

@@ -6,6 +6,7 @@ import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
+import { LampiranParafPrintModal } from './LampiranParafPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { sanitizeFormData } from '../utils/security';
 
@@ -21,6 +22,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
   const [printSuratItem, setPrintSuratItem] = useState(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
+  const [isLampiranPrintModalOpen, setIsLampiranPrintModalOpen] = useState(false);
 
   const [printLaporanItem, setPrintLaporanItem] = useState(null);
   const [isLaporanPrintModalOpen, setIsLaporanPrintModalOpen] = useState(false);
@@ -152,6 +154,11 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
   const handleOpenPdsPrint = (surat) => {
     setPrintSuratItem(surat);
     setIsPdsPrintModalOpen(true);
+  };
+
+  const handleOpenLampiranPrint = (surat) => {
+    setPrintSuratItem(surat);
+    setIsLampiranPrintModalOpen(true);
   };
 
   const currentBaseRate = Number(formData.tarifDasar) || defaultLocRate;
@@ -315,7 +322,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
             <div className="card-title-group">
               <Anchor size={22} style={{ color: 'var(--accent-primary)' }} />
               <div>
-                <h3 className="modal-title">Inspeksi Kapal BKI Tanggal {formattedDate}</h3>
+                <h3 className="modal-title">Survei Kapal BKI Tanggal {formattedDate}</h3>
                 <div className="card-subtitle">{tasksOnDate.length} Surat Tugas aktif pada tanggal ini</div>
               </div>
             </div>
@@ -408,7 +415,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                               onClick={() => handleOpenPrint(st)}
                             >
                               <Printer size={13} />
-                              <span>Cetak ST</span>
+                              <span>Cetak SPS</span>
                             </button>
                             <button
                               className="btn btn-secondary btn-sm"
@@ -418,6 +425,16 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                               <FileText size={13} />
                               <span>Cetak PDS</span>
                             </button>
+                            {st.visit === '1' && (
+                              <button 
+                                className="btn btn-secondary btn-sm" 
+                                style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', background: '#3b82f6', color: '#ffffff', borderColor: '#3b82f6' }}
+                                onClick={() => handleOpenLampiranPrint(st)}
+                              >
+                                <FileText size={13} />
+                                <span>Paraf</span>
+                              </button>
+                            )}
                             <span className={`badge ${getStatusBadgeClass(st.status)}`}>
                               <span className="badge-dot" />
                               {st.status}
@@ -567,20 +584,20 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         value={formData.jenisSurvey}
                         onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
                       >
-                        <option value="">-- Pilih Jenis Survey --</option>
-                        <option value="Pembaharuan">Pembaharuan</option>
-                        <option value="Tahunan">Tahunan</option>
-                        <option value="Antara">Antara</option>
-                        <option value="Perpanjangan">Perpanjangan</option>
-                        <option value="Pengedokan">Pengedokan</option>
+                        <option value="">-- PILIH JENIS SURVEY --</option>
+                        <option value="PEMBAHARUAN">PEMBAHARUAN</option>
+                        <option value="TAHUNAN">TAHUNAN</option>
+                        <option value="ANTARA">ANTARA</option>
+                        <option value="PERPANJANGAN">PERPANJANGAN</option>
+                        <option value="PENGEDOKAN">PENGEDOKAN</option>
                         <option value="UWILD">UWILD</option>
-                        <option value="Tunda Dok">Tunda Dok</option>
-                        <option value="Poros Cabut/Tunda/Ditempat (Per Poros)">Poros Cabut/Tunda/Ditempat (Per Poros)</option>
-                        <option value="Khusus (Per Jam)***">Khusus (Per Jam)***</option>
-                        <option value="Pembaruan LL">Pembaruan LL</option>
-                        <option value="Tahunan LL">Tahunan LL</option>
-                        <option value="Revalidasi LL">Revalidasi LL</option>
-                        <option value="Conveyance Survey">Conveyance Survey</option>
+                        <option value="TUNDA DOK">TUNDA DOK</option>
+                        <option value="POROS CABUT/TUNDA/DITEMPAT (PER POROS)">POROS CABUT/TUNDA/DITEMPAT (PER POROS)</option>
+                        <option value="KHUSUS (PER JAM)***">KHUSUS (PER JAM)***</option>
+                        <option value="PEMBARUAN LL">PEMBARUAN LL</option>
+                        <option value="TAHUNAN LL">TAHUNAN LL</option>
+                        <option value="REVALIDASI LL">REVALIDASI LL</option>
+                        <option value="CONVEYANCE SURVEY">CONVEYANCE SURVEY</option>
                       </select>
                     </div>
 
@@ -981,6 +998,11 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       <SuratTugasPdsPrintModal
         isOpen={isPdsPrintModalOpen}
         onClose={() => setIsPdsPrintModalOpen(false)}
+        suratTugas={printSuratItem}
+      />
+      <LampiranParafPrintModal
+        isOpen={isLampiranPrintModalOpen}
+        onClose={() => setIsLampiranPrintModalOpen(false)}
         suratTugas={printSuratItem}
       />
 

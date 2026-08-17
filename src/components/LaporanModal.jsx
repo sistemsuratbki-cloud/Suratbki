@@ -321,20 +321,20 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       onChange={(e) => setFormData({ ...formData, namaSurvey: e.target.value })}
                       required
                     >
-                      <option value="">-- Pilih Jenis Survey --</option>
-                      <option value="Pembaharuan">Pembaharuan</option>
-                      <option value="Tahunan">Tahunan</option>
-                      <option value="Antara">Antara</option>
-                      <option value="Perpanjangan">Perpanjangan</option>
-                      <option value="Pengedokan">Pengedokan</option>
+                      <option value="">-- PILIH JENIS SURVEY --</option>
+                      <option value="PEMBAHARUAN">PEMBAHARUAN</option>
+                      <option value="TAHUNAN">TAHUNAN</option>
+                      <option value="ANTARA">ANTARA</option>
+                      <option value="PERPANJANGAN">PERPANJANGAN</option>
+                      <option value="PENGEDOKAN">PENGEDOKAN</option>
                       <option value="UWILD">UWILD</option>
-                      <option value="Tunda Dok">Tunda Dok</option>
-                      <option value="Poros Cabut/Tunda/Ditempat (Per Poros)">Poros Cabut/Tunda/Ditempat (Per Poros)</option>
-                      <option value="Khusus (Per Jam)***">Khusus (Per Jam)***</option>
-                      <option value="Pembaruan LL">Pembaruan LL</option>
-                      <option value="Tahunan LL">Tahunan LL</option>
-                      <option value="Revalidasi LL">Revalidasi LL</option>
-                      <option value="Conveyance Survey">Conveyance Survey</option>
+                      <option value="TUNDA DOK">TUNDA DOK</option>
+                      <option value="POROS CABUT/TUNDA/DITEMPAT (PER POROS)">POROS CABUT/TUNDA/DITEMPAT (PER POROS)</option>
+                      <option value="KHUSUS (PER JAM)***">KHUSUS (PER JAM)***</option>
+                      <option value="PEMBARUAN LL">PEMBARUAN LL</option>
+                      <option value="TAHUNAN LL">TAHUNAN LL</option>
+                      <option value="REVALIDASI LL">REVALIDASI LL</option>
+                      <option value="CONVEYANCE SURVEY">CONVEYANCE SURVEY</option>
                     </select>
                   </div>
 

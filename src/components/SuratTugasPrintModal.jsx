@@ -18,8 +18,8 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   };
 
   const tglSurveyFormatted = formatDateIndo(suratTugas.tglMulai);
-  const lokasiSurvey = suratTugas.tempatSurvey || suratTugas.lokasi || 'DESAKA';
-  const jenisSurvey = suratTugas.jenisSurvey || suratTugas.perihal || 'DOKING, LOADLINE';
+  const lokasiSurvey = (suratTugas.tempatSurvey || suratTugas.lokasi || 'DESAKA').toUpperCase();
+  const jenisSurvey = (suratTugas.jenisSurvey || suratTugas.perihal || 'DOKING, LOADLINE').toUpperCase();
   const pemohon = suratTugas.pemohon || 'PT. MITRA SAMUDRA NUSANTARA';
   const namaKapal = suratTugas.namaKapal || 'BAHARI 279';
   const noOrder = suratTugas.noOrder || 'RFQ2608005';
@@ -169,6 +169,11 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
             </div>
           </div>
+          <style>{`
+            @media print {
+              @page { size: A4; margin: 15mm; }
+            }
+          `}</style>
 
           {/* Modal Footer */}
           <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>

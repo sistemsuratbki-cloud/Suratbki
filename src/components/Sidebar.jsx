@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass } from 'lucide-react';
+import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass, Monitor } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
@@ -77,6 +77,15 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     icon: Settings,
     badge: null
   });
+
+  if (role === 'admin') {
+    menuItems.push({
+      id: 'tv-display',
+      label: 'Layar Monitor (TV)',
+      icon: Monitor,
+      badge: null
+    });
+  }
 
   return (
     <aside className={`sidebar ${isMobileMenuOpen ? 'mobile-open' : ''}`}>

@@ -38,7 +38,7 @@ export const DataProvider = ({ children }) => {
   });
 
   const [tariffs, setTariffs] = useState(() => {
-    const saved = localStorage.getItem('st_tariffs');
+    const saved = localStorage.getItem('st_tariffs_v2');
     return saved ? JSON.parse(saved) : INITIAL_LOCATION_TARIFFS;
   });
 
@@ -76,7 +76,7 @@ export const DataProvider = ({ children }) => {
   }, [laporanSurvei]);
 
   useEffect(() => {
-    localStorage.setItem('st_tariffs', JSON.stringify(tariffs));
+    localStorage.setItem('st_tariffs_v2', JSON.stringify(tariffs));
   }, [tariffs]);
 
   useEffect(() => {

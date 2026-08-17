@@ -211,7 +211,7 @@ export const LaporanPrintModal = ({
                       <tr>
                         <td style={{ fontWeight: 700 }}>LOKASI SURVEY</td>
                         <td>:</td>
-                        <td>{laporan.lokasi || laporan.lokasiSurvey}</td>
+                        <td style={{ textTransform: 'uppercase' }}>{laporan.lokasi || laporan.lokasiSurvey}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>NILAI BIAYA/HONOR</td>

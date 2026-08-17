@@ -6,6 +6,7 @@ import { formatDateIndo, getStatusBadgeClass, cleanDocNumber } from '../utils/fo
 import { SuratTugasModal } from './SuratTugasModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
+import { LampiranParafPrintModal } from './LampiranParafPrintModal';
 import { ConfirmModal } from './ConfirmModal';
 
 export const SuratTugasTable = ({ filterType = 'SPS' }) => {
@@ -20,6 +21,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
+  const [isLampiranPrintModalOpen, setIsLampiranPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
@@ -46,6 +48,11 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const handleOpenPdsPrint = (item) => {
     setSelectedPrintItem(item);
     setIsPdsPrintModalOpen(true);
+  };
+
+  const handleOpenLampiranPrint = (item) => {
+    setSelectedPrintItem(item);
+    setIsLampiranPrintModalOpen(true);
   };
 
   const promptDelete = (item) => {
@@ -215,6 +222,17 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           <FileText size={15} />
                         </button>
                       )}
+                      
+                      {item.visit === '1' && (
+                        <button
+                          className="btn btn-secondary btn-icon btn-sm"
+                          onClick={() => handleOpenLampiranPrint(item)}
+                          title="Cetak Lampiran Paraf"
+                          style={{ background: '#3b82f6', color: '#ffffff', borderColor: '#3b82f6' }}
+                        >
+                          <FileText size={15} />
+                        </button>
+                      )}
 
                       {canManage && (
                         <button
@@ -261,6 +279,12 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
       <SuratTugasPdsPrintModal
         isOpen={isPdsPrintModalOpen}
         onClose={() => setIsPdsPrintModalOpen(false)}
+        suratTugas={selectedPrintItem}
+      />
+
+      <LampiranParafPrintModal
+        isOpen={isLampiranPrintModalOpen}
+        onClose={() => setIsLampiranPrintModalOpen(false)}
         suratTugas={selectedPrintItem}
       />
 

@@ -23,9 +23,9 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const surveyorName = suratTugas.petugas || '';
   const pangkat = suratTugas.pangkat || '';
   const jabatan = suratTugas.jabatan || 'SURVEYOR';
-  const lokasi = suratTugas.tempatSurvey || suratTugas.lokasi || '';
+  const lokasi = (suratTugas.tempatSurvey || suratTugas.lokasi || '').toUpperCase();
   
-  const keperluan1 = suratTugas.jenisSurvey || suratTugas.perihal || '';
+  const keperluan1 = (suratTugas.jenisSurvey || suratTugas.perihal || '').toUpperCase();
   const keperluan2 = `${suratTugas.namaKapal || ''} - ${suratTugas.pemohon || ''}`.toUpperCase();
   
   const sarana = suratTugas.saranaTransportasi || 'UDARA, DARAT DAN AIR';

@@ -51,6 +51,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     fileKwitansiHotelName: '',
     status: 'Belum Mulai',
     catatan: '',
+    visit: '1',
     tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
   });
 
@@ -61,10 +62,10 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         nomor: cleanDocNumber(editItem.nomor),
         namaKapal: editItem.namaKapal || '',
         pemohon: editItem.pemohon || '',
-        jenisSurvey: editItem.jenisSurvey || editItem.perihal || 'DINAS SURVEY KLAS',
-        perihal: editItem.perihal || editItem.jenisSurvey || 'DINAS SURVEY KLAS',
-        lokasi: editItem.lokasi || editItem.tempatSurvey || defaultLocation,
-        tempatSurvey: editItem.tempatSurvey || editItem.lokasi || defaultLocation,
+        jenisSurvey: (editItem.jenisSurvey || editItem.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
+        perihal: (editItem.perihal || editItem.jenisSurvey || 'DINAS SURVEY KLAS').toUpperCase(),
+        lokasi: (editItem.lokasi || editItem.tempatSurvey || defaultLocation).toUpperCase(),
+        tempatSurvey: (editItem.tempatSurvey || editItem.lokasi || defaultLocation).toUpperCase(),
         agenda: editItem.agenda || editItem.perihal || '',
         noOrder: editItem.noOrder || 'RFQ-0000',
         jumlahHariLibur: editItem.jumlahHariLibur !== undefined ? editItem.jumlahHariLibur : (editItem.isCito ? 1 : 0),
@@ -86,6 +87,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         fileVisitName: editItem.fileVisitName || '',
         fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
         fileKwitansiHotelName: editItem.fileKwitansiHotelName || '',
+        visit: editItem.visit || '1',
         tembusan: editItem.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
     } else {
@@ -126,6 +128,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         tglSelesai: todayDate,
         status: 'Belum Mulai',
         catatan: '',
+        visit: '1',
         tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
     }
@@ -138,8 +141,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     const newRate = matched ? Number(matched.rate) : formData.tarifDasar;
     setFormData((prev) => ({
       ...prev,
-      lokasi: locName,
-      tempatSurvey: locName,
+      lokasi: locName.toUpperCase(),
+      tempatSurvey: locName.toUpperCase(),
       tarifDasar: newRate
     }));
   };
@@ -197,10 +200,10 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
 
     const payload = sanitizeFormData({
       ...formData,
-      jenisSurvey: formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS',
-      perihal: formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS',
-      tempatSurvey: formData.tempatSurvey || formData.lokasi,
-      lokasi: formData.lokasi || formData.tempatSurvey,
+      jenisSurvey: (formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
+      perihal: (formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS').toUpperCase(),
+      tempatSurvey: (formData.tempatSurvey || formData.lokasi).toUpperCase(),
+      lokasi: (formData.lokasi || formData.tempatSurvey).toUpperCase(),
       agenda: formData.agenda || formData.perihal || '',
       tarifDasar: currentBaseRate,
       tiketHotel: currentHotelFee,
@@ -348,6 +351,39 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                 </div>
               </div>
 
+              {/* KUNJUNGAN (VISIT) */}
+              <div
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1.5px solid var(--border-color-strong)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  🗓️ KUNJUNGAN (VISIT)
+                </div>
+                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
+                  {['1', '2', '3'].map((v) => (
+                    <label key={v} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontWeight: 600 }}>
+                      <input
+                        type="radio"
+                        name="visit_top"
+                        value={v}
+                        checked={formData.visit === v}
+                        onChange={(e) => setFormData({ ...formData, visit: e.target.value })}
+                        style={{ transform: 'scale(1.2)' }}
+                      />
+                      Visit {v}
+                    </label>
+                  ))}
+                </div>
+                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                  * Jika pilih "Visit 1", cetakan SPS akan otomatis menyertakan halaman "Lampiran Permohonan Paraf".
+                </span>
+              </div>
+
               {/* ====== 11 FIELD SESUAI CONTOH FORM ====== */}
               <div
                 style={{
@@ -404,20 +440,20 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                       value={formData.jenisSurvey}
                       onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
                     >
-                      <option value="">-- Pilih Jenis Survey --</option>
-                      <option value="Pembaharuan">Pembaharuan</option>
-                      <option value="Tahunan">Tahunan</option>
-                      <option value="Antara">Antara</option>
-                      <option value="Perpanjangan">Perpanjangan</option>
-                      <option value="Pengedokan">Pengedokan</option>
+                      <option value="">-- PILIH JENIS SURVEY --</option>
+                      <option value="PEMBAHARUAN">PEMBAHARUAN</option>
+                      <option value="TAHUNAN">TAHUNAN</option>
+                      <option value="ANTARA">ANTARA</option>
+                      <option value="PERPANJANGAN">PERPANJANGAN</option>
+                      <option value="PENGEDOKAN">PENGEDOKAN</option>
                       <option value="UWILD">UWILD</option>
-                      <option value="Tunda Dok">Tunda Dok</option>
-                      <option value="Poros Cabut/Tunda/Ditempat (Per Poros)">Poros Cabut/Tunda/Ditempat (Per Poros)</option>
-                      <option value="Khusus (Per Jam)***">Khusus (Per Jam)***</option>
-                      <option value="Pembaruan LL">Pembaruan LL</option>
-                      <option value="Tahunan LL">Tahunan LL</option>
-                      <option value="Revalidasi LL">Revalidasi LL</option>
-                      <option value="Conveyance Survey">Conveyance Survey</option>
+                      <option value="TUNDA DOK">TUNDA DOK</option>
+                      <option value="POROS CABUT/TUNDA/DITEMPAT (PER POROS)">POROS CABUT/TUNDA/DITEMPAT (PER POROS)</option>
+                      <option value="KHUSUS (PER JAM)***">KHUSUS (PER JAM)***</option>
+                      <option value="PEMBARUAN LL">PEMBARUAN LL</option>
+                      <option value="TAHUNAN LL">TAHUNAN LL</option>
+                      <option value="REVALIDASI LL">REVALIDASI LL</option>
+                      <option value="CONVEYANCE SURVEY">CONVEYANCE SURVEY</option>
                     </select>
                   </div>
 
@@ -434,15 +470,18 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     >
                       {activeTariffs
                         .filter(loc => (loc.kategori || 'Luar Kota') === formData.kategoriPerjalanan)
-                        .map((loc) => (
-                          <option key={loc.id} value={loc.tujuan || loc.name}>
-                            {loc.tujuan || loc.name} {loc.rincian ? `(${loc.rincian})` : ''}
-                          </option>
-                        ))}
+                        .map((loc) => {
+                          const val = (loc.tujuan || loc.name).toUpperCase();
+                          return (
+                            <option key={loc.id} value={val}>
+                              {val} {loc.rincian ? `(${loc.rincian.toUpperCase()})` : ''}
+                            </option>
+                          );
+                        })}
                     </select>
                     {currentMatchedTariff?.rincian && (
                       <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                        🛣️ Rute SK: {currentMatchedTariff.rincian} • Moda: {currentMatchedTariff.moda || 'Darat/Air'}
+                        Detail Tarif: {currentMatchedTariff.rincian.toUpperCase()}
                       </span>
                     )}
                   </div>

@@ -14,9 +14,10 @@ import { TariffManagementTable } from './components/TariffManagementTable';
 import { GradeTariffManagementTable } from './components/GradeTariffManagementTable';
 import { SettingsTab } from './components/SettingsTab';
 import { LoginScreen } from './components/LoginScreen';
+import { TvDisplay } from './components/TvDisplay';
 
 function AppContent() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, role, logout } = useAuth();
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('st_theme') || 'light';
@@ -32,6 +33,11 @@ function AppContent() {
 
   if (!isAuthenticated) {
     return <LoginScreen />;
+  }
+
+  // Force TV Display mode for monitor role
+  if (role === 'monitor' || activeTab === 'tv-display') {
+    return <TvDisplay onClose={role === 'monitor' ? logout : () => setActiveTab('calendar')} isMonitorRole={role === 'monitor'} />;
   }
 
   return (
@@ -63,7 +69,6 @@ function AppContent() {
               <SummaryCards />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <CalendarView />
-                <RecentActivity setActiveTab={setActiveTab} />
               </div>
             </>
           )}
