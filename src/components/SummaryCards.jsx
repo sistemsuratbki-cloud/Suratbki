@@ -21,7 +21,7 @@ export const SummaryCards = ({ surveyorFilter }) => {
   const surveiSelesai = filteredLaporan.filter((l) => l.status === 'Disetujui').length;
 
   return (
-    <div className="summary-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.15rem' }}>
+    <div className="summary-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.15rem' }}>
       {/* Card 1: TOTAL SURAT TUGAS */}
       <div className="kpi-card-v2">
         <div className="kpi-v2-info">
@@ -39,24 +39,6 @@ export const SummaryCards = ({ surveyorFilter }) => {
         </div>
       </div>
 
-      {/* Card 2: PENDING KWITANSI */}
-      <div className="kpi-card-v2">
-        <div className="kpi-v2-info">
-          <div className="kpi-v2-title">
-            {role === 'surveyor' ? 'HONOR TERTUNDA' : 'PENDING KWITANSI'}
-          </div>
-          <div className="kpi-v2-value" style={{ color: '#dc2626' }}>
-            {pendingKwitansi}
-          </div>
-          <div className="kpi-v2-subtext" style={{ color: '#dc2626' }}>
-            <AlertTriangle size={13} />
-            <span>Perlu tindakan segera</span>
-          </div>
-        </div>
-        <div className="kpi-v2-icon-box" style={{ background: '#fee2e2', color: '#dc2626' }}>
-          <Receipt size={18} />
-        </div>
-      </div>
 
       {/* Card 3: SURVEI SELESAI */}
       <div className="kpi-card-v2">
