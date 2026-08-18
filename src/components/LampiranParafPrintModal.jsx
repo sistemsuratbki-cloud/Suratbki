@@ -16,7 +16,17 @@ export const LampiranParafPrintModal = ({ isOpen, onClose, suratTugas }) => {
   if (!isOpen || !suratTugas) return null;
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    const dateObj = new Date(suratTugas.tglMulai);
+    const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
+    const surveyor = suratTugas.petugas || 'Surveyor';
+    document.title = `${dateStr} - ${surveyor} - Lampiran Paraf`;
+    
     window.print();
+    
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
   };
 
   const tglSurveyFormatted = formatDateIndo(suratTugas.tglMulai);

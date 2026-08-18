@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { X, Save, Anchor, Ticket, Paperclip, Printer, Sparkles, MapPin, Calendar, FileText, Hash, Shield, Camera, FileCheck2, Plane, Receipt, Trash2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -147,13 +148,42 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     }));
   };
 
-  const handleFileUpload = (fieldKey, e) => {
+  const handleFileUpload = async (fieldKey, e) => {
     const file = e.target.files[0];
     if (file) {
       setFormData((prev) => ({
         ...prev,
-        [fieldKey]: file.name
+        [fieldKey]: 'Mengunggah... ' + file.name
       }));
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
+
+      try {
+        const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
+        if (error) throw error;
+        
+        const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
+        
+        setFormData((prev) => ({
+          ...prev,
+          [fieldKey]: file.name,
+          [`${fieldKey.replace('Name', 'Data')}`]: publicUrlData.publicUrl
+        }));
+      } catch (err) {
+        console.error('Supabase upload failed, falling back to local base64:', err);
+        // Fallback to Base64 (Local)
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData((prev) => ({
+            ...prev,
+            [fieldKey]: file.name,
+            [`${fieldKey.replace('Name', 'Data')}`]: reader.result
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 

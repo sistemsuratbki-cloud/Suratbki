@@ -1,3 +1,4 @@
+import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -129,18 +130,42 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     }
   };
 
-  const handleFileUpload = (fieldKey, e) => {
+  const handleFileUpload = async (fieldKey, e) => {
     const file = e.target.files[0];
     if (file) {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      setFormData((prev) => ({
+        ...prev,
+        [fieldKey]: 'Mengunggah... ' + file.name
+      }));
+
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+      const filePath = `uploads/${fileName}`;
+
+      try {
+        const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
+        if (error) throw error;
+        
+        const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
+        
         setFormData((prev) => ({
           ...prev,
           [fieldKey]: file.name,
-          [`${fieldKey.replace('Name', 'Data')}`]: reader.result
+          [`${fieldKey.replace('Name', 'Data')}`]: publicUrlData.publicUrl
         }));
-      };
-      reader.readAsDataURL(file);
+      } catch (err) {
+        console.error('Supabase upload failed, falling back to local base64:', err);
+        // Fallback to Base64 (Local)
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setFormData((prev) => ({
+            ...prev,
+            [fieldKey]: file.name,
+            [`${fieldKey.replace('Name', 'Data')}`]: reader.result
+          }));
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 

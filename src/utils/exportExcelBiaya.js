@@ -291,7 +291,10 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
     const blob = new Blob([buffer], {
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
-    const fileName = `Biaya_Perjalanan_Dinas_${item.petugas}_${item.lokasi || ''}.xlsx`;
+    const dateObj = new Date(item.tglMulai);
+    const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
+    const surveyorStr = item.petugas || 'Surveyor';
+    const fileName = `${dateStr} - ${surveyorStr} - Daftar Biaya Perjalanan Dinas.xlsx`;
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;

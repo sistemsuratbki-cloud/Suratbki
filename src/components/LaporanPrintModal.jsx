@@ -19,7 +19,24 @@ export const LaporanPrintModal = ({
   if (!isOpen) return null;
 
   const handlePrint = () => {
+    const originalTitle = document.title;
+    
+    if (isPrintAll) {
+      document.title = `Rekapan Laporan Survei - ${currentPeriod}`;
+    } else if (laporan) {
+      // Get date from surat tugas if available
+      const st = suratTugas.find(s => s.id === laporan.suratTugasId);
+      const dateObj = new Date(st ? st.tglMulai : laporan.tanggalBuat);
+      const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
+      const surveyor = laporan.petugas || 'Surveyor';
+      document.title = `${dateStr} - ${surveyor} - Laporan Survei`;
+    }
+
     window.print();
+    
+    setTimeout(() => {
+      document.title = originalTitle;
+    }, 500);
   };
 
   return (
