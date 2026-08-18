@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Edit2, Trash2, Users, KeyRound } from 'lucide-react';
+import { Plus, Search, Edit2, Trash2, Users, KeyRound, Shield } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { UserModal } from './UserModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -60,6 +60,8 @@ export const UserManagementTable = () => {
 
   const getRoleBadge = (role) => {
     switch (role) {
+      case 'developer':
+        return <span className="badge badge-running" style={{ background: '#0f172a', color: '#38bdf8' }}>💻 Developer</span>;
       case 'admin':
         return <span className="badge badge-running" style={{ background: '#1e3a8a', color: '#ffffff' }}>👨‍💼 Admin Utama</span>;
       case 'surveyor':
@@ -81,8 +83,9 @@ export const UserManagementTable = () => {
       (user.roleLabel && user.roleLabel.toLowerCase().includes(searchTerm.toLowerCase()));
 
     const matchesRole = roleFilter === 'Semua' || user.role === roleFilter;
+    const isVisible = user.role !== 'developer' || currentUser?.role === 'developer';
 
-    return matchesSearch && matchesRole;
+    return matchesSearch && matchesRole && isVisible;
   });
 
   return (
@@ -137,7 +140,6 @@ export const UserManagementTable = () => {
               <th>Nama Akun (Username)</th>
               <th>Peran (Role)</th>
               <th>Grade</th>
-              <th>Jabatan / Spesialisasi</th>
               <th>Status Password</th>
               <th style={{ textAlign: 'right' }}>Aksi</th>
             </tr>
@@ -145,7 +147,7 @@ export const UserManagementTable = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="table-empty">
+                <td colSpan="7" className="table-empty">
                   <div className="table-empty-icon">👥</div>
                   <p>Tidak ada akun pengguna yang sesuai dengan kriteria pencarian.</p>
                 </td>
@@ -189,18 +191,16 @@ export const UserManagementTable = () => {
                   <td>{getRoleBadge(item.role)}</td>
                   <td>
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
-                      {item.grade || 'GRADE 6 A'}
+                      {(item.role === 'developer' || item.role === 'monitor') ? '-' : (item.grade || 'GRADE 6 A')}
                     </div>
                   </td>
                   <td>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      {item.roleLabel || '-'}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Shield size={14} color={item.password === 'password123' ? '#f59e0b' : '#10b981'} />
+                      <span style={{ fontSize: '0.85rem', fontWeight: 700, color: item.password === 'password123' ? '#f59e0b' : '#10b981' }}>
+                        {item.password === 'password123' ? 'Default' : 'Khusus'}
+                      </span>
                     </div>
-                  </td>
-                  <td>
-                    <span style={{ fontSize: '0.75rem', color: item.password === 'password123' ? 'var(--text-muted)' : '#059669', fontWeight: 700 }}>
-                      {item.password === 'password123' ? '🔑 Default' : '🔒 Khusus'}
-                    </span>
                   </td>
                   <td style={{ textAlign: 'right' }}>
                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>

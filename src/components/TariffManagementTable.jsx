@@ -28,7 +28,7 @@ export const TariffManagementTable = () => {
   const { role, currentUser } = useAuth();
 
   // Role-Based Access Control: Admin, Kacab, and Keuangan/Finance only
-  const canManageTariffs = role === 'admin' || role === 'kacab' || role === 'keuangan';
+  const canManageTariffs = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan';
 
   const [searchTerm, setSearchTerm] = useState('');
   const [modaFilter, setModaFilter] = useState('Semua');

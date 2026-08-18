@@ -14,7 +14,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
   const defaultLocation = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'Kendawangan (Via Udara)';
   const defaultRate = activeTariffs[0]?.rate || 3000000;
 
-  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin');
+  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer');
 
   const [formData, setFormData] = useState({
     nomor: '',
@@ -164,18 +164,6 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     }));
   };
 
-  const currentBaseRate = Number(formData.tarifDasar) || defaultRate;
-  const currentHotelFee = Number(formData.tiketHotel) || 0;
-  const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
-  const biayaTAT = formData.kategoriPerjalanan === 'Luar Kota' && !formData.tanpaTAT ? (Number(adminSettings?.tatLuarKota) || 750000) : 0;
-  
-  const totalBiayaTransportHotel = currentHotelFee + currentFlightTaxiFee;
-  const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
-
-  // Calculate Uang Harian
-  const currentGradeTariff = (gradeTariffs || []).find((g) => g.grade === formData.pangkat);
-  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 0;
-  
   let jumlahHari = 1;
   if (formData.tglMulai && formData.tglSelesai) {
     const start = new Date(formData.tglMulai);
@@ -186,6 +174,20 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
       jumlahHari = diffDays > 0 ? diffDays : 1;
     }
   }
+
+  const mlm = Math.max(0, jumlahHari - 1);
+  const currentBaseRate = Number(formData.tarifDasar) || defaultRate;
+  const currentHotelFee = Number(formData.tiketHotel) || 0; // rate per night
+  const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
+  const biayaTAT = formData.kategoriPerjalanan === 'Luar Kota' && !formData.tanpaTAT ? (Number(adminSettings?.tatLuarKota) || 750000) : 0;
+  
+  const totalBiayaTransportHotel = (currentHotelFee * mlm) + currentFlightTaxiFee;
+  const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
+
+  // Calculate Uang Harian
+  const currentGradeTariff = (gradeTariffs || []).find((g) => g.grade === formData.pangkat);
+  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 0;
+  
   const hariLibur = Number(formData.jumlahHariLibur) || 0;
   const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
   const totalUangHarian = !formData.tanpaUangHarian ? ((uangHarianPerHari * jumlahHari) + tambahanLibur) : 0;
@@ -571,7 +573,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
 
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
-                      10. KWITANSI HOTEL (Rp)
+                      10. KWITANSI HOTEL (Harga per/malam)
                     </label>
                     <input
                       type="number"
@@ -583,7 +585,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                       placeholder="0"
                     />
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                      {currentHotelFee > 0 ? formatRupiah(currentHotelFee) : 'Rp 0'}
+                      {currentHotelFee > 0 ? `${formatRupiah(currentHotelFee)} / malam (Total: ${formatRupiah(currentHotelFee * mlm)})` : 'Rp 0'}
                     </span>
                   </div>
 
@@ -605,29 +607,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     </span>
                   </div>
                 </div>
-              </div>
-
-              {/* Kalkulasi Otomatis Card */}
-              <div
-                style={{
-                  background: 'var(--bg-main)',
-                  border: '1.5px solid var(--border-color-strong)',
-                  padding: '0.85rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  marginBottom: '1.25rem'
-                }}
-              >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.825rem' }}>
-                    <Sparkles size={15} />
-                    <span>Kalkulasi Otomatis Biaya Lokasi & Honorarium Surveyor</span>
-                  </div>
-                  <span style={{ fontSize: '0.7rem', color: '#047857', background: 'rgba(16, 185, 129, 0.15)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
-                    ⚡ Otomatis Master SK BKI
-                  </span>
-                </div>
-
-                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '1rem', flexWrap: 'wrap' }}>
+                
+                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid var(--border-color)' }}>
                   {formData.kategoriPerjalanan === 'Luar Kota' && (
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                       <input
@@ -649,47 +630,70 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     Tanpa Uang Harian
                   </label>
                 </div>
+              </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
-                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
-                      {formatRupiah(currentBaseRate)}
+              {/* Kalkulasi Otomatis Card */}
+              {['admin', 'developer', 'kacab', 'keuangan'].includes(currentUser?.role) && (
+                <div
+                  style={{
+                    background: 'var(--bg-main)',
+                    border: '1.5px solid var(--border-color-strong)',
+                    padding: '0.85rem 1rem',
+                    borderRadius: 'var(--radius-md)',
+                    marginBottom: '1.25rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.825rem' }}>
+                      <Sparkles size={15} />
+                      <span>Kalkulasi Otomatis Biaya Lokasi & Honorarium Surveyor</span>
                     </div>
+                    <span style={{ fontSize: '0.7rem', color: '#047857', background: 'rgba(16, 185, 129, 0.15)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
+                      ⚡ Otomatis Master SK BKI
+                    </span>
                   </div>
 
-
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Hotel & Transport</div>
-                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
-                      {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
-                    </div>
-                  </div>
-
-                  {biayaTAT > 0 && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
                     <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Tarif Asal Tujuan (TAT)</div>
-                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
-                        +{formatRupiah(biayaTAT)}
+                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
+                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
+                        {formatRupiah(currentBaseRate)}
                       </div>
                     </div>
-                  )}
 
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                    <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({jumlahHari} hr)</div>
-                    <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
-                      +{formatRupiah(totalUangHarian)}
+
+                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Hotel & Transport</div>
+                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
+                        {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
+                      </div>
                     </div>
-                  </div>
 
-                  <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1.5px solid var(--accent-primary)' }}>
-                    <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 700 }}>Total Estimasi Biaya</div>
-                    <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--accent-primary)', marginTop: '0.1rem' }}>
-                      {formatRupiah(totalEstimasiGrand)}
+                    {biayaTAT > 0 && (
+                      <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                        <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Tarif Asal Tujuan (TAT)</div>
+                        <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
+                          +{formatRupiah(biayaTAT)}
+                        </div>
+                      </div>
+                    )}
+
+                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({jumlahHari} hr)</div>
+                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
+                        +{formatRupiah(totalUangHarian)}
+                      </div>
+                    </div>
+
+                    <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1.5px solid var(--accent-primary)' }}>
+                      <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 700 }}>Total Estimasi Biaya</div>
+                      <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--accent-primary)', marginTop: '0.1rem' }}>
+                        {formatRupiah(totalEstimasiGrand)}
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
 
               {/* ====== 4 DISTINCT UPLOAD SECTIONS ====== */}
               <div

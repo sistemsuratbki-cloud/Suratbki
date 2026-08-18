@@ -1,5 +1,5 @@
-import React from 'react';
-import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass, Monitor } from 'lucide-react';
+import React, { useState } from 'react';
+import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass, Monitor, ChevronDown, ChevronUp } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
@@ -8,6 +8,8 @@ import { BKILogo } from './BKILogo';
 export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei, tariffs } = useData();
   const { currentUser, role, usersList, logout } = useAuth();
+  
+  const [expandedMenus, setExpandedMenus] = useState({ surat: true });
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas');
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
@@ -15,6 +17,10 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
 
   const unpaidCount = filteredKwitansi.filter((item) => item.status === 'Belum Dibayar').length;
   const draftCount = filteredLaporan.filter((item) => item.status === 'Draf').length;
+
+  const toggleMenu = (id) => {
+    setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }));
+  };
 
   const menuItems = [
     {
@@ -24,34 +30,33 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       badge: null
     },
     {
-      id: 'surat_sps',
-      label: role === 'surveyor' ? 'Tugas Saya (SPS)' : 'Surat Tugas BKI (SPS)',
+      id: 'surat',
+      label: role === 'surveyor' ? 'Tugas Saya' : 'Surat Tugas BKI',
       icon: FileCheck,
-      badge: filteredSurat.length
-    },
-    {
-      id: 'surat_pds',
-      label: role === 'surveyor' ? 'Tugas Saya (PDS)' : 'Surat Tugas BKI (PDS)',
-      icon: FileCheck,
-      badge: filteredSurat.length
-    },
-    {
-      id: 'kwitansi',
-      label: 'Kwitansi Honor',
-      icon: Receipt,
-      badge: unpaidCount > 0 ? unpaidCount : null,
-      badgeColor: '#ef4444'
+      badge: null,
+      subItems: [
+        {
+          id: 'surat_sps',
+          label: 'SPS',
+          badge: filteredSurat.length
+        },
+        {
+          id: 'surat_pds',
+          label: 'PDS',
+          badge: filteredSurat.length
+        }
+      ]
     },
     {
       id: 'laporan',
-      label: 'Laporan Survei',
+      label: 'Laporan',
       icon: BarChart2,
       badge: draftCount > 0 ? draftCount : null
     }
   ];
 
   // Restricted Access: Admin, Kacab, and Finance (Keuangan)
-  if (role === 'admin' || role === 'kacab' || role === 'keuangan') {
+  if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
     menuItems.push({
       id: 'tariffs',
       label: 'Manajemen Tarif',
@@ -61,7 +66,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     });
   }
 
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'developer') {
     menuItems.push({
       id: 'users',
       label: 'Manajemen User',
@@ -78,7 +83,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     badge: null
   });
 
-  if (role === 'admin') {
+  if (role === 'admin' || role === 'developer') {
     menuItems.push({
       id: 'tv-display',
       label: 'Layar Monitor (TV)',
@@ -104,28 +109,71 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       <nav className="sidebar-nav">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = activeTab === item.id || (item.subItems && item.subItems.some(sub => sub.id === activeTab));
 
           return (
-            <button
-              key={item.id}
-              className={`sidebar-link ${isActive ? 'active' : ''}`}
-              onClick={() => {
-                setActiveTab(item.id);
-                if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
-              }}
-            >
-              <Icon size={19} className="sidebar-link-icon" />
-              <span className="sidebar-link-text">{item.label}</span>
-              {item.badge !== null && item.badge !== undefined && (
-                <span
-                  className="sidebar-badge"
-                  style={{ background: item.badgeColor || 'var(--border-color-strong)' }}
-                >
-                  {item.badge}
-                </span>
+            <div key={item.id} style={{ display: 'flex', flexDirection: 'column' }}>
+              <button
+                className={`sidebar-link ${isActive && !item.subItems ? 'active' : ''}`}
+                style={{ 
+                  fontWeight: isActive ? 800 : 600, 
+                  color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)' 
+                }}
+                onClick={() => {
+                  if (item.subItems) {
+                    toggleMenu(item.id);
+                  } else {
+                    setActiveTab(item.id);
+                    if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
+                  }
+                }}
+              >
+                <Icon size={19} className="sidebar-link-icon" style={{ color: isActive ? 'var(--accent-primary)' : 'inherit' }} />
+                <span className="sidebar-link-text">{item.label}</span>
+                {item.badge !== null && item.badge !== undefined && (
+                  <span
+                    className="sidebar-badge"
+                    style={{ background: item.badgeColor || 'var(--border-color-strong)' }}
+                  >
+                    {item.badge}
+                  </span>
+                )}
+                {item.subItems && (
+                  expandedMenus[item.id] ? <ChevronUp size={16} /> : <ChevronDown size={16} />
+                )}
+              </button>
+
+              {item.subItems && expandedMenus[item.id] && (
+                <div style={{ display: 'flex', flexDirection: 'column', paddingLeft: '1.25rem', marginTop: '0.25rem', gap: '0.15rem' }}>
+                  {item.subItems.map(sub => {
+                    const isSubActive = activeTab === sub.id;
+                    return (
+                      <button
+                        key={sub.id}
+                        className={`sidebar-link ${isSubActive ? 'active' : ''}`}
+                        style={{ padding: '0.4rem 0.5rem', fontSize: '0.85rem' }}
+                        onClick={() => {
+                          setActiveTab(sub.id);
+                          if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
+                        }}
+                      >
+                        {isSubActive && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--accent-primary)', marginRight: '0.4rem', marginLeft: '0.5rem' }} />}
+                        {!isSubActive && <span style={{ width: '5px', height: '5px', borderRadius: '50%', background: 'var(--text-muted)', marginRight: '0.4rem', marginLeft: '0.5rem' }} />}
+                        <span className="sidebar-link-text">{sub.label}</span>
+                        {sub.badge !== null && sub.badge !== undefined && (
+                          <span
+                            className="sidebar-badge"
+                            style={{ background: sub.badgeColor || 'var(--border-color-strong)', fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}
+                          >
+                            {sub.badge}
+                          </span>
+                        )}
+                      </button>
+                    )
+                  })}
+                </div>
               )}
-            </button>
+            </div>
           );
         })}
       </nav>
@@ -142,3 +190,4 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     </aside>
   );
 };
+

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { X, MapPin, Anchor, UserCheck, CheckCircle, LogOut } from 'lucide-react';
 import { useData } from '../context/DataContext';
-
+import { BKILogo } from './BKILogo';
 export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
-  const { suratTugas } = useData();
+  const { suratTugas, tariffs } = useData();
   const [currentTime, setCurrentTime] = useState(new Date());
   const scrollRef = useRef(null);
 
@@ -24,10 +24,23 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Filter active surveys (not finished)
-  const activeSurveys = suratTugas.filter(
-    (st) => st.status !== 'Selesai' && st.status !== 'Batal'
-  ).sort((a, b) => new Date(b.tglMulai) - new Date(a.tglMulai));
+  // Filter active surveys (not finished and currently happening today)
+  const activeSurveys = suratTugas.filter((st) => {
+    if (st.status === 'Selesai' || st.status === 'Batal') return false;
+    if (!st.tglMulai || !st.tglSelesai) return false;
+    
+    // Normalize dates for comparison (ignoring time)
+    const today = new Date(currentTime);
+    today.setHours(0, 0, 0, 0);
+    
+    const start = new Date(st.tglMulai);
+    start.setHours(0, 0, 0, 0);
+    
+    const end = new Date(st.tglSelesai);
+    end.setHours(23, 59, 59, 999);
+    
+    return today >= start && today <= end;
+  }).sort((a, b) => new Date(b.tglMulai) - new Date(a.tglMulai));
 
   // Auto-scroll animation logic
   useEffect(() => {
@@ -102,9 +115,7 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
         }}
       >
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-          <div style={{ background: 'var(--accent-primary)', padding: '0.75rem', borderRadius: '12px' }}>
-            <Anchor size={36} color="#ffffff" />
-          </div>
+          <BKILogo size={48} />
           <div>
             <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
               MONITORING SURVEI KAPAL
@@ -206,7 +217,13 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
                     <MapPin size={22} color="var(--text-muted)" style={{ marginTop: '0.15rem' }} />
                     <div>
                       <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', textTransform: 'uppercase', fontWeight: 600, letterSpacing: '0.05em', marginBottom: '0.2rem' }}>Lokasi Survei</div>
-                      <div style={{ fontSize: '1.2rem', color: 'var(--status-pending-text)', fontWeight: 700, textTransform: 'uppercase' }}>{st.lokasi || st.tempatSurvey}</div>
+                      <div style={{ fontSize: '1.2rem', color: 'var(--status-pending-text)', fontWeight: 700, textTransform: 'uppercase' }}>
+                        {st.lokasi || st.tempatSurvey}
+                        {(() => {
+                          const matched = (tariffs || []).find(t => (t.tujuan || t.name).toUpperCase() === (st.lokasi || st.tempatSurvey || '').toUpperCase());
+                          return matched && matched.rincian ? ` (${matched.rincian.toUpperCase()})` : '';
+                        })()}
+                      </div>
                     </div>
                   </div>
 

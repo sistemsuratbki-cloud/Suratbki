@@ -5,9 +5,7 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { CalendarView } from './components/CalendarView';
-import { RecentActivity } from './components/RecentActivity';
 import { SuratTugasTable } from './components/SuratTugasTable';
-import { KwitansiTable } from './components/KwitansiTable';
 import { LaporanTable } from './components/LaporanTable';
 import { UserManagementTable } from './components/UserManagementTable';
 import { TariffManagementTable } from './components/TariffManagementTable';
@@ -17,7 +15,7 @@ import { LoginScreen } from './components/LoginScreen';
 import { TvDisplay } from './components/TvDisplay';
 
 function AppContent() {
-  const { isAuthenticated, role, logout } = useAuth();
+  const { isAuthenticated, role, logout, usersList } = useAuth();
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('st_theme') || 'light';
@@ -25,6 +23,9 @@ function AppContent() {
 
   const [activeTab, setActiveTab] = useState('calendar');
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [dashboardSurveyorFilter, setDashboardSurveyorFilter] = useState('');
+
+  const surveyorUsers = usersList ? usersList.filter(u => u.role === 'surveyor') : [];
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);
@@ -66,16 +67,31 @@ function AppContent() {
         <main className="main-content-v2">
           {activeTab === 'calendar' && (
             <>
-              <SummaryCards />
+              {(role === 'admin' || role === 'developer') && (
+                <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                  <label style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-secondary)' }}>Filter Surveyor:</label>
+                  <select 
+                    className="form-select" 
+                    style={{ width: '250px' }}
+                    value={dashboardSurveyorFilter}
+                    onChange={(e) => setDashboardSurveyorFilter(e.target.value)}
+                  >
+                    <option value="">-- Semua Surveyor --</option>
+                    {surveyorUsers.map(u => (
+                      <option key={u.id} value={u.name}>{u.name}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+              <SummaryCards surveyorFilter={dashboardSurveyorFilter} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-                <CalendarView />
+                <CalendarView surveyorFilter={dashboardSurveyorFilter} />
               </div>
             </>
           )}
 
           {activeTab === 'surat_sps' && <SuratTugasTable filterType="SPS" />}
           {activeTab === 'surat_pds' && <SuratTugasTable filterType="PDS" />}
-          {activeTab === 'kwitansi' && <KwitansiTable />}
           {activeTab === 'laporan' && <LaporanTable />}
           {activeTab === 'tariffs' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
@@ -91,10 +107,13 @@ function AppContent() {
   );
 }
 
+import { Toaster } from 'react-hot-toast';
+
 export default function App() {
   return (
     <AuthProvider>
       <DataProvider>
+        <Toaster position="top-center" />
         <AppContent />
       </DataProvider>
     </AuthProvider>

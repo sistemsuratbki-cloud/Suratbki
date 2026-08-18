@@ -28,9 +28,9 @@ export const LaporanTable = () => {
 
   const [showExportMenu, setShowExportMenu] = useState(false);
 
-  const canAddLaporan = role === 'admin' || role === 'surveyor' || role === 'kacab';
-  const canEditLaporan = role === 'admin' || role === 'surveyor' || role === 'kacab';
-  const canDelete = role === 'admin';
+  const canAddLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab';
+  const canEditLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab';
+  const canDelete = role === 'admin' || role === 'developer';
 
   const monthNames = [
     { value: '01', label: 'JANUARI' },

@@ -15,88 +15,121 @@ const AuthContext = createContext();
 
 export const INITIAL_USERS = [
   {
-    id: 'usr-admin',
+    id: 'usr-muhson',
+    username: 'muhson',
+    password: 'password123',
+    name: 'MUHSON NURROCHMAT',
+    email: 'muhson@bki.co.id',
+    phone: '+620000000000',
+    role: 'kacab',
+    grade: 'GRADE 7C',
+    roleLabel: 'KACAP/SURVEYOR',
+    avatarBg: '#64748b',
+    description: 'Kepala Cabang / Surveyor BKI Pontianak'
+  },
+  {
+    id: 'usr-renza',
+    username: 'renza',
+    password: 'password123',
+    name: 'RENZA MUHARAM',
+    email: 'renza@bki.co.id',
+    phone: '+620000000001',
+    role: 'admin',
+    grade: 'GRADE 7C',
+    roleLabel: 'Admin BKI',
+    avatarBg: '#1e3a8a',
+    description: 'Admin Utama BKI Pontianak'
+  },
+  {
+    id: 'usr-bone',
+    username: 'bone',
+    password: 'password123',
+    name: 'ALFIAN BONE PUTRA',
+    email: 'bone@bki.co.id',
+    phone: '+620000000002',
+    role: 'surveyor',
+    grade: 'GRADE 6 A',
+    roleLabel: 'Surveyor',
+    avatarBg: '#10b981',
+    description: 'Surveyor BKI'
+  },
+  {
+    id: 'usr-andre',
+    username: 'andre',
+    password: 'password123',
+    name: 'ANDRE GUNTUR',
+    email: 'andre@bki.co.id',
+    phone: '+620000000003',
+    role: 'surveyor',
+    grade: 'GRADE 6 A',
+    roleLabel: 'Surveyor',
+    avatarBg: '#059669',
+    description: 'Surveyor BKI'
+  },
+  {
+    id: 'usr-sandi',
+    username: 'sandi',
+    password: 'password123',
+    name: 'SANDI NANDARIANTO',
+    email: 'sandi@bki.co.id',
+    phone: '+620000000004',
+    role: 'surveyor',
+    grade: 'GRADE 5 C',
+    roleLabel: 'Surveyor',
+    avatarBg: '#047857',
+    description: 'Surveyor BKI'
+  },
+  {
+    id: 'usr-septian',
+    username: 'septian',
+    password: 'password123',
+    name: 'SEPTIAN AJI',
+    email: 'septian@bki.co.id',
+    phone: '+620000000005',
+    role: 'surveyor',
+    grade: 'GRADE 5 C',
+    roleLabel: 'Surveyor',
+    avatarBg: '#065f46',
+    description: 'Surveyor BKI'
+  },
+  {
+    id: 'usr-monitor',
+    username: 'monitor',
+    password: 'password123',
+    name: 'TV Display Monitor',
+    email: 'monitor@bki.co.id',
+    phone: '+620000000006',
+    role: 'monitor',
+    grade: '-',
+    roleLabel: 'Pengguna',
+    avatarBg: '#8b5cf6',
+    description: 'Display Monitor'
+  },
+  {
+    id: 'usr-prasetya',
     username: 'admin',
     password: 'admin123',
-    name: 'Prasetyo, ST (Admin BKI)',
-    email: 'admin@bki.co.id',
-    role: 'admin',
-    grade: 'GRADE 6 A',
-    roleLabel: 'Admin Utama BKI Pontianak',
-    avatarBg: '#1e3a8a',
-    description: 'Akses penuh seluruh sistem & manajemen pengguna BKI Cabang Pontianak'
+    name: 'Prasetya',
+    email: 'prasetya@bki.co.id',
+    phone: '+620000000007',
+    role: 'developer',
+    grade: '-',
+    roleLabel: 'Developer',
+    avatarBg: '#eab308',
+    description: 'Developer Sistem'
   },
   {
-    id: 'usr-surveyor-1',
-    username: 'budi',
+    id: 'usr-finance',
+    username: 'finance',
     password: 'password123',
-    name: 'Budi Santoso, ST',
-    email: 'budi@bki.co.id',
-    role: 'surveyor',
-    grade: 'GRADE 6 A',
-    roleLabel: 'Senior Class Surveyor - Lambung & Statutory',
-    avatarBg: '#10b981',
-    description: 'Inspektur Klasifikasi Lambung & Sertifikasi Keselamatan BKI'
-  },
-  {
-    id: 'usr-surveyor-2',
-    username: 'siti',
-    password: 'password123',
-    name: 'Siti Rahmawati, ST',
-    email: 'siti@bki.co.id',
-    role: 'surveyor',
-    grade: 'GRADE 6 B',
-    roleLabel: 'Machinery & Marine Engineer Surveyor',
-    avatarBg: '#059669',
-    description: 'Inspektur Kelayakan Mesin Utama, Sistem Listrik & Sea Trial BKI'
-  },
-  {
-    id: 'usr-surveyor-3',
-    username: 'ahmad',
-    password: 'password123',
-    name: 'Ahmad Fauzi, ST',
-    email: 'ahmad@bki.co.id',
-    role: 'surveyor',
-    grade: 'GRADE 5 A',
-    roleLabel: 'Hull Inspector - Tanker & Tugboat',
-    avatarBg: '#047857',
-    description: 'Inspektur Palka, Ketebalan Pelat & Garis Muat (Load Line) BKI'
-  },
-  {
-    id: 'usr-surveyor-4',
-    username: 'dewi',
-    password: 'password123',
-    name: 'Dewi Lestari, ST',
-    email: 'dewi@bki.co.id',
-    role: 'surveyor',
-    grade: 'GRADE 5 B',
-    roleLabel: 'NavCom & Statutory Surveyor',
-    avatarBg: '#065f46',
-    description: 'Inspektur Peralatan Navigasi, Radio & Sistem Komunikasi Kapal'
-  },
-  {
-    id: 'usr-keuangan',
-    username: 'keuangan',
-    password: 'password123',
-    name: 'Rian Hidayat, SE',
-    email: 'keuangan@bki.co.id',
+    name: 'ANONIM',
+    email: 'finance@bki.co.id',
+    phone: '+620000000008',
     role: 'keuangan',
-    grade: 'GRADE 5 B',
-    roleLabel: 'Staff Keuangan BKI Pontianak',
+    grade: 'GRADE 5 C',
+    roleLabel: 'Keuangan',
     avatarBg: '#f59e0b',
-    description: 'Kelola Kwitansi, Pembayaran Honorarium, & Tiket Perjalanan'
-  },
-  {
-    id: 'usr-kacab',
-    username: 'kacab',
-    password: 'password123',
-    name: 'Ir. H. Agus Susanto, MT',
-    email: 'kacab@bki.co.id',
-    role: 'kacab',
-    grade: 'GRADE 6 A',
-    roleLabel: 'Kepala Cabang BKI Pontianak',
-    avatarBg: '#64748b',
-    description: 'Overview Dasbor Eksekutif & Persetujuan (Approval) BKI Cabang Pontianak'
+    description: 'Staff Keuangan BKI'
   }
 ];
 
@@ -105,6 +138,14 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem('st_users_list');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
+
+  useEffect(() => {
+    const isReset = localStorage.getItem('st_users_reset_v5');
+    if (!isReset) {
+      setUsersList(INITIAL_USERS);
+      localStorage.setItem('st_users_reset_v5', 'true');
+    }
+  }, []);
 
   const [currentUser, setCurrentUser] = useState(() => {
     const savedUser = localStorage.getItem('st_auth_user');
@@ -147,18 +188,23 @@ export const AuthProvider = ({ children }) => {
 
       const migratedUsers = await Promise.all(
         usersList.map(async (user) => {
-          if (user.username === 'admin' && adminPassVersion !== 'admin123_v1') {
+          let updatedUser = { ...user };
+          
+          if (updatedUser.username === 'admin' && adminPassVersion !== 'admin123_v1') {
             needsMigration = true;
-            const hashedPw = await hashPassword('admin123');
-            return { ...user, password: hashedPw };
+            updatedUser.password = await hashPassword('admin123');
           }
-          if (!isPasswordHashed(user.password)) {
+          if (updatedUser.username === 'admin' && updatedUser.role !== 'developer') {
             needsMigration = true;
-            const fallbackPw = user.username === 'admin' ? 'admin123' : (user.password || 'password123');
-            const hashedPw = await hashPassword(fallbackPw);
-            return { ...user, password: hashedPw };
+            updatedUser.role = 'developer';
           }
-          return user;
+          
+          if (!isPasswordHashed(updatedUser.password)) {
+            needsMigration = true;
+            const fallbackPw = updatedUser.username === 'admin' ? 'admin123' : (updatedUser.password || 'password123');
+            updatedUser.password = await hashPassword(fallbackPw);
+          }
+          return updatedUser;
         })
       );
 
@@ -336,7 +382,7 @@ export const AuthProvider = ({ children }) => {
   // User Management Actions for Admin
   const addUser = useCallback(async (userData) => {
     let roleLabel = 'Pengguna BKI';
-    if (userData.role === 'admin') roleLabel = 'Admin Utama BKI Pontianak';
+    if (userData.role === 'admin' || userData.role === 'developer') roleLabel = 'Admin Utama BKI Pontianak';
     else if (userData.role === 'surveyor') roleLabel = 'Class Surveyor BKI';
     else if (userData.role === 'keuangan') roleLabel = 'Staff Keuangan BKI Pontianak';
     else if (userData.role === 'kacab') roleLabel = 'Kepala Cabang BKI Pontianak';

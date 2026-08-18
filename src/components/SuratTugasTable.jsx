@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Search, Eye, Edit2, Trash2, FileText, User, Calendar, MapPin, Anchor, Printer } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, FileText, User, Calendar, MapPin, Anchor, Printer, FileSpreadsheet } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, getStatusBadgeClass, cleanDocNumber } from '../utils/formatters';
@@ -8,10 +8,11 @@ import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
 import { ConfirmModal } from './ConfirmModal';
+import { exportBiayaPerjalananDinas } from '../utils/exportExcelBiaya';
 
 export const SuratTugasTable = ({ filterType = 'SPS' }) => {
-  const { suratTugas, deleteSuratTugas } = useData();
-  const { role } = useAuth();
+  const { suratTugas, deleteSuratTugas, gradeTariffs, tariffs } = useData();
+  const { role, usersList } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
@@ -27,8 +28,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const canManage = role === 'admin' || role === 'kacab';
-  const canDelete = role === 'admin';
+  const canManage = role === 'admin' || role === 'developer' || role === 'kacab';
+  const canDelete = role === 'admin' || role === 'developer';
 
   const handleOpenAdd = () => {
     setEditingItem(null);
@@ -48,6 +49,10 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const handleOpenPdsPrint = (item) => {
     setSelectedPrintItem(item);
     setIsPdsPrintModalOpen(true);
+  };
+
+  const handleExportExcel = (item) => {
+    exportBiayaPerjalananDinas(item, usersList, gradeTariffs);
   };
 
   const handleOpenLampiranPrint = (item) => {
@@ -187,7 +192,13 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <MapPin size={14} color="var(--text-secondary)" />
-                      <span>{item.lokasi || '-'}</span>
+                      <span>
+                        {item.lokasi || '-'}
+                        {(() => {
+                          const matched = (tariffs || []).find(t => (t.tujuan || t.name).toUpperCase() === (item.lokasi || '').toUpperCase());
+                          return matched && matched.rincian ? ` (${matched.rincian.toUpperCase()})` : '';
+                        })()}
+                      </span>
                     </div>
                   </td>
                   <td>
@@ -214,16 +225,26 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                         </button>
                       )}
                       {filterType !== 'SPS' && (
-                        <button
-                          className="btn btn-secondary btn-icon btn-sm"
-                          onClick={() => handleOpenPdsPrint(item)}
-                          title="Download / Cetak PDF PDS"
-                        >
-                          <FileText size={15} />
-                        </button>
+                        <>
+                          <button
+                            className="btn btn-secondary btn-icon btn-sm"
+                            onClick={() => handleExportExcel(item)}
+                            title="Export Biaya Excel"
+                            style={{ background: '#10b981', color: '#ffffff', borderColor: '#10b981' }}
+                          >
+                            <FileSpreadsheet size={15} />
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-icon btn-sm"
+                            onClick={() => handleOpenPdsPrint(item)}
+                            title="Download / Cetak PDF PDS"
+                          >
+                            <FileText size={15} />
+                          </button>
+                        </>
                       )}
                       
-                      {item.visit === '1' && (
+                      {item.visit === '1' && filterType === 'SPS' && (
                         <button
                           className="btn btn-secondary btn-icon btn-sm"
                           onClick={() => handleOpenLampiranPrint(item)}

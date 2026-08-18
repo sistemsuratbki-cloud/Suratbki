@@ -6,7 +6,7 @@ import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validatePasswordStrength } from '../utils/security';
 
 export const UserModal = ({ isOpen, onClose, editItem = null }) => {
-  const { addUser, updateUser } = useAuth();
+  const { addUser, updateUser, currentUser } = useAuth();
   const { gradeTariffs } = useData();
 
   const [formData, setFormData] = useState({
@@ -53,7 +53,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
     let defaultLabel = 'Pengguna';
     let defaultBg = '#1e3a8a';
 
-    if (role === 'admin') {
+    if (role === 'admin' || role === 'developer') {
       defaultLabel = 'Admin Utama';
       defaultBg = '#1e3a8a';
     } else if (role === 'surveyor') {
@@ -219,7 +219,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                 </div>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: (formData.role === 'developer' || formData.role === 'monitor') ? '1fr' : '1fr 1fr', gap: '1rem' }}>
                 <div className="form-group">
                   <label className="form-label">Peran Pengguna (Role) *</label>
                   <select
@@ -227,25 +227,33 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                     value={formData.role}
                     onChange={(e) => handleRoleChange(e.target.value)}
                   >
-                    <option value="admin">👨‍💼 Admin Utama (Full Control)</option>
                     <option value="surveyor">🕵️ Marine Surveyor (Input Laporan)</option>
                     <option value="keuangan">💰 Staff Keuangan (Kelola Kwitansi)</option>
                     <option value="kacab">👔 Kepala Cabang (Approval)</option>
+                    <option value="monitor">🖥️ Layar Monitor (TV Display)</option>
+                    {(currentUser?.role === 'admin' || currentUser?.role === 'developer') && (
+                      <option value="admin">👨‍💼 Admin Utama (Full Control)</option>
+                    )}
+                    {currentUser?.role === 'developer' && (
+                      <option value="developer">💻 Developer (Super Admin)</option>
+                    )}
                   </select>
                 </div>
 
-                <div className="form-group">
-                  <label className="form-label">Grade / Pangkat *</label>
-                  <select
-                    className="form-select"
-                    value={formData.grade}
-                    onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
-                  >
-                    {(gradeTariffs || []).map((t) => (
-                      <option key={t.id} value={t.grade}>{t.grade}</option>
-                    ))}
-                  </select>
-                </div>
+                {formData.role !== 'developer' && formData.role !== 'monitor' && (
+                  <div className="form-group">
+                    <label className="form-label">Grade / Pangkat *</label>
+                    <select
+                      className="form-select"
+                      value={formData.grade}
+                      onChange={(e) => setFormData({ ...formData, grade: e.target.value })}
+                    >
+                      {(gradeTariffs || []).map((t) => (
+                        <option key={t.id} value={t.grade}>{t.grade}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
               </div>
 
               <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem', marginBottom: '1rem' }}>

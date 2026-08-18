@@ -4,13 +4,17 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
 
-export const SummaryCards = () => {
+export const SummaryCards = ({ surveyorFilter }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei } = useData();
   const { currentUser, role } = useAuth();
 
-  const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas');
-  const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
-  const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas');
+  const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas')
+    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
+  const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima')
+    .filter(item => !surveyorFilter || item.penerima === surveyorFilter);
+  const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas')
+    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
+
 
   const totalSurat = filteredSurat.length;
   const pendingKwitansi = filteredKwitansi.filter((k) => k.status === 'Belum Dibayar').length;

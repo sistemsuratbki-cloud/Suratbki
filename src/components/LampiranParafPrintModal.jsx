@@ -1,6 +1,7 @@
 import React, { useRef } from 'react';
 import { X, Printer, Anchor } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
@@ -10,6 +11,7 @@ import { BKILogo } from './BKILogo';
 export const LampiranParafPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const printRef = useRef(null);
   const { adminSettings } = useData();
+  const { usersList } = useAuth();
 
   if (!isOpen || !suratTugas) return null;
 
@@ -26,6 +28,7 @@ export const LampiranParafPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const noAgenda = suratTugas.agenda || suratTugas.noAgenda || '-';
   const catatan = suratTugas.catatan || '-';
   const surveyorName = suratTugas.petugas || 'ALFIAN BONE PUTRA';
+  const surveyorPhone = usersList?.find(u => u.name === suratTugas.petugas)?.phone || '';
   const kepalaCabang = adminSettings?.kepalaCabang || suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
   const nup = adminSettings?.nup || suratTugas.nup || '48199-KI';
 
@@ -96,7 +99,7 @@ export const LampiranParafPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       <td style={{ border: '1px solid black', padding: '0.5rem', minHeight: '2rem' }}>1</td>
                       <td style={{ border: '1px solid black', padding: '0.5rem' }}>{namaKapal}</td>
                       <td style={{ border: '1px solid black', padding: '0.5rem' }}>{surveyorName}</td>
-                      <td style={{ border: '1px solid black', padding: '0.5rem' }}></td>
+                      <td style={{ border: '1px solid black', padding: '0.5rem' }}>{surveyorPhone}</td>
                       <td style={{ border: '1px solid black', padding: '0.5rem' }}>{jenisSurvey}</td>
                       <td style={{ border: '1px solid black', padding: '0.5rem' }}>{tglSurveyFormatted}</td>
                       <td style={{ border: '1px solid black', padding: '0.5rem' }}>{lokasiSurvey}</td>

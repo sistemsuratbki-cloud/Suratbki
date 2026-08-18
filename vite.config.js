@@ -6,5 +6,13 @@ export default defineConfig({
   server: {
     port: 3000,
     open: true
+  },
+  resolve: {
+    alias: {
+      stream: 'stream-browserify'
+    }
+  },
+  define: {
+    global: 'globalThis'
   }
 });

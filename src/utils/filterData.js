@@ -1,5 +1,5 @@
 export const filterDataByRole = (list = [], currentUser = null, role = null, fieldName = 'petugas') => {
-  if (!role || role === 'admin' || role === 'kacab' || role === 'keuangan') {
+  if (!role || role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
     return list; // Full visibility for Admin, Kacab, and Keuangan
   }
 

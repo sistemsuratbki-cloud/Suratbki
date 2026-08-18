@@ -6,14 +6,17 @@ import { formatDateIndo } from '../utils/formatters';
 import { filterDataByRole } from '../utils/filterData';
 import { DayDetailModal } from './DayDetailModal';
 
-export const CalendarView = () => {
+export const CalendarView = ({ surveyorFilter }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei } = useData();
   const { currentUser, role } = useAuth();
 
   // Filter tasks & reports specifically for logged-in surveyor
-  const filteredSuratTugas = filterDataByRole(suratTugas, currentUser, role, 'petugas');
-  const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
-  const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas');
+  const filteredSuratTugas = filterDataByRole(suratTugas, currentUser, role, 'petugas')
+    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
+  const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima')
+    .filter(item => !surveyorFilter || item.penerima === surveyorFilter);
+  const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas')
+    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
 
   // Default to today's current date / month
   const [currentDate, setCurrentDate] = useState(new Date());

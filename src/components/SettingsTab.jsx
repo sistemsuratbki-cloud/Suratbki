@@ -1,17 +1,23 @@
 import React, { useState } from 'react';
-import { KeyRound, Check, Shield, Eye, EyeOff, RotateCcw } from 'lucide-react';
+import { KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ConfirmModal } from './ConfirmModal';
 import { validatePasswordStrength } from '../utils/security';
 
 export const SettingsTab = () => {
-  const { currentUser, changePassword, verifyCurrentPassword, resetUsers } = useAuth();
+  const { currentUser, changePassword, verifyCurrentPassword, resetUsers, updateUser } = useAuth();
   const { adminSettings, updateAdminSettings } = useData();
 
   const [currentPassInput, setCurrentPassInput] = useState('');
   const [newPassInput, setNewPassInput] = useState('');
   const [confirmPassInput, setConfirmPassInput] = useState('');
+
+  const [profileInput, setProfileInput] = useState({
+    name: currentUser?.name || '',
+    email: currentUser?.email || '',
+    phone: currentUser?.phone || ''
+  });
 
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
@@ -33,6 +39,16 @@ export const SettingsTab = () => {
     updateAdminSettings(signatoryInput);
     setAdminMsg('Pengaturan Penandatangan Kepala Cabang berhasil disimpan!');
     setTimeout(() => setAdminMsg(''), 4000);
+  };
+
+  const handleUpdateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      await updateUser(currentUser.id, profileInput);
+      setMessage({ type: 'success', text: 'Profil Anda berhasil diperbarui!' });
+    } catch (err) {
+      setMessage({ type: 'error', text: 'Gagal memperbarui profil.' });
+    }
   };
 
   const handleChangePassword = async (e) => {
@@ -119,11 +135,66 @@ export const SettingsTab = () => {
             <div style={{ fontSize: '0.875rem', color: 'var(--accent-primary)', fontWeight: 700, marginTop: '0.1rem' }}>
               Username: @{currentUser?.username || currentUser?.role} • {currentUser?.roleLabel}
             </div>
-            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-              {currentUser?.email}
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '0.3rem', display: 'flex', flexDirection: 'column', gap: '0.15rem' }}>
+              <div>📧 {currentUser?.email || 'Belum ada email'}</div>
+              <div>📱 {currentUser?.phone || 'Belum ada nomor telepon'}</div>
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Edit Profile Form */}
+      <div className="card-section" style={{ padding: '1.75rem' }}>
+        <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
+          <div className="card-title-group">
+            <User size={22} color="var(--accent-primary)" />
+            <div>
+              <h3 className="card-title">Edit Profil Saya</h3>
+              <div className="card-subtitle">Perbarui informasi data diri Anda</div>
+            </div>
+          </div>
+        </div>
+
+        <form onSubmit={handleUpdateProfile} style={{ maxWidth: '520px' }}>
+          <div className="form-group">
+            <label className="form-label">Nama Lengkap *</label>
+            <input
+              type="text"
+              className="form-input"
+              value={profileInput.name}
+              onChange={(e) => setProfileInput({ ...profileInput, name: e.target.value })}
+              required
+            />
+          </div>
+          
+          <div className="form-group">
+            <label className="form-label">Email *</label>
+            <input
+              type="email"
+              className="form-input"
+              value={profileInput.email}
+              onChange={(e) => setProfileInput({ ...profileInput, email: e.target.value })}
+              required
+            />
+          </div>
+
+          <div className="form-group">
+            <label className="form-label">Nomor Telepon (WhatsApp) *</label>
+            <input
+              type="tel"
+              className="form-input"
+              value={profileInput.phone}
+              onChange={(e) => setProfileInput({ ...profileInput, phone: e.target.value })}
+              placeholder="Contoh: 081234567890"
+              required
+            />
+          </div>
+
+          <button type="submit" className="btn btn-primary" style={{ marginTop: '0.5rem' }}>
+            <Check size={16} />
+            Simpan Profil
+          </button>
+        </form>
       </div>
 
       {/* Change Password Form */}
@@ -346,7 +417,7 @@ export const SettingsTab = () => {
       </div>
 
       {/* Admin Maintenance Box */}
-      {currentUser?.role === 'admin' && (
+      {(currentUser?.role === 'admin' || currentUser?.role === 'developer') && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
           <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
             <div className="card-title-group">
