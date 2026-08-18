@@ -25,7 +25,7 @@ function AppContent() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [dashboardSurveyorFilter, setDashboardSurveyorFilter] = useState('');
 
-  const surveyorUsers = usersList ? usersList.filter(u => u.role === 'surveyor') : [];
+  const surveyorUsers = usersList ? usersList.filter(u => u.role === 'surveyor' || u.role === 'kacab') : [];
 
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', theme);

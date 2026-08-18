@@ -14,7 +14,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
   const defaultLocation = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'Kendawangan (Via Udara)';
   const defaultRate = activeTariffs[0]?.rate || 3000000;
 
-  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer');
+  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab');
 
   const [formData, setFormData] = useState({
     nomor: '',
