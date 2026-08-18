@@ -29,11 +29,18 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
     const gradeData = gradeTariffs.find(g => g.grade === surveyorGrade) || {};
 
     // Calculations
-    const uangHarianRate = item.tanpaUangHarian ? 0 : (Number(gradeData.uangHarian) || 300000);
-    const uangHarianTotal = uangHarianRate * hr;
+    let sisaHariUangHarian = hr;
+    if (item.tanpaUangHarian) {
+      const deduct = item.hariTanpaUangHarian !== undefined ? Number(item.hariTanpaUangHarian) : hr;
+      const validDeduct = Math.max(0, Math.min(deduct, hr));
+      sisaHariUangHarian = hr - validDeduct;
+    }
+
+    const uangHarianRate = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (Number(gradeData.uangHarian) || 300000);
+    const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
     const uangHotelRate = Number(item.tiketHotel) || 0;
     const uangHotelTotal = uangHotelRate * mlm;
-    const hrLbrTotal = item.tanpaUangHarian ? 0 : (hrLbr * uangHarianRate * 0.5);
+    const hrLbrTotal = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (hrLbr * uangHarianRate * 0.5);
     const tiketPesawatTaxi = Number(item.tiketPesawatTaxi) || Number(item.biayaTiket) || 0;
     const biayaTAT = item.tanpaTAT ? 0 : (Number(item.biayaTAT) || 0);
     const rateSK = Number(item.tarifDasar) || 0;

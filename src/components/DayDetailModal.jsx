@@ -190,7 +190,19 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
   
   const hariLibur = Number(formData.jumlahHariLibur) || 0;
   const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
-  const totalUangHarian = !formData.tanpaUangHarian ? ((uangHarianPerHari * jumlahHari) + tambahanLibur) : 0;
+
+  let totalUangHarian = (uangHarianPerHari * jumlahHari) + tambahanLibur;
+  let sisaHariUangHarian = jumlahHari;
+  if (formData.tanpaUangHarian) {
+    const deduct = formData.hariTanpaUangHarian !== undefined ? Number(formData.hariTanpaUangHarian) : jumlahHari;
+    const validDeduct = Math.max(0, Math.min(deduct, jumlahHari));
+    sisaHariUangHarian = jumlahHari - validDeduct;
+    if (sisaHariUangHarian === 0) {
+      totalUangHarian = 0;
+    } else {
+      totalUangHarian = (uangHarianPerHari * sisaHariUangHarian) + tambahanLibur;
+    }
+  }
 
   const grandTotalEstimasi = currentBaseRate + totalBiayaTransportHotel + biayaTAT + totalUangHarian;
 
@@ -792,15 +804,31 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         Tanpa Biaya TAT
                       </label>
                     )}
-                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.tanpaUangHarian || false}
-                        onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked })}
-                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
-                      />
-                      Tanpa Uang Harian
-                    </label>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                        <input
+                          type="checkbox"
+                          checked={formData.tanpaUangHarian || false}
+                          onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked, hariTanpaUangHarian: e.target.checked ? jumlahHari : 0 })}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                        />
+                        Tanpa Uang Harian
+                      </label>
+                      {formData.tanpaUangHarian && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem' }}>
+                          <input
+                            type="number"
+                            min="1"
+                            max={jumlahHari}
+                            value={formData.hariTanpaUangHarian !== undefined ? formData.hariTanpaUangHarian : jumlahHari}
+                            onChange={(e) => setFormData({ ...formData, hariTanpaUangHarian: Number(e.target.value) })}
+                            style={{ width: '60px', padding: '0.2rem 0.4rem', fontSize: '0.8rem', border: '1px solid var(--border-color)', borderRadius: '4px' }}
+                            title="Jumlah hari tanpa uang harian"
+                          />
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>hari (Sisa dibayar: {sisaHariUangHarian} hr)</span>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </div>
 
@@ -852,7 +880,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                       )}
 
                       <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({jumlahHari} hr)</div>
+                        <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({sisaHariUangHarian} hr)</div>
                         <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
                           +{formatRupiah(totalUangHarian)}
                         </div>
