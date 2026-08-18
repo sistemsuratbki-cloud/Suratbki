@@ -143,6 +143,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
       const filePath = `uploads/${fileName}`;
 
       try {
+        if (!supabase) throw new Error('Supabase not configured');
         const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
         if (error) throw error;
         

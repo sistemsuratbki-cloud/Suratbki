@@ -161,6 +161,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
       const filePath = `uploads/${fileName}`;
 
       try {
+        if (!supabase) throw new Error('Supabase not configured');
         const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
         if (error) throw error;
         
