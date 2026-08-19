@@ -7,6 +7,8 @@ import { SummaryCards } from './components/SummaryCards';
 import { CalendarView } from './components/CalendarView';
 import { SuratTugasTable } from './components/SuratTugasTable';
 import { LaporanTable } from './components/LaporanTable';
+import { LaporanParafTable } from './components/LaporanParafTable';
+import { BukuAgendaTable } from './components/BukuAgendaTable';
 import { UserManagementTable } from './components/UserManagementTable';
 import { TariffManagementTable } from './components/TariffManagementTable';
 import { GradeTariffManagementTable } from './components/GradeTariffManagementTable';
@@ -92,7 +94,9 @@ function AppContent() {
 
           {activeTab === 'surat_sps' && <SuratTugasTable filterType="SPS" />}
           {activeTab === 'surat_pds' && <SuratTugasTable filterType="PDS" />}
-          {activeTab === 'laporan' && <LaporanTable />}
+          {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}
+          {activeTab === 'laporan_paraf' && <LaporanParafTable />}
+          {activeTab === 'buku_agenda' && <BukuAgendaTable />}
           {activeTab === 'tariffs' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
               <GradeTariffManagementTable />

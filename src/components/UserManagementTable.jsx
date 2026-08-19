@@ -140,6 +140,7 @@ export const UserManagementTable = () => {
               <th>Nama Akun (Username)</th>
               <th>Peran (Role)</th>
               <th>Grade</th>
+              <th>TTD Scan</th>
               <th>Status Password</th>
               <th style={{ textAlign: 'right' }}>Aksi</th>
             </tr>
@@ -147,7 +148,7 @@ export const UserManagementTable = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="7" className="table-empty">
+                <td colSpan="8" className="table-empty">
                   <div className="table-empty-icon">👥</div>
                   <p>Tidak ada akun pengguna yang sesuai dengan kriteria pencarian.</p>
                 </td>
@@ -193,6 +194,20 @@ export const UserManagementTable = () => {
                     <div style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-primary)' }}>
                       {(item.role === 'developer' || item.role === 'monitor') ? '-' : (item.grade || 'GRADE 6 A')}
                     </div>
+                  </td>
+                  <td>
+                    {item.signatureUrl ? (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <img
+                          src={item.signatureUrl}
+                          alt="TTD"
+                          style={{ height: '24px', maxWidth: '48px', objectFit: 'contain', background: '#f1f5f9', padding: '2px', borderRadius: '3px', border: '1px solid #cbd5e1' }}
+                        />
+                        <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>✓ Ada TTD</span>
+                      </div>
+                    ) : (
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Belum ada</span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>

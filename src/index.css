@@ -1308,7 +1308,7 @@ body {
 @media print {
   @page {
     size: A4 portrait;
-    margin: 8mm 12mm;
+    margin: 0;
   }
 
   * {
@@ -1377,7 +1377,7 @@ body {
   /* Printable Sheet Styles - Exact 1-Page A4 Fit */
   .printable-sheet {
     border: none !important;
-    padding: 0.5rem 0.75rem !important;
+    padding: 20mm 22mm 18mm 22mm !important;
     border-radius: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;

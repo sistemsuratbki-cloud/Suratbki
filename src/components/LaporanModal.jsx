@@ -6,6 +6,9 @@ import { useAuth } from '../context/AuthContext';
 import { isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData } from '../utils/security';
+import MultiShipInput from './MultiShipInput';
+import MultiSurveySelect from './MultiSurveySelect';
+import MultiPhotoUpload from './MultiPhotoUpload';
 
 export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTugas = null }) => {
   const { suratTugas, addLaporanSurvei, updateLaporanSurvei, updateSuratTugas, tariffs } = useData();
@@ -31,6 +34,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     status: 'Draf',
     fileFotoName: '',
     fileFotoData: '',
+    fotoList: [],
     fileVisitName: '',
     fileVisitData: '',
     fileTiketTransportName: '',
@@ -58,6 +62,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         status: editItem.status || 'Draf',
         fileFotoName: editItem.fileFotoName || '',
         fileFotoData: editItem.fileFotoData || '',
+        fotoList: editItem.fotoList || [],
         fileVisitName: editItem.fileVisitName || '',
         fileVisitData: editItem.fileVisitData || '',
         fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
@@ -86,6 +91,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         status: 'Draf',
         fileFotoName: defaultSurat?.fileFotoName || '',
         fileFotoData: defaultSurat?.fileFotoData || '',
+        fotoList: defaultSurat?.fotoList || [],
         fileVisitName: defaultSurat?.fileVisitName || '',
         fileVisitData: defaultSurat?.fileVisitData || '',
         fileTiketTransportName: defaultSurat?.fileTiketTransportName || defaultSurat?.fileTiketName || '',
@@ -118,6 +124,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
 
         fileFotoName: selectedSurat.fileFotoName || prev.fileFotoName,
         fileFotoData: selectedSurat.fileFotoData || prev.fileFotoData,
+        fotoList: selectedSurat.fotoList || prev.fotoList,
         fileVisitName: selectedSurat.fileVisitName || prev.fileVisitName,
         fileVisitData: selectedSurat.fileVisitData || prev.fileVisitData,
         fileTiketTransportName: selectedSurat.fileTiketTransportName || selectedSurat.fileTiketName || prev.fileTiketTransportName,
@@ -231,7 +238,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
               <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
                 <Lock size={20} color="#ef4444" />
                 <div style={{ fontSize: '0.85rem', color: '#b91c1c' }}>
-                  <strong>Data Terkunci:</strong> Batas waktu perubahan (24 jam) telah berakhir.
+                  <strong>Data Terkunci:</strong> Batas waktu perubahan (24 jam) telah berakhir. Hubungi Admin/Kepala Cabang jika perlu perubahan.
                 </div>
               </div>
             )}
@@ -290,12 +297,10 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       3. NAMA KAPAL *
                     </label>
-                    <input
-                      type="text"
-                      className="form-input"
+                    <MultiShipInput
                       value={formData.namaKapal}
-                      onChange={(e) => setFormData({ ...formData, namaKapal: e.target.value })}
-                      placeholder="KAPUAS BAHARI XXII"
+                      onChange={(val) => setFormData({ ...formData, namaKapal: val })}
+                      placeholder="Contoh: KAPUAS BAHARI XXII / TB. SAMUDRA 01"
                       required
                     />
                   </div>
@@ -341,40 +346,23 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       6. NAMA SURVEY *
                     </label>
-                    <select
-                      className="form-select"
+                    <MultiSurveySelect
                       value={formData.namaSurvey}
-                      onChange={(e) => setFormData({ ...formData, namaSurvey: e.target.value })}
+                      onChange={(val) => setFormData({ ...formData, namaSurvey: val })}
                       required
-                    >
-                      <option value="">-- PILIH JENIS SURVEY --</option>
-                      <option value="PEMBAHARUAN">PEMBAHARUAN</option>
-                      <option value="TAHUNAN">TAHUNAN</option>
-                      <option value="ANTARA">ANTARA</option>
-                      <option value="PERPANJANGAN">PERPANJANGAN</option>
-                      <option value="PENGEDOKAN">PENGEDOKAN</option>
-                      <option value="UWILD">UWILD</option>
-                      <option value="TUNDA DOK">TUNDA DOK</option>
-                      <option value="POROS CABUT/TUNDA/DITEMPAT (PER POROS)">POROS CABUT/TUNDA/DITEMPAT (PER POROS)</option>
-                      <option value="KHUSUS (PER JAM)***">KHUSUS (PER JAM)***</option>
-                      <option value="PEMBARUAN LL">PEMBARUAN LL</option>
-                      <option value="TAHUNAN LL">TAHUNAN LL</option>
-                      <option value="REVALIDASI LL">REVALIDASI LL</option>
-                      <option value="CONVEYANCE SURVEY">CONVEYANCE SURVEY</option>
-                    </select>
+                    />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
-                      7. NO AGENDA *
+                      7. NO AGENDA
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noAgenda}
                       onChange={(e) => setFormData({ ...formData, noAgenda: e.target.value })}
-                      placeholder="A 0    /SV.333/PK/KI-26"
-                      required
+                      placeholder="A 0    /SV.333/PK/KI-26 (opsional)"
                     />
                   </div>
                 </div>
@@ -465,27 +453,21 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                 </div>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                  <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                      <Camera size={16} color="#0284c7" />
-                      <span>1. Upload Foto</span>
-                    </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="form-input"
-                      onChange={(e) => handleFileUpload('fileFotoName', e)}
-                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                    />
-                    {formData.fileFotoName && (
-                      <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(2, 132, 199, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                        <span>📸 {formData.fileFotoName}</span>
-                        <button type="button" onClick={() => handleRemoveFile('fileFotoName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                          <X size={13} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  {/* 1. Upload Foto (Multi-Upload) */}
+                  <MultiPhotoUpload
+                    fileNames={formData.fileFotoName}
+                    fileData={formData.fileFotoData}
+                    fotoList={formData.fotoList}
+                    onChange={({ fileFotoName, fileFotoData, fotoList }) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        fileFotoName,
+                        fileFotoData,
+                        fotoList
+                      }))
+                    }
+                    label="1. Upload Foto"
+                  />
 
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>

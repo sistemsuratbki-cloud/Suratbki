@@ -53,7 +53,10 @@ export const DataProvider = ({ children }) => {
     return {
       kepalaCabang: 'MUHSON NURROCHMAT',
       nup: '48199-KI',
+      pembuatDaftar: 'RENZA MUHARAM',
+      nupPembuatDaftar: '50382-KI',
       namaCabang: 'CABANG MADYA KLAS PONTIANAK',
+      kacabSignatureUrl: '/signatures/kacab_muhson_signature.png',
       tatLuarKota: 750000,
       ...parsed
     };
@@ -283,6 +286,8 @@ export const DataProvider = ({ children }) => {
       kategoriTransportasi: cleanedData.kategoriTransportasi || 'Pesawat Terbang',
       fileTiketName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
       fileFotoName: cleanedData.fileFotoName || '',
+      fileFotoData: cleanedData.fileFotoData || '',
+      fotoList: cleanedData.fotoList || [],
       fileVisitName: cleanedData.fileVisitName || '',
       fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || '',
       jumlah: totalHonor,
@@ -314,6 +319,8 @@ export const DataProvider = ({ children }) => {
       hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
       status: 'Terkirim',
       fileFotoName: cleanedData.fileFotoName || '',
+      fileFotoData: cleanedData.fileFotoData || '',
+      fotoList: cleanedData.fotoList || [],
       fileVisitName: cleanedData.fileVisitName || '',
       fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
       fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || ''
@@ -331,10 +338,10 @@ export const DataProvider = ({ children }) => {
     );
 
     // Auto-update linked Kwitansi Honor
-    const baseRate = Number(cleanedData.tarifDasar) || 3000000;
-    const ticketTransport = Number(cleanedData.tiketPesawatTaxi) || Number(cleanedData.biayaTiket) || 0;
+    const baseRate = Number(cleanedData.tarifDasar) || 0;
     const ticketHotel = Number(cleanedData.tiketHotel) || 0;
-    const totalTicket = ticketTransport + ticketHotel;
+    const ticketTransport = Number(cleanedData.tiketPesawatTaxi) || Number(cleanedData.biayaTiket) || 0;
+    const totalTicket = ticketHotel + ticketTransport;
     const totalHonor = Number(cleanedData.jumlahEstimasi) || (baseRate + totalTicket);
 
     setKwitansiHonor((prev) => {
@@ -355,6 +362,8 @@ export const DataProvider = ({ children }) => {
                 kategoriTransportasi: cleanedData.kategoriTransportasi || k.kategoriTransportasi,
                 fileTiketName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || k.fileTiketName,
                 fileFotoName: cleanedData.fileFotoName || k.fileFotoName,
+                fileFotoData: cleanedData.fileFotoData || k.fileFotoData,
+                fotoList: cleanedData.fotoList || k.fotoList,
                 fileVisitName: cleanedData.fileVisitName || k.fileVisitName,
                 fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || k.fileKwitansiHotelName,
                 jumlah: totalHonor
@@ -376,6 +385,8 @@ export const DataProvider = ({ children }) => {
           kategoriTransportasi: cleanedData.kategoriTransportasi || 'Pesawat Terbang',
           fileTiketName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
           fileFotoName: cleanedData.fileFotoName || '',
+          fileFotoData: cleanedData.fileFotoData || '',
+          fotoList: cleanedData.fotoList || [],
           fileVisitName: cleanedData.fileVisitName || '',
           fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || '',
           jumlah: totalHonor,
@@ -408,6 +419,8 @@ export const DataProvider = ({ children }) => {
                 tglLapor: cleanedData.tglMulai || l.tglLapor,
                 tanggal: cleanedData.tglMulai || l.tanggal,
                 fileFotoName: cleanedData.fileFotoName || l.fileFotoName,
+                fileFotoData: cleanedData.fileFotoData || l.fileFotoData,
+                fotoList: cleanedData.fotoList || l.fotoList,
                 fileVisitName: cleanedData.fileVisitName || l.fileVisitName,
                 fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || l.fileTiketTransportName,
                 fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || l.fileKwitansiHotelName
@@ -435,6 +448,8 @@ export const DataProvider = ({ children }) => {
           hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
           status: 'Terkirim',
           fileFotoName: cleanedData.fileFotoName || '',
+          fileFotoData: cleanedData.fileFotoData || '',
+          fotoList: cleanedData.fotoList || [],
           fileVisitName: cleanedData.fileVisitName || '',
           fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
           fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || ''

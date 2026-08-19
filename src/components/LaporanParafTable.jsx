@@ -1,74 +1,56 @@
 import React, { useState, useMemo } from 'react';
 import {
-  Plus,
   Search,
-  Eye,
-  Edit2,
-  Trash2,
-  FileText,
-  User,
-  Calendar,
-  MapPin,
-  Anchor,
   Printer,
-  FileSpreadsheet,
-  ArrowUpDown,
-  Filter,
-  RotateCcw,
+  Calendar,
   Clock,
+  RotateCcw,
+  Anchor,
+  User,
+  MapPin,
+  FileText,
+  ArrowUpDown,
   CheckCircle2,
-  ChevronDown,
+  Phone,
   FileCheck,
-  Calculator
+  FileSpreadsheet,
+  ChevronDown
 } from 'lucide-react';
+import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, getStatusBadgeClass, cleanDocNumber } from '../utils/formatters';
-import { SuratTugasModal } from './SuratTugasModal';
-import { SuratTugasPrintModal } from './SuratTugasPrintModal';
-import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
-import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
+import { formatDateIndo, cleanDocNumber, getStatusBadgeClass } from '../utils/formatters';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
-import { ConfirmModal } from './ConfirmModal';
-import { exportBiayaPerjalananDinas } from '../utils/exportExcelBiaya';
+import { SuratTugasModal } from './SuratTugasModal';
 
-export const SuratTugasTable = ({ filterType = 'SPS' }) => {
-  const { suratTugas, deleteSuratTugas, gradeTariffs, tariffs } = useData();
+export const LaporanParafTable = () => {
+  const { suratTugas } = useData();
   const { role, usersList } = useAuth();
 
   // Search & Basic Filters
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('Semua');
   const [surveyorFilter, setSurveyorFilter] = useState('Semua');
 
   // Multi-Month & Year Filter
   const [selectedMonth, setSelectedMonth] = useState('Semua');
-  const [selectedYear, setSelectedYear] = useState(String(new Date().getFullYear()));
+  const [selectedYear, setSelectedYear] = useState('Semua');
 
   // Multi-Day / Custom Date Range Filter
   const [datePreset, setDatePreset] = useState('all'); // all, today, this_week, this_month, custom
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
 
-  // Sorting Option (Sort / Short Multi Hari & Tanggal)
-  const [sortBy, setSortBy] = useState('tgl_desc'); // tgl_desc, tgl_asc, duration_desc, duration_asc, kapal_asc, kapal_desc, petugas_asc, nomor_asc
+  // Sorting Option
+  const [sortBy, setSortBy] = useState('tgl_desc'); // tgl_desc, tgl_asc, kapal_asc, kapal_desc, petugas_asc, nomor_asc
 
   // Modals
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingItem, setEditingItem] = useState(null);
-
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
-  const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
-  const [isParafModalOpen, setIsParafModalOpen] = useState(false);
-  const [isBiayaPrintModalOpen, setIsBiayaPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
-  const [selectedParafItem, setSelectedParafItem] = useState(null);
-
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [itemToDelete, setItemToDelete] = useState(null);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingItem, setEditingItem] = useState(null);
+  const [showExportMenu, setShowExportMenu] = useState(false);
 
   const canManage = role === 'admin' || role === 'developer' || role === 'kacab';
-  const canDelete = role === 'admin' || role === 'developer';
 
   const monthNames = [
     { value: '01', label: 'Januari' },
@@ -95,6 +77,17 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab') || [];
     return list;
   }, [usersList]);
+
+  // Calculate days difference
+  const calculateDays = (start, end) => {
+    if (!start) return 1;
+    if (!end) return 1;
+    const s = new Date(start);
+    const e = new Date(end);
+    if (isNaN(s) || isNaN(e)) return 1;
+    const diff = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+    return diff > 0 ? diff : 1;
+  };
 
   // Handle Quick Date Preset Changes
   const handleDatePresetChange = (preset) => {
@@ -126,7 +119,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
   const handleResetFilters = () => {
     setSearchTerm('');
-    setStatusFilter('Semua');
     setSurveyorFilter('Semua');
     setSelectedMonth('Semua');
     setSelectedYear(String(new Date().getFullYear()));
@@ -138,7 +130,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
   const hasActiveFilters =
     searchTerm !== '' ||
-    statusFilter !== 'Semua' ||
     surveyorFilter !== 'Semua' ||
     selectedMonth !== 'Semua' ||
     selectedYear !== 'Semua' ||
@@ -146,41 +137,31 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     endDate !== '' ||
     sortBy !== 'tgl_desc';
 
-  // Helper to calculate days between dates
-  const calculateDays = (start, end) => {
-    if (!start) return 1;
-    if (!end) return 1;
-    const s = new Date(start);
-    const e = new Date(end);
-    if (isNaN(s) || isNaN(e)) return 1;
-    const diff = Math.ceil((e.getTime() - s.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    return diff > 0 ? diff : 1;
-  };
+  // Period label for printing/exporting
+  const currentPeriodLabel = useMemo(() => {
+    if (startDate && endDate) {
+      return `PERIODE ${formatDateIndo(startDate).toUpperCase()} S/D ${formatDateIndo(endDate).toUpperCase()}`;
+    }
+    if (startDate) {
+      return `SEJAK ${formatDateIndo(startDate).toUpperCase()}`;
+    }
+    if (selectedMonth !== 'Semua') {
+      const mName = monthNames.find(m => m.value === selectedMonth)?.label?.toUpperCase() || '';
+      return `BULAN ${mName} ${selectedYear}`;
+    }
+    if (selectedYear !== 'Semua') {
+      return `TAHUN ${selectedYear}`;
+    }
+    return 'SEMUA PERIODE';
+  }, [startDate, endDate, selectedMonth, selectedYear]);
 
-  // Filter & Sort Data
-  const filteredAndSortedData = useMemo(() => {
+  // Filter ONLY Visit Pertama items (`visit === '1' || visit === 1 || visit === true`)
+  const filteredData = useMemo(() => {
     // 1. Filter
     const result = suratTugas.filter((item) => {
-      // Search
-      const searchLower = searchTerm.toLowerCase();
-      const matchesSearch =
-        !searchTerm ||
-        (item.petugas || '').toLowerCase().includes(searchLower) ||
-        (item.nomor || '').toLowerCase().includes(searchLower) ||
-        (item.namaKapal || '').toLowerCase().includes(searchLower) ||
-        (item.lokasi || '').toLowerCase().includes(searchLower) ||
-        (item.perihal || '').toLowerCase().includes(searchLower) ||
-        (item.jenisSurvey || '').toLowerCase().includes(searchLower) ||
-        (item.agenda || '').toLowerCase().includes(searchLower) ||
-        (item.pemohon || '').toLowerCase().includes(searchLower) ||
-        (item.noOrder || '').toLowerCase().includes(searchLower);
-
-      if (!matchesSearch) return false;
-
-      // Status Filter
-      if (statusFilter !== 'Semua' && item.status !== statusFilter) {
-        return false;
-      }
+      // Must be Visit 1 (Visit Pertama)
+      const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
+      if (!isVisit1) return false;
 
       // Surveyor Filter
       if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
@@ -194,7 +175,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         if (itemDate) {
           const itemMonth = itemDate.substring(5, 7);
           const endMonth = item.tglSelesai ? item.tglSelesai.substring(5, 7) : itemMonth;
-          // Matches if starts in month or ends in month
           if (itemMonth !== selectedMonth && endMonth !== selectedMonth) {
             return false;
           }
@@ -222,10 +202,24 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         if (itemStart && itemStart > endDate) return false;
       }
 
-      return true;
+      // Search Box Filter
+      const searchLower = searchTerm.toLowerCase();
+      const matchesSearch =
+        !searchTerm ||
+        (item.petugas || '').toLowerCase().includes(searchLower) ||
+        (item.nomor || '').toLowerCase().includes(searchLower) ||
+        (item.namaKapal || '').toLowerCase().includes(searchLower) ||
+        (item.lokasi || '').toLowerCase().includes(searchLower) ||
+        (item.perihal || '').toLowerCase().includes(searchLower) ||
+        (item.jenisSurvey || '').toLowerCase().includes(searchLower) ||
+        (item.pemohon || '').toLowerCase().includes(searchLower) ||
+        (item.agenda || '').toLowerCase().includes(searchLower) ||
+        (item.noOrder || '').toLowerCase().includes(searchLower);
+
+      return matchesSearch;
     });
 
-    // 2. Sort (Short / Sortir)
+    // 2. Sort
     result.sort((a, b) => {
       const dateA = a.tglMulai || a.tglSelesai || '';
       const dateB = b.tglMulai || b.tglSelesai || '';
@@ -258,57 +252,153 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     });
 
     return result;
-  }, [suratTugas, searchTerm, statusFilter, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, sortBy]);
+  }, [suratTugas, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
 
-  // Statistics calculation
-  const totalHariKegiatan = useMemo(() => {
-    return filteredAndSortedData.reduce((acc, item) => acc + calculateDays(item.tglMulai, item.tglSelesai), 0);
-  }, [filteredAndSortedData]);
-
-  const handleOpenAdd = () => {
-    setEditingItem(null);
-    setIsModalOpen(true);
+  // Open Accumulated Print Modal (All filtered items)
+  const handleOpenPrintAll = () => {
+    setSelectedPrintItem(null);
+    setIsPrintModalOpen(true);
   };
 
-  const handleOpenEdit = (item) => {
-    setEditingItem(item);
-    setIsModalOpen(true);
-  };
-
-  const handleOpenPrint = (item) => {
+  // Open Single Print Modal
+  const handleOpenPrintSingle = (item) => {
     setSelectedPrintItem(item);
     setIsPrintModalOpen(true);
   };
 
-  const handleOpenPdsPrint = (item) => {
-    setSelectedPrintItem(item);
-    setIsPdsPrintModalOpen(true);
+  const handleOpenEdit = (item) => {
+    setEditingItem(item);
+    setIsEditModalOpen(true);
   };
 
-  const handleOpenBiayaPrint = (item) => {
-    setSelectedPrintItem(item);
-    setIsBiayaPrintModalOpen(true);
+  // Export Excel Handlers
+  const handleExportExcel = async () => {
+    setShowExportMenu(false);
+    const wb = new ExcelJS.Workbook();
+    wb.creator = 'BKI Pontianak';
+    wb.created = new Date();
+
+    const ws = wb.addWorksheet('Lampiran Paraf', {
+      pageSetup: { orientation: 'landscape', paperSize: 9, fitToPage: true }
+    });
+
+    ws.columns = [
+      { width: 6 },   // A: NO
+      { width: 26 },  // B: NAMA KAPAL
+      { width: 22 },  // C: SURVEYOR
+      { width: 16 },  // D: NO HP
+      { width: 24 },  // E: JENIS SURVEY
+      { width: 16 },  // F: TGL. SURVEY
+      { width: 20 },  // G: LOKASI SURVEY
+      { width: 18 },  // H: RFQ / NO. ORDER
+    ];
+
+    const DARK_BLUE = '1B3A5C';
+    const MEDIUM_BLUE = '2E5B8A';
+    const LIGHT_BLUE = 'E8F0FE';
+    const WHITE = 'FFFFFF';
+    const BORDER_COLOR = 'B0BEC5';
+
+    const thinBorder = {
+      top: { style: 'thin', color: { argb: BORDER_COLOR } },
+      left: { style: 'thin', color: { argb: BORDER_COLOR } },
+      bottom: { style: 'thin', color: { argb: BORDER_COLOR } },
+      right: { style: 'thin', color: { argb: BORDER_COLOR } }
+    };
+
+    // Title
+    ws.mergeCells('A1:H1');
+    const titleCell = ws.getCell('A1');
+    titleCell.value = 'LAMPIRAN PERMOHONAN PARAF PADA SURAT PENUGASAN';
+    titleCell.font = { name: 'Calibri', size: 13, bold: true, color: { argb: WHITE } };
+    titleCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK_BLUE } };
+    titleCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(1).height = 28;
+
+    ws.mergeCells('A2:H2');
+    const subCell = ws.getCell('A2');
+    subCell.value = `PT. BIRO KLASIFIKASI INDONESIA (PERSERO) - CABANG MADYA KLAS PONTIANAK | ${currentPeriodLabel}`;
+    subCell.font = { name: 'Calibri', size: 10, italic: true, color: { argb: WHITE } };
+    subCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: MEDIUM_BLUE } };
+    subCell.alignment = { horizontal: 'center', vertical: 'middle' };
+    ws.getRow(2).height = 20;
+
+    ws.addRow([]);
+
+    // Table Header
+    const headers = ['NO.', 'NAMA KAPAL', 'SURVEYOR', 'NO HP', 'JENIS SURVEY', 'TGL. SURVEY', 'LOKASI SURVEY', 'RFQ'];
+    const hRow = ws.addRow(headers);
+    hRow.height = 24;
+    hRow.eachCell((cell) => {
+      cell.font = { name: 'Calibri', size: 9.5, bold: true, color: { argb: WHITE } };
+      cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: DARK_BLUE } };
+      cell.alignment = { horizontal: 'center', vertical: 'middle' };
+    });
+
+    // Rows
+    filteredData.forEach((item, idx) => {
+      const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || '-';
+      const isEven = idx % 2 === 0;
+      const row = ws.addRow([
+        idx + 1,
+        (item.namaKapal || '-').toUpperCase(),
+        item.petugas || '-',
+        surveyorPhone,
+        (item.jenisSurvey || item.perihal || 'SURVEY KLAS').toUpperCase(),
+        formatDateIndo(item.tglMulai),
+        (item.tempatSurvey || item.lokasi || '-').toUpperCase(),
+        item.noOrder || '-'
+      ]);
+      row.height = 20;
+      row.eachCell((cell, colNum) => {
+        cell.font = { name: 'Calibri', size: 9 };
+        cell.border = thinBorder;
+        if (!isEven) {
+          cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: LIGHT_BLUE } };
+        }
+        if (colNum === 1 || colNum === 4 || colNum === 6 || colNum === 8) {
+          cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        } else {
+          cell.alignment = { horizontal: 'left', vertical: 'middle' };
+        }
+      });
+    });
+
+    const buffer = await wb.xlsx.writeBuffer();
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Paraf_BKI_${selectedMonth}_${selectedYear}.xlsx`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
-  const handleOpenParafPrint = (item) => {
-    setSelectedParafItem(item);
-    setIsParafModalOpen(true);
-  };
+  const handleExportCSV = () => {
+    setShowExportMenu(false);
+    const headers = ['No', 'Nama Kapal', 'Surveyor', 'No HP', 'Jenis Survey', 'Tgl Survey', 'Lokasi Survey', 'RFQ / No Order'];
+    const rows = filteredData.map((item, idx) => {
+      const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || '-';
+      return [
+        idx + 1,
+        `"${(item.namaKapal || '').replace(/"/g, '""')}"`,
+        `"${(item.petugas || '').replace(/"/g, '""')}"`,
+        `"${surveyorPhone}"`,
+        `"${(item.jenisSurvey || item.perihal || '').replace(/"/g, '""')}"`,
+        `"${formatDateIndo(item.tglMulai)}"`,
+        `"${(item.lokasi || '').replace(/"/g, '""')}"`,
+        `"${(item.noOrder || '').replace(/"/g, '""')}"`
+      ].join(',');
+    });
 
-  const handleExportExcel = (item) => {
-    exportBiayaPerjalananDinas(item, usersList, gradeTariffs);
-  };
-
-  const promptDelete = (item) => {
-    setItemToDelete(item);
-    setIsConfirmOpen(true);
-  };
-
-  const handleConfirmDelete = () => {
-    if (itemToDelete) {
-      deleteSuratTugas(itemToDelete.id);
-      setItemToDelete(null);
-    }
+    const csvContent = '\uFEFF' + [headers.join(','), ...rows].join('\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `Laporan_Paraf_BKI_${selectedMonth}_${selectedYear}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
@@ -316,18 +406,16 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
       {/* Header */}
       <div className="card-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
         <div className="card-title-group">
-          <FileText size={22} color="var(--accent-primary)" />
+          <FileCheck size={22} color="#2563eb" />
           <div>
-            <h2 className="card-title">
-              Daftar {filterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'}
-            </h2>
+            <h2 className="card-title">Laporan Permohonan Paraf (Visit Pertama)</h2>
             <div className="card-subtitle">
-              Kelola penugasan marine surveyor, sortir multi-hari & multi-bulan operasional
+              Akumulasi penugasan visit 1 per periode tanggal / bulan untuk pencetakan lampiran paraf resmi
             </div>
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
           {hasActiveFilters && (
             <button
               type="button"
@@ -341,16 +429,117 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             </button>
           )}
 
-          {canManage && (
-            <button className="btn btn-primary" onClick={handleOpenAdd}>
-              <Plus size={16} />
-              <span>Buat {filterType === 'PDS' ? 'PDS' : 'SPS'} Baru</span>
+          {/* Cetak PDF Button */}
+          <button
+            className="btn btn-primary btn-sm"
+            onClick={handleOpenPrintAll}
+            title="Download / Cetak PDF Laporan Paraf Sesuai Periode"
+            style={{
+              background: '#2563eb',
+              borderColor: '#2563eb',
+              fontWeight: 700,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 6px rgba(37, 99, 235, 0.25)'
+            }}
+          >
+            <Printer size={15} />
+            <span>Cetak PDF</span>
+          </button>
+
+          {/* Export Dropdown */}
+          <div style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              className="btn btn-secondary btn-sm"
+              onClick={() => setShowExportMenu(!showExportMenu)}
+              title="Pilih Format Export Excel"
+              style={{ borderColor: '#10b981', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <FileSpreadsheet size={15} color="#10b981" />
+              <span>Export Excel</span>
+              <ChevronDown size={14} />
             </button>
-          )}
+
+            {showExportMenu && (
+              <div
+                style={{
+                  position: 'absolute',
+                  top: '100%',
+                  right: 0,
+                  marginTop: '0.35rem',
+                  background: 'var(--bg-card)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-md)',
+                  boxShadow: 'var(--shadow-lg)',
+                  zIndex: 50,
+                  minWidth: '200px',
+                  padding: '0.4rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.25rem'
+                }}
+              >
+                <button
+                  onClick={handleExportExcel}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 0.75rem',
+                    border: 'none',
+                    background: 'none',
+                    textAlign: 'left',
+                    width: '100%',
+                    cursor: 'pointer',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <FileSpreadsheet size={16} color="#10b981" />
+                  <div>
+                    <div>Format Excel (.xlsx)</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Standar Office Modern</div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={handleExportCSV}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '0.5rem',
+                    padding: '0.5rem 0.75rem',
+                    border: 'none',
+                    background: 'none',
+                    textAlign: 'left',
+                    width: '100%',
+                    cursor: 'pointer',
+                    borderRadius: 'var(--radius-sm)',
+                    fontSize: '0.85rem',
+                    fontWeight: 600,
+                    color: 'var(--text-primary)'
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--bg-hover)')}
+                  onMouseLeave={(e) => (e.currentTarget.style.background = 'none')}
+                >
+                  <FileText size={16} color="#8b5cf6" />
+                  <div>
+                    <div>Format CSV (.csv)</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>Universal UTF-8</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* COMPACT FILTER & SORTING TOOLBAR (MULTI-HARI, MULTI-BULAN & TAHUN) */}
+      {/* COMPACT FILTER & SORTING TOOLBAR */}
       <div
         style={{
           background: 'var(--bg-main)',
@@ -362,15 +551,15 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
           gap: '0.45rem'
         }}
       >
-        {/* Row 1: Search, Surveyor, Status & Sort Selector */}
-        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 0.9fr 1.2fr', gap: '0.5rem', alignItems: 'center' }}>
+        {/* Row 1: Search, Surveyor & Sort Dropdown */}
+        <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1.2fr', gap: '0.5rem', alignItems: 'center' }}>
           {/* Search Box */}
           <div className="search-box" style={{ width: '100%' }}>
             <Search className="search-icon" size={14} />
             <input
               type="text"
               className="form-input"
-              placeholder="Cari surat, kapal, surveyor, lokasi..."
+              placeholder="Cari kapal, surveyor, pemohon, no surat..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem 0.25rem 2rem', height: '32px' }}
@@ -394,21 +583,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             </select>
           </div>
 
-          {/* Status Filter */}
-          <div>
-            <select
-              className="form-select"
-              value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
-              style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
-            >
-              <option value="Semua">📌 Semua Status</option>
-              <option value="Belum Mulai">⚪ Belum Mulai</option>
-              <option value="Berjalan">🔵 Berjalan</option>
-              <option value="Selesai">🟢 Selesai</option>
-            </select>
-          </div>
-
           {/* Sortir / Short Dropdown */}
           <div>
             <select
@@ -427,8 +601,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             >
               <option value="tgl_desc">📅 Tanggal Mulai (Terbaru)</option>
               <option value="tgl_asc">📅 Tanggal Mulai (Terlama)</option>
-              <option value="duration_desc">⏳ Multi-Hari Terpanjang</option>
-              <option value="duration_asc">⏳ Multi-Hari Terpendek</option>
               <option value="kapal_asc">🚢 Nama Kapal (A - Z)</option>
               <option value="kapal_desc">🚢 Nama Kapal (Z - A)</option>
               <option value="petugas_asc">👤 Surveyor (A - Z)</option>
@@ -606,12 +778,10 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span>
-              Menampilkan: <strong style={{ color: 'var(--text-primary)' }}>{filteredAndSortedData.length}</strong> Dokumen
+              Akumulasi Terpilih: <strong style={{ color: '#2563eb' }}>{filteredData.length}</strong> Kapal
             </span>
             <span>•</span>
-            <span>
-              Total Hari: <strong style={{ color: '#059669' }}>{totalHariKegiatan} Hari</strong>
-            </span>
+            <span style={{ fontWeight: 600 }}>{currentPeriodLabel}</span>
             {selectedMonth !== 'Semua' && (
               <>
                 <span>•</span>
@@ -625,11 +795,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                 Tahun {selectedYear}
               </span>
             )}
-            {(startDate || endDate) && (
-              <span className="badge" style={{ background: 'rgba(5, 150, 105, 0.1)', color: '#059669', fontSize: '0.68rem', padding: '0.1rem 0.35rem' }}>
-                {startDate ? formatDateIndo(startDate) : 'Awal'} - {endDate ? formatDateIndo(endDate) : 'Akhir'}
-              </span>
-            )}
           </div>
 
           <div style={{ fontWeight: 600, color: 'var(--text-muted)' }}>
@@ -637,8 +802,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             <span style={{ color: 'var(--accent-primary)' }}>
               {sortBy === 'tgl_desc' && 'Tanggal Terbaru'}
               {sortBy === 'tgl_asc' && 'Tanggal Terlama'}
-              {sortBy === 'duration_desc' && 'Durasi Terpanjang'}
-              {sortBy === 'duration_asc' && 'Durasi Terpendek'}
               {sortBy === 'kapal_asc' && 'Kapal (A-Z)'}
               {sortBy === 'kapal_desc' && 'Kapal (Z-A)'}
               {sortBy === 'petugas_asc' && 'Surveyor (A-Z)'}
@@ -652,51 +815,49 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
       {/* Main Data Table */}
       <div className="table-wrapper">
-        <table className="data-table">
+        <table className="data-table" style={{ fontSize: '0.88rem' }}>
           <thead>
             <tr>
-              <th onClick={() => setSortBy(sortBy === 'nomor_asc' ? 'nomor_desc' : 'nomor_asc')} style={{ cursor: 'pointer' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Nomor Surat</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
-                </div>
-              </th>
+              <th style={{ width: '45px', textAlign: 'center' }}>NO.</th>
               <th onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Nama Kapal / Pemohon</span>
+                  <span>NAMA KAPAL</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
-              <th>Perihal / Agenda</th>
               <th onClick={() => setSortBy(sortBy === 'petugas_asc' ? 'petugas_desc' : 'petugas_asc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Petugas Surveyor</span>
+                  <span>SURVEYOR</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
-              <th>Lokasi Survey</th>
+              <th style={{ textAlign: 'center' }}>NO HP</th>
+              <th>JENIS SURVEY</th>
               <th onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Periode Pelaksanaan (Multi-Hari)</span>
+                  <span>TGL. SURVEY</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
-              <th>Status</th>
-              <th style={{ textAlign: 'right' }}>Aksi</th>
+              <th>LOKASI</th>
+              <th style={{ textAlign: 'center' }}>RFQ</th>
             </tr>
           </thead>
           <tbody>
-            {filteredAndSortedData.length === 0 ? (
+            {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="table-empty">
-                  <div className="table-empty-icon">📄</div>
-                  <p>Tidak ada {filterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'} yang sesuai dengan filter.</p>
+                <td colSpan="8" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                  <div className="table-empty-icon" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📑</div>
+                  <p style={{ fontWeight: 700 }}>Tidak ada data laporan permohonan paraf untuk periode ini.</p>
+                  <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                    Pilih bulan/tahun lain atau ubah rentang tanggal pada filter di atas.
+                  </p>
                   {hasActiveFilters && (
                     <button
                       type="button"
                       onClick={handleResetFilters}
                       className="btn btn-secondary btn-sm"
-                      style={{ marginTop: '0.5rem' }}
+                      style={{ marginTop: '0.75rem' }}
                     >
                       Reset Filter
                     </button>
@@ -704,135 +865,44 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                 </td>
               </tr>
             ) : (
-              filteredAndSortedData.map((item) => {
-                const daysCount = calculateDays(item.tglMulai, item.tglSelesai);
-                return (
-                  <tr key={item.id}>
-                    <td>
-                      <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                        {cleanDocNumber(item.nomor)}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        <Anchor size={15} color="var(--accent-primary)" />
-                        <span>{item.namaKapal || 'MV Samudra Jaya'}</span>
-                      </div>
-                      {item.pemohon && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          Pemohon: {item.pemohon}
-                        </div>
-                      )}
-                    </td>
-                    <td style={{ maxWidth: '260px' }}>
-                      <div style={{ fontWeight: 600 }}>{item.jenisSurvey || item.perihal}</div>
-                      {item.agenda && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          Agenda: {item.agenda}
-                        </div>
-                      )}
-                      {item.noOrder && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600, marginTop: '0.1rem' }}>
-                          No.Order: {item.noOrder}
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <User size={14} color="var(--text-secondary)" />
-                        <span>{item.petugas}</span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <MapPin size={14} color="var(--text-secondary)" />
-                        <span>
-                          {item.lokasi || '-'}
-                          {(() => {
-                            const matched = (tariffs || []).find((t) => (t.tujuan || t.name).toUpperCase() === (item.lokasi || '').toUpperCase());
-                            return matched && matched.rincian ? ` (${matched.rincian.toUpperCase()})` : '';
-                          })()}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
-                          <Calendar size={13} color="var(--text-muted)" />
-                          <span>{formatDateIndo(item.tglMulai)} s/d {formatDateIndo(item.tglSelesai)}</span>
-                        </div>
-                        <div>
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 800,
-                              background: daysCount > 1 ? 'rgba(2, 132, 199, 0.12)' : 'rgba(100, 116, 139, 0.1)',
-                              color: daysCount > 1 ? '#0284c7' : 'var(--text-secondary)',
-                              padding: '0.1rem 0.4rem',
-                              borderRadius: '4px'
-                            }}
-                          >
-                            ⏳ {daysCount} Hari Pelaksanaan
-                          </span>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`badge ${getStatusBadgeClass(item.status)}`}>
-                        <span className="badge-dot" />
-                        {item.status}
-                      </span>
-                    </td>
-                    <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
-                        {filterType !== 'PDS' && (
-                          <button
-                            className="btn btn-primary btn-icon btn-sm"
-                            onClick={() => handleOpenPrint(item)}
-                            title="Download / Cetak PDF SPS"
-                          >
-                            <Printer size={15} />
-                          </button>
-                        )}
-                        {filterType !== 'SPS' && (
-                          <>
-                            <button
-                              className="btn btn-secondary btn-icon btn-sm"
-                              onClick={() => handleOpenBiayaPrint(item)}
-                              title="Download / Cetak PDF Rincian Biaya Perjalanan Dinas (A4 Landscape)"
-                              style={{ background: '#0284c7', color: '#ffffff', borderColor: '#0284c7' }}
-                            >
-                              <Calculator size={15} />
-                            </button>
-                            <button
-                              className="btn btn-secondary btn-icon btn-sm"
-                              onClick={() => handleOpenPdsPrint(item)}
-                              title="Download / Cetak PDF Surat Tugas PDS"
-                            >
-                              <FileText size={15} />
-                            </button>
-                          </>
-                        )}
+              filteredData.map((item, index) => {
+                const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || item.noHp || '-';
+                const tglFormatted = formatDateIndo(item.tglMulai || item.tglSelesai);
+                const lokasi = (item.tempatSurvey || item.lokasi || item.tujuan || 'PONTIANAK').toUpperCase();
+                const jenis = (item.jenisSurvey || item.perihal || 'ANTARA, TAHUNAN, PEMBAHARUAN').toUpperCase();
+                const rfq = item.noOrder || item.agenda || '-';
 
-                        {canManage && (
-                          <button
-                            className="btn btn-secondary btn-icon btn-sm"
-                            onClick={() => handleOpenEdit(item)}
-                            title="Ubah Data"
-                          >
-                            <Edit2 size={15} />
-                          </button>
-                        )}
-                        {canDelete && (
-                          <button
-                            className="btn btn-danger btn-icon btn-sm"
-                            onClick={() => promptDelete(item)}
-                            title="Hapus Data"
-                          >
-                            <Trash2 size={15} />
-                          </button>
-                        )}
+                return (
+                  <tr key={item.id || index}>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                      {index + 1}
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 800, textTransform: 'uppercase', color: 'var(--text-primary)', letterSpacing: '0.01em' }}>
+                        {item.namaKapal || '-'}
                       </div>
+                    </td>
+                    <td>
+                      <div style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {item.petugas || '-'}
+                      </div>
+                    </td>
+                    <td style={{ textAlign: 'center', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      {surveyorPhone}
+                    </td>
+                    <td>
+                      <div style={{ fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                        {jenis}
+                      </div>
+                    </td>
+                    <td style={{ whiteSpace: 'nowrap', fontSize: '0.85rem' }}>
+                      {tglFormatted}
+                    </td>
+                    <td style={{ textTransform: 'uppercase', fontWeight: 600, fontSize: '0.85rem' }}>
+                      {lokasi}
+                    </td>
+                    <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
+                      {rfq}
                     </td>
                   </tr>
                 );
@@ -842,52 +912,22 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         </table>
       </div>
 
-      {canManage && (
-        <SuratTugasModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          editItem={editingItem}
-          onPrint={(item) => handleOpenPrint(item)}
-        />
-      )}
-
-      <SuratTugasPrintModal
+      {/* Accumulated / Single Print Modal */}
+      <LampiranParafPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         suratTugas={selectedPrintItem}
+        allData={filteredData}
+        currentPeriod={currentPeriodLabel}
       />
 
-      <SuratTugasPdsPrintModal
-        isOpen={isPdsPrintModalOpen}
-        onClose={() => setIsPdsPrintModalOpen(false)}
-        suratTugas={selectedPrintItem}
-      />
-
-      <BiayaPdsPrintModal
-        isOpen={isBiayaPrintModalOpen}
-        onClose={() => setIsBiayaPrintModalOpen(false)}
-        suratTugas={selectedPrintItem}
-      />
-
-      <LampiranParafPrintModal
-        isOpen={isParafModalOpen}
-        onClose={() => setIsParafModalOpen(false)}
-        suratTugas={selectedParafItem}
-      />
-
-      <ConfirmModal
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={handleConfirmDelete}
-        title="Konfirmasi Hapus Surat Tugas"
-        message={
-          itemToDelete
-            ? `Apakah Anda yakin ingin menghapus Surat Tugas ${itemToDelete.nomor} untuk kapal ${itemToDelete.namaKapal}? Kwitansi & Laporan terkait juga akan dihapus.`
-            : ''
-        }
-        confirmText="Ya, Hapus Surat Tugas"
-        type="danger"
-      />
+      {canManage && (
+        <SuratTugasModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          editItem={editingItem}
+        />
+      )}
     </div>
   );
 };

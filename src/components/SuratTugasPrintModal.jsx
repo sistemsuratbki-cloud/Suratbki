@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { X, Printer, Anchor } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
@@ -10,6 +11,8 @@ import { BKILogo } from './BKILogo';
 export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const printRef = useRef(null);
   const { adminSettings } = useData();
+  const { usersList } = useAuth();
+  const [withSignature, setWithSignature] = useState(true);
 
   if (!isOpen || !suratTugas) return null;
 
@@ -18,7 +21,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
     const dateObj = new Date(suratTugas.tglMulai);
     const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
     const surveyor = suratTugas.petugas || 'Surveyor';
-    document.title = `${dateStr} - ${surveyor} - Surat Tugas (Lama)`;
+    document.title = `${dateStr} - ${surveyor} - Surat Penunjukan Survey (SPS)${withSignature ? '_Dengan_TTD' : '_Tanpa_TTD'}`;
     
     window.print();
     
@@ -28,16 +31,38 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   };
 
   const tglSurveyFormatted = formatDateIndo(suratTugas.tglMulai);
-  const lokasiSurvey = (suratTugas.tempatSurvey || suratTugas.lokasi || 'DESAKA').toUpperCase();
+  const lokasiSurvey = (suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase();
   const jenisSurvey = (suratTugas.jenisSurvey || suratTugas.perihal || 'DOKING, LOADLINE').toUpperCase();
   const pemohon = suratTugas.pemohon || 'PT. MITRA SAMUDRA NUSANTARA';
   const namaKapal = suratTugas.namaKapal || 'BAHARI 279';
   const noOrder = suratTugas.noOrder || 'RFQ2608005';
   const noAgenda = suratTugas.agenda || suratTugas.noAgenda || '-';
   const catatan = suratTugas.catatan || '-';
-  const surveyorName = suratTugas.petugas || 'ALFIAN BONE PUTRA';
+  const surveyorName = (suratTugas.petugas || 'ALFIAN BONE PUTRA').toUpperCase();
   const kepalaCabang = adminSettings?.kepalaCabang || suratTugas.kepalaCabang || 'MUHSON NURROCHMAT';
-  const nup = adminSettings?.nup || suratTugas.nup || '48199-KI';
+
+  // Get Scanned TTD for Kepala Cabang
+  const kacabUser = usersList?.find((u) => u.name === kepalaCabang || u.role === 'kacab') || {};
+  const kacabSignature = adminSettings?.kacabSignatureUrl || kacabUser.signatureUrl || '/signatures/kacab_muhson_signature.png';
+
+  // Get Handwritten Scan for Surveyor (Sandi, Andre, Septian, Bone, dan Kosongkan jika Muhson)
+  const surveyorUser = usersList?.find((u) => u.name === suratTugas.petugas) || {};
+  const isMuhson = surveyorName.includes('MUHSON');
+  
+  let surveyorHandwrittenSrc = null;
+  if (!isMuhson) {
+    if (surveyorUser?.signatureUrl) {
+      surveyorHandwrittenSrc = surveyorUser.signatureUrl;
+    } else if (surveyorName.includes('SANDI')) {
+      surveyorHandwrittenSrc = '/signatures/sandi_handwritten.png';
+    } else if (surveyorName.includes('ANDRE')) {
+      surveyorHandwrittenSrc = '/signatures/andre_handwritten.png';
+    } else if (surveyorName.includes('SEPTIAN')) {
+      surveyorHandwrittenSrc = '/signatures/septian_handwritten.png';
+    } else if (surveyorName.includes('BONE') || surveyorName.includes('ALFIAN')) {
+      surveyorHandwrittenSrc = '/signatures/alfian_bone_handwritten.png';
+    }
+  }
 
   return (
     <ModalPortal>
@@ -51,14 +76,29 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
           <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <Anchor size={20} color="#003366" />
-              <h3 className="modal-title" style={{ color: '#0f172a' }}>
-                Preview & Cetak Surat Penunjukan Survey (SPS)
-              </h3>
+              <div>
+                <h3 className="modal-title" style={{ color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
+                  Preview & Cetak Surat Penunjukan Survey (SPS)
+                </h3>
+                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  Pilih versi dengan TTD digital atau tanpa TTD (manual)
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Toggle Versi TTD */}
+              <button
+                type="button"
+                className={`btn btn-sm ${withSignature ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setWithSignature(!withSignature)}
+                style={{ fontSize: '0.75rem', fontWeight: 700 }}
+              >
+                {withSignature ? '✍️ Versi: DENGAN TTD' : '📄 Versi: TANPA TTD (Manual)'}
+              </button>
+
               <button className="btn btn-primary btn-sm" onClick={handlePrint}>
                 <Printer size={15} />
-                Cetak / Download PDF (SPS)
+                <span>Cetak / PDF</span>
               </button>
               <button className="btn btn-secondary btn-sm" onClick={onClose}>
                 <X size={16} />
@@ -104,12 +144,28 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
 
               {/* ====== BODY PENUGASAN ====== */}
               <div style={{ marginBottom: '1.5rem' }}>
-                <div style={{ display: 'flex', alignItems: 'flex-start', fontSize: '10pt', fontWeight: 700 }}>
+                <div style={{ display: 'flex', alignItems: 'center', fontSize: '10pt', fontWeight: 700, minHeight: '40px' }}>
                   <span style={{ width: '220px' }}>NAMA SURVEYOR</span>
                   <span style={{ width: '20px' }}>:</span>
-                  <span style={{ textTransform: 'uppercase' }}></span>
+                  {withSignature ? (
+                    isMuhson ? null : (
+                      surveyorHandwrittenSrc ? (
+                        <div style={{ display: 'inline-flex', alignItems: 'center' }}>
+                          <img
+                            src={surveyorHandwrittenSrc}
+                            alt={surveyorName}
+                            style={{ height: '36px', maxWidth: '220px', objectFit: 'contain' }}
+                          />
+                        </div>
+                      ) : (
+                        <span style={{ textTransform: 'uppercase', fontWeight: 900, color: '#0f172a' }}>
+                          {surveyorName}
+                        </span>
+                      )
+                    )
+                  ) : null}
                 </div>
-                <div style={{ marginTop: '1.5rem', fontWeight: 700, textTransform: 'uppercase', fontSize: '10pt' }}>
+                <div style={{ marginTop: '1.25rem', fontWeight: 700, textTransform: 'uppercase', fontSize: '10pt' }}>
                   UNTUK MELAKSANAKAN SURVEY
                 </div>
               </div>
@@ -166,9 +222,18 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
 
               {/* ====== TANDA TANGAN KEPALA CABANG ====== */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2.5rem', fontSize: '11pt', lineHeight: '1.5' }}>
-                <div style={{ width: '280px', textAlign: 'left' }}>
-                  <div style={{ marginBottom: '3.5rem' }}>
+                <div style={{ display: 'inline-block', minWidth: '220px', textAlign: 'left' }}>
+                  <div>
                     Pontianak, {tglSurveyFormatted}
+                  </div>
+                  <div style={{ position: 'relative', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {withSignature && kacabSignature ? (
+                      <img
+                        src={kacabSignature}
+                        alt="TTD Kepala Cabang"
+                        style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
+                      />
+                    ) : null}
                   </div>
                   <div>
                     <span style={{ fontWeight: 900, textDecoration: 'underline', textTransform: 'uppercase', fontSize: '10.5pt' }}>
@@ -179,9 +244,19 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
             </div>
           </div>
+
           <style>{`
             @media print {
-              @page { size: A4; margin: 15mm; }
+              @page { size: A4 portrait; margin: 0; }
+              body { background: #ffffff !important; color: #000000 !important; }
+              .modal-overlay { position: static !important; background: transparent !important; padding: 0 !important; }
+              .modal-content { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
+              .modal-header, .modal-footer { display: none !important; }
+              .modal-body { padding: 0 !important; overflow: visible !important; }
+              .printable-sheet { 
+                padding: 20mm 22mm 18mm 22mm !important;
+                box-sizing: border-box !important;
+              }
             }
           `}</style>
 
@@ -192,7 +267,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
             </button>
             <button className="btn btn-primary" onClick={handlePrint}>
               <Printer size={16} />
-              Cetak / Save PDF (SPS)
+              <span>Cetak / Save PDF (SPS)</span>
             </button>
           </div>
         </div>

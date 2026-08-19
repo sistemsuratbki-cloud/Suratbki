@@ -1,7 +1,8 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { X, Printer, FileText } from 'lucide-react';
 import { formatDateIndo } from '../utils/formatters';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
 import { IDSurveyLogo } from './IDSurveyLogo';
@@ -10,6 +11,8 @@ import { BKILogo } from './BKILogo';
 export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const printRef = useRef(null);
   const { adminSettings } = useData();
+  const { usersList } = useAuth();
+  const [withSignature, setWithSignature] = useState(true);
 
   if (!isOpen || !suratTugas) return null;
 
@@ -18,7 +21,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
     const dateObj = new Date(suratTugas.tglMulai);
     const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
     const surveyor = suratTugas.petugas || 'Surveyor';
-    document.title = `${dateStr} - ${surveyor} - Surat Tugas (PDS)`;
+    document.title = `${dateStr} - ${surveyor} - Surat Tugas (PDS)${withSignature ? '_Dengan_TTD' : '_Tanpa_TTD'}`;
     
     window.print();
     
@@ -33,10 +36,10 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const surveyorName = suratTugas.petugas || '';
   const pangkat = suratTugas.pangkat || '';
   const jabatan = suratTugas.jabatan || 'SURVEYOR';
-  const lokasi = (suratTugas.tempatSurvey || suratTugas.lokasi || '').toUpperCase();
+  const lokasi = (suratTugas.tempatSurvey || suratTugas.lokasi || suratTugas.tujuan || suratTugas.lokasiSurvey || suratTugas.tempat || 'PONTIANAK').toUpperCase();
   
-  const keperluan1 = (suratTugas.jenisSurvey || suratTugas.perihal || '').toUpperCase();
-  const keperluan2 = `${suratTugas.namaKapal || ''} - ${suratTugas.pemohon || ''}`.toUpperCase();
+  const keperluan1 = 'DINAS SURVEY KLAS';
+  const keperluan2 = (suratTugas.namaKapal || '').toUpperCase();
   
   const sarana = suratTugas.saranaTransportasi || 'UDARA, DARAT DAN AIR';
   const keterangan = adminSettings?.keteranganLain || suratTugas.keteranganLain || 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK';
@@ -46,6 +49,10 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const nup = adminSettings?.nup || suratTugas.nup || '48199-KI';
 
   const tembusan = adminSettings?.tembusan || suratTugas.tembusan || `1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026`;
+
+  // Get Scanned TTD for Kepala Cabang
+  const kacabUser = usersList?.find((u) => u.name === kepalaCabang || u.role === 'kacab') || {};
+  const kacabSignature = adminSettings?.kacabSignatureUrl || kacabUser.signatureUrl || '/signatures/kacab_muhson_signature.png';
 
   return (
     <ModalPortal>
@@ -59,14 +66,29 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
           <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <FileText size={20} color="#003366" />
-              <h3 className="modal-title" style={{ color: '#0f172a' }}>
-                Preview & Cetak Surat Tugas (PDS)
-              </h3>
+              <div>
+                <h3 className="modal-title" style={{ color: '#0f172a', fontSize: '1rem', fontWeight: 800 }}>
+                  Preview & Cetak Surat Tugas (PDS)
+                </h3>
+                <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
+                  Pilih versi dengan TTD digital atau tanpa TTD (manual)
+                </div>
+              </div>
             </div>
-            <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {/* Toggle Versi TTD */}
+              <button
+                type="button"
+                className={`btn btn-sm ${withSignature ? 'btn-primary' : 'btn-secondary'}`}
+                onClick={() => setWithSignature(!withSignature)}
+                style={{ fontSize: '0.75rem', fontWeight: 700 }}
+              >
+                {withSignature ? '✍️ Versi: DENGAN TTD' : '📄 Versi: TANPA TTD (Manual)'}
+              </button>
+
               <button className="btn btn-primary btn-sm" onClick={handlePrint}>
                 <Printer size={15} />
-                Cetak / Download PDF
+                <span>Cetak / PDF</span>
               </button>
               <button className="btn btn-secondary btn-sm" onClick={onClose}>
                 <X size={16} />
@@ -118,7 +140,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       <td style={{ width: '30px', verticalAlign: 'top' }}>1.</td>
                       <td style={{ width: '180px', verticalAlign: 'top' }}>NAMA</td>
                       <td style={{ width: '20px', verticalAlign: 'top' }}>:</td>
-                      <td style={{ verticalAlign: 'top' }}>{surveyorName}</td>
+                      <td style={{ verticalAlign: 'top', fontWeight: 700 }}>{surveyorName}</td>
                     </tr>
                     <tr>
                       <td style={{ verticalAlign: 'top' }}>2.</td>
@@ -136,7 +158,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       <td style={{ verticalAlign: 'top' }}></td>
                       <td style={{ verticalAlign: 'top' }}>UNTUK PERGI KE</td>
                       <td style={{ verticalAlign: 'top' }}>:</td>
-                      <td style={{ verticalAlign: 'top' }}>{lokasi}</td>
+                      <td style={{ verticalAlign: 'top', textTransform: 'uppercase', fontWeight: 700 }}>{lokasi}</td>
                     </tr>
                     <tr>
                       <td style={{ verticalAlign: 'top' }}>5.</td>
@@ -177,7 +199,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
 
               {/* ====== TANDA TANGAN KEPALA CABANG ====== */}
               <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', fontSize: '11pt', lineHeight: '1.5' }}>
-                <div style={{ width: '380px' }}>
+                <div style={{ position: 'relative', width: '380px' }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11pt' }}>
                     <tbody>
                       <tr>
@@ -186,15 +208,25 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                         <td style={{ verticalAlign: 'top' }}>PONTIANAK</td>
                       </tr>
                       <tr>
-                        <td style={{ verticalAlign: 'top' }}>PADA TANGGAL</td>
-                        <td style={{ verticalAlign: 'top' }}>:</td>
+                        <td style={{ width: '130px', verticalAlign: 'top' }}>PADA TANGGAL</td>
+                        <td style={{ width: '20px', verticalAlign: 'top' }}>:</td>
                         <td style={{ verticalAlign: 'top' }}>{tanggalDikeluarkan}</td>
                       </tr>
                     </tbody>
                   </table>
                   
-                  <div style={{ marginTop: '1rem', marginBottom: '3.5rem' }}>
+                  <div style={{ marginTop: '0.75rem' }}>
                     KEPALA CABANG MADYA KLAS PONTIANAK
+                  </div>
+
+                  <div style={{ position: 'relative', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    {withSignature && kacabSignature ? (
+                      <img
+                        src={kacabSignature}
+                        alt="TTD Kepala Cabang"
+                        style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
+                      />
+                    ) : null}
                   </div>
 
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11pt' }}>
@@ -202,11 +234,11 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       <tr>
                         <td style={{ width: '60px', verticalAlign: 'top' }}>NAMA</td>
                         <td style={{ width: '20px', verticalAlign: 'top' }}>:</td>
-                        <td style={{ verticalAlign: 'top', textDecoration: 'underline' }}>{kepalaCabang}</td>
+                        <td style={{ verticalAlign: 'top', textDecoration: 'underline', fontWeight: 700 }}>{kepalaCabang}</td>
                       </tr>
                       <tr>
-                        <td style={{ verticalAlign: 'top' }}>NUP</td>
-                        <td style={{ verticalAlign: 'top' }}>:</td>
+                        <td style={{ width: '60px', verticalAlign: 'top' }}>NUP</td>
+                        <td style={{ width: '20px', verticalAlign: 'top' }}>:</td>
                         <td style={{ verticalAlign: 'top' }}>{nup}</td>
                       </tr>
                     </tbody>
@@ -248,21 +280,28 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                           <td style={{ verticalAlign: 'top' }}>:</td>
                           <td>pk@bki.co.id</td>
                         </tr>
-                        <tr>
-                          <td colSpan={3} style={{ paddingTop: '0.5rem' }}>
-                            <a href="http://www.idsurvey.co.id" style={{ color: '#0284c7', textDecoration: 'underline' }}>
-                              www.idsurvey.co.id
-                            </a>
-                          </td>
-                        </tr>
                       </tbody>
                     </table>
                   </div>
                 </div>
               </div>
-
             </div>
           </div>
+
+          <style>{`
+            @media print {
+              @page { size: A4 portrait; margin: 0; }
+              body { background: #ffffff !important; color: #000000 !important; }
+              .modal-overlay { position: static !important; background: transparent !important; padding: 0 !important; }
+              .modal-content { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
+              .modal-header, .modal-footer { display: none !important; }
+              .modal-body { padding: 0 !important; overflow: visible !important; }
+              .printable-sheet { 
+                padding: 15mm 20mm 15mm 20mm !important;
+                box-sizing: border-box !important;
+              }
+            }
+          `}</style>
 
           {/* Modal Footer */}
           <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
@@ -271,7 +310,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
             </button>
             <button className="btn btn-primary" onClick={handlePrint}>
               <Printer size={16} />
-              Cetak / Save PDF
+              <span>Cetak / Save PDF (PDS)</span>
             </button>
           </div>
         </div>

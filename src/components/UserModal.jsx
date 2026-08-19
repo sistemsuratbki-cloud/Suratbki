@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, UserCheck, Eye, EyeOff } from 'lucide-react';
+import { X, Save, UserCheck, Eye, EyeOff, FileCheck2, Trash2, Upload, Sparkles } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
@@ -18,19 +19,23 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
     grade: 'GRADE 6 A',
     roleLabel: 'Marine Surveyor',
     description: '',
-    avatarBg: '#10b981'
+    avatarBg: '#10b981',
+    signatureUrl: ''
   });
 
   const [showPass, setShowPass] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isUploadingTtd, setIsUploadingTtd] = useState(false);
 
   useEffect(() => {
     setErrorMsg('');
+    setIsUploadingTtd(false);
     if (editItem) {
       setFormData({
         ...editItem,
         username: editItem.username || editItem.name.toLowerCase().replace(/[^a-z0-9]/g, ''),
-        password: '' // Don't prefill existing hashed password
+        password: '', // Don't prefill existing hashed password
+        signatureUrl: editItem.signatureUrl || ''
       });
     } else {
       setFormData({
@@ -42,7 +47,8 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
         grade: 'GRADE 6 A',
         roleLabel: 'Marine Surveyor',
         description: 'Petugas survei kelayakan kapal',
-        avatarBg: '#10b981'
+        avatarBg: '#10b981',
+        signatureUrl: ''
       });
     }
   }, [editItem, isOpen]);
@@ -85,6 +91,47 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
     }));
   };
 
+  const handleSignatureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploadingTtd(true);
+    const fileExt = file.name.split('.').pop();
+    const fileName = `ttd_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+    const filePath = `signatures/${fileName}`;
+
+    try {
+      if (!supabase) throw new Error('Supabase not configured');
+      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
+      setFormData((prev) => ({
+        ...prev,
+        signatureUrl: publicUrlData.publicUrl
+      }));
+    } catch (err) {
+      console.error('Supabase upload failed, falling back to local base64:', err);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setFormData((prev) => ({
+          ...prev,
+          signatureUrl: reader.result
+        }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingTtd(false);
+    }
+  };
+
+  const handleRemoveSignature = () => {
+    setFormData((prev) => ({
+      ...prev,
+      signatureUrl: ''
+    }));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setErrorMsg('');
@@ -105,9 +152,10 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
 
     // Sanitize text inputs before saving to prevent XSS
     const sanitizedData = sanitizeFormData(formData);
+    // Keep signatureUrl intact (data URL or supabase public URL)
+    sanitizedData.signatureUrl = formData.signatureUrl;
 
     if (editItem) {
-      // If editing and password was left blank, preserve existing password
       if (!formData.password) {
         delete sanitizedData.password;
       }
@@ -123,11 +171,11 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '620px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <UserCheck size={20} color="var(--accent-primary)" />
-              <h3 className="modal-title">{editItem ? 'Ubah Akun Pengguna' : 'Tambah Akun Pengguna Baru'}</h3>
+              <h3 className="modal-title">{editItem ? 'Ubah Akun Pengguna & TTD' : 'Tambah Akun Pengguna Baru'}</h3>
             </div>
             <button className="btn btn-secondary btn-icon" onClick={onClose}>
               <X size={18} />
@@ -135,7 +183,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="modal-body">
+            <div className="modal-body" style={{ maxHeight: 'calc(90vh - 140px)', overflowY: 'auto' }}>
               {errorMsg && (
                 <div style={{ padding: '0.6rem 0.85rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1rem' }}>
                   ⚠️ {errorMsg}
@@ -269,11 +317,95 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                 </div>
               </div>
 
+              {/* UPLOAD SCAN TTD DIGITAL (ADMIN & DEVELOPER) */}
+              {(currentUser?.role === 'admin' || currentUser?.role === 'developer') && (
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.04) 0%, rgba(14, 165, 233, 0.08) 100%)',
+                    border: '1.5px dashed var(--accent-primary)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem',
+                    marginBottom: '1.25rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                    <label style={{ fontSize: '0.85rem', fontWeight: 700, color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem', margin: 0 }}>
+                      <FileCheck2 size={16} />
+                      <span>Scan Tanda Tangan Digital (TTD PNG / JPG)</span>
+                    </label>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      Terapkan di SPS & PDS
+                    </span>
+                  </div>
+
+                  {formData.signatureUrl ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#ffffff', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
+                      <div style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', minWidth: '120px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img
+                          src={formData.signatureUrl}
+                          alt="Scan TTD"
+                          style={{ maxHeight: '50px', maxWidth: '110px', objectFit: 'contain' }}
+                        />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669' }}>
+                          ✓ TTD Digital Tersimpan
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
+                          Siap disematkan pada dokumen SPS & PDS surveyor ini.
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={handleRemoveSignature}
+                        style={{ color: '#dc2626', borderColor: '#fca5a5' }}
+                      >
+                        <Trash2 size={14} />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <div>
+                      <label
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '1.25rem',
+                          background: '#ffffff',
+                          borderRadius: '6px',
+                          border: '1px solid #cbd5e1',
+                          cursor: 'pointer',
+                          textAlign: 'center'
+                        }}
+                      >
+                        <Upload size={22} color="var(--accent-primary)" style={{ marginBottom: '0.35rem' }} />
+                        <span style={{ fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)' }}>
+                          {isUploadingTtd ? 'Sedang Mengunggah...' : 'Klik untuk Upload Scan Tanda Tangan'}
+                        </span>
+                        <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                          Format file disarankan PNG transparan atau JPG bersih (maks 2MB)
+                        </span>
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg,image/webp"
+                          style={{ display: 'none' }}
+                          onChange={handleSignatureUpload}
+                          disabled={isUploadingTtd}
+                        />
+                      </label>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="form-group">
                 <label className="form-label">Deskripsi / Catatan Peran</label>
                 <textarea
                   className="form-textarea"
-                  style={{ minHeight: '70px' }}
+                  style={{ minHeight: '60px' }}
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   placeholder="Catatan wewenang atau area tugas..."
@@ -308,9 +440,9 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
               <button type="button" className="btn btn-secondary" onClick={onClose}>
                 Batal
               </button>
-              <button type="submit" className="btn btn-primary">
+              <button type="submit" className="btn btn-primary" disabled={isUploadingTtd}>
                 <Save size={16} />
-                Simpan Akun & Password
+                <span>Simpan Akun & TTD</span>
               </button>
             </div>
           </form>

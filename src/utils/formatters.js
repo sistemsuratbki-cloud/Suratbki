@@ -24,7 +24,7 @@ export const formatDateIndo = (dateString) => {
   if (isNaN(date.getTime())) return dateString;
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
-    month: 'short',
+    month: 'long',
     year: 'numeric'
   }).format(date);
 };

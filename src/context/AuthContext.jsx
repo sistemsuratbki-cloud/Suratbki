@@ -25,6 +25,7 @@ export const INITIAL_USERS = [
     grade: 'GRADE 7C',
     roleLabel: 'KACAP/SURVEYOR',
     avatarBg: '#64748b',
+    signatureUrl: '/signatures/kacab_muhson_signature.png',
     description: 'Kepala Cabang / Surveyor BKI Pontianak'
   },
   {
@@ -51,6 +52,7 @@ export const INITIAL_USERS = [
     grade: 'GRADE 6 A',
     roleLabel: 'Surveyor',
     avatarBg: '#10b981',
+    signatureUrl: '/signatures/alfian_bone_handwritten.png',
     description: 'Surveyor BKI'
   },
   {
@@ -64,6 +66,7 @@ export const INITIAL_USERS = [
     grade: 'GRADE 6 A',
     roleLabel: 'Surveyor',
     avatarBg: '#059669',
+    signatureUrl: '/signatures/andre_handwritten.png',
     description: 'Surveyor BKI'
   },
   {
@@ -77,6 +80,7 @@ export const INITIAL_USERS = [
     grade: 'GRADE 5 C',
     roleLabel: 'Surveyor',
     avatarBg: '#047857',
+    signatureUrl: '/signatures/sandi_handwritten.png',
     description: 'Surveyor BKI'
   },
   {
@@ -90,6 +94,7 @@ export const INITIAL_USERS = [
     grade: 'GRADE 5 C',
     roleLabel: 'Surveyor',
     avatarBg: '#065f46',
+    signatureUrl: '/signatures/septian_handwritten.png',
     description: 'Surveyor BKI'
   },
   {
@@ -197,6 +202,27 @@ export const AuthProvider = ({ children }) => {
           if (updatedUser.username === 'admin' && updatedUser.role !== 'developer') {
             needsMigration = true;
             updatedUser.role = 'developer';
+          }
+          
+          if ((updatedUser.username === 'bone' || (updatedUser.name && updatedUser.name.includes('BONE'))) && !updatedUser.signatureUrl) {
+            needsMigration = true;
+            updatedUser.signatureUrl = '/signatures/alfian_bone_handwritten.png';
+          }
+          if ((updatedUser.username === 'sandi' || (updatedUser.name && updatedUser.name.includes('SANDI'))) && !updatedUser.signatureUrl) {
+            needsMigration = true;
+            updatedUser.signatureUrl = '/signatures/sandi_handwritten.png';
+          }
+          if ((updatedUser.username === 'andre' || (updatedUser.name && updatedUser.name.includes('ANDRE'))) && !updatedUser.signatureUrl) {
+            needsMigration = true;
+            updatedUser.signatureUrl = '/signatures/andre_handwritten.png';
+          }
+          if ((updatedUser.username === 'septian' || (updatedUser.name && updatedUser.name.includes('SEPTIAN'))) && !updatedUser.signatureUrl) {
+            needsMigration = true;
+            updatedUser.signatureUrl = '/signatures/septian_handwritten.png';
+          }
+          if ((updatedUser.username === 'muhson' || (updatedUser.name && updatedUser.name.includes('MUHSON'))) && !updatedUser.signatureUrl) {
+            needsMigration = true;
+            updatedUser.signatureUrl = '/signatures/kacab_muhson_signature.png';
           }
           
           if (!isPasswordHashed(updatedUser.password)) {

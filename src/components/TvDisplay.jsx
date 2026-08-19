@@ -121,7 +121,7 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
               MONITORING SURVEI KAPAL
             </h1>
             <div style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '0.25rem' }}>
-              PT. BIRO KLASIFIKASI INDONESIA (PERSERO) CABANG PONTIANAK
+              PT. BIRO KLASIFIKASI INDONESIA (PERSERO) CABANG MADYA KLAS PONTIANAK
             </div>
           </div>
         </div>

@@ -1,124 +1,102 @@
 import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { toast } from 'react-hot-toast';
-import { X, Calendar, MapPin, User, FileText, CheckCircle2, Plus, Save, Anchor, Printer, Sparkles, Hash, Shield, Camera, FileCheck2, Plane, Receipt } from 'lucide-react';
+import { X, Calendar, MapPin, User, FileText, CheckCircle2, Plus, Save, Anchor, Printer, Sparkles, Hash, Shield, Camera, FileCheck2, Plane, Receipt, Ticket, Trash2 } from 'lucide-react';
 import { formatDateIndo, getStatusBadgeClass, formatRupiah, cleanDocNumber } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
-import { LampiranParafPrintModal } from './LampiranParafPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { sanitizeFormData } from '../utils/security';
+import MultiShipInput from './MultiShipInput';
+import MultiSurveySelect from './MultiSurveySelect';
+import MultiPhotoUpload from './MultiPhotoUpload';
 
-export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwitansiList, laporanList }) => {
-  const { currentUser } = useAuth();
-  const { suratTugas, addSuratTugas, addLaporanSurvei, updateSuratTugas, updateKwitansiHonor, kwitansiHonor, adminSettings, tariffs, gradeTariffs } = useData();
+export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = [], kwitansiList = [], laporanList = [], onSave = null }) => {
+  const { currentUser, usersList } = useAuth();
+  const { suratTugas, addSuratTugas, updateSuratTugas, updateKwitansiHonor, kwitansiHonor, adminSettings, tariffs, gradeTariffs } = useData();
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
+  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab');
 
-  const defaultLocName = activeTariffs[0]?.tujuan || activeTariffs[0]?.name || 'Kendawangan (Via Udara)';
+  const defaultLocName = activeTariffs[0]?.tujuan || activeTariffs[0]?.name || 'PONTIANAK';
   const defaultLocRate = activeTariffs[0]?.rate || 2500000;
 
   const [activeTab, setActiveTab] = useState('view');
   const [printSuratItem, setPrintSuratItem] = useState(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
-  const [isLampiranPrintModalOpen, setIsLampiranPrintModalOpen] = useState(false);
 
   const [printLaporanItem, setPrintLaporanItem] = useState(null);
   const [isLaporanPrintModalOpen, setIsLaporanPrintModalOpen] = useState(false);
 
   const [formData, setFormData] = useState({
     nomor: '',
-    // 11 Field Resmi
     namaKapal: '',
     pemohon: '',
     jenisSurvey: 'DINAS SURVEY KLAS',
     perihal: 'DINAS SURVEY KLAS',
-    lokasi: defaultLocName,
-    tempatSurvey: defaultLocName,
-    tglMulai: '',
-    tglSelesai: '',
-    agenda: '',
-    noOrder: '',
-    jumlahHariLibur: 0,
-    tiketHotel: 0,
-    tiketPesawatTaxi: 0,
-    // Complementary
     petugas: '',
     pangkat: 'GRADE 6 A',
     jabatan: 'SURVEYOR',
+    lokasi: defaultLocName,
+    tempatSurvey: defaultLocName,
     tarifDasar: defaultLocRate,
+    agenda: '',
+    noOrder: 'RFQ-0000',
+    tiketHotel: 0,
+    tiketPesawatTaxi: 0,
+    kategoriPerjalanan: '',
     saranaTransportasi: 'UDARA, DARAT DAN AIR',
     keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
     nup: adminSettings?.nup || '48199-KI',
-    suratId: '',
-    isCito: false,
-    biayaTiket: 0,
-    kategoriTransportasi: 'Pesawat Terbang',
-    // 4 Upload Files
     fileFotoName: '',
+    fileFotoData: '',
+    fotoList: [],
     fileVisitName: '',
     fileTiketTransportName: '',
     fileKwitansiHotelName: '',
+    tglMulai: '',
+    tglSelesai: '',
+    jumlahHariLibur: 0,
+    status: 'Belum Mulai',
+    catatan: '',
+    isCito: false,
     hasil: '',
-    status: 'Terkirim',
+    visit: '1',
     tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
   });
 
   useEffect(() => {
-    if (selectedDate && isOpen) {
-      setFormData({
-        nomor: `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
-        namaKapal: '',
-        pemohon: '',
-        jenisSurvey: '',
-        perihal: '',
-        petugas: currentUser?.name || 'ALFIAN BONE PUTRA',
-        pangkat: 'GRADE 6 A',
-        jabatan: 'SURVEYOR',
-        lokasi: '',
-        tempatSurvey: '',
-        tarifDasar: '',
-        agenda: '',
-        noOrder: 'RFQ-0000',
-        jumlahHariLibur: '',
-        tiketHotel: '',
-        tiketPesawatTaxi: '',
+    if (selectedDate) {
+      const formatted = selectedDate.toISOString().split('T')[0];
+      const nextNum = String(Math.floor(Math.random() * 900) + 100);
+      const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
+      const userGrade = (surveyorUsers.find(u => u.name === defaultSurveyor))?.grade || 'GRADE 6 A';
+
+      setFormData((prev) => ({
+        ...prev,
+        nomor: `A 0    /SV.${nextNum}/PK/KI-26`,
+        tglMulai: formatted,
+        tglSelesai: formatted,
+        petugas: defaultSurveyor,
+        pangkat: userGrade,
         kategoriPerjalanan: '',
-        saranaTransportasi: 'UDARA, DARAT DAN AIR',
-        keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
-        kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
-        nup: adminSettings?.nup || '48199-KI',
-        tglMulai: selectedDate,
-        tglSelesai: selectedDate,
-        suratId: '',
-        isCito: false,
-        biayaTiket: 0,
         kategoriTransportasi: 'Pesawat Terbang',
-        // Uploads
-        fileFotoName: '',
-        fileVisitName: '',
-        fileTiketTransportName: '',
-        fileKwitansiHotelName: '',
-        hasil: '',
-        status: 'Terkirim',
-        tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
-      });
-
-      if (currentUser?.role === 'surveyor' || tasksOnDate.length === 0) {
-        setActiveTab('input');
-      } else {
-        setActiveTab('view');
-      }
+        tiketHotel: 0,
+        tiketPesawatTaxi: 0,
+        jumlahHariLibur: 0,
+        isCito: false,
+        visit: '1'
+      }));
     }
-  }, [selectedDate, isOpen, currentUser, tasksOnDate, suratTugas, activeTariffs, adminSettings]);
+  }, [selectedDate, currentUser, surveyorUsers]);
 
-  if (!isOpen || !selectedDate) return null;
+  if (!isOpen) return null;
 
-  const formattedDate = formatDateIndo(selectedDate);
+  const formattedDate = selectedDate ? formatDateIndo(selectedDate.toISOString().split('T')[0]) : '';
 
   const handleLocationChange = (locName) => {
     const matched = activeTariffs.find((t) => (t.name === locName || t.tujuan === locName));
@@ -157,7 +135,6 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
         }));
       } catch (err) {
         console.error('Supabase upload failed, falling back to local base64:', err);
-        // Fallback to Base64 (Local)
         const reader = new FileReader();
         reader.onloadend = () => {
           setFormData((prev) => ({
@@ -188,14 +165,6 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
     setIsPdsPrintModalOpen(true);
   };
 
-  const handleOpenLampiranPrint = (surat) => {
-    setPrintSuratItem(surat);
-    setIsLampiranPrintModalOpen(true);
-  };
-
-  const currentBaseRate = Number(formData.tarifDasar) || defaultLocRate;
-  const jumlahLibur = Number(formData.jumlahHariLibur) || 0;
-  const currentHotelFee = Number(formData.tiketHotel) || 0;
   let jumlahHari = 1;
   if (formData.tglMulai && formData.tglSelesai) {
     const start = new Date(formData.tglMulai);
@@ -208,16 +177,20 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
   }
 
   const mlm = Math.max(0, jumlahHari - 1);
+  const currentBaseRate = Number(formData.tarifDasar) || defaultLocRate;
+  const currentHotelFee = Number(formData.tiketHotel) || 0;
   const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
-  
   const biayaTAT = formData.kategoriPerjalanan === 'Luar Kota' && !formData.tanpaTAT ? (Number(adminSettings?.tatLuarKota) || 750000) : 0;
-  
   const totalBiayaTransportHotel = (currentHotelFee * mlm) + currentFlightTaxiFee;
   const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
 
-  // Calculate Uang Harian
-  const currentGradeTariff = (gradeTariffs || []).find((g) => g.grade === formData.pangkat);
-  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 0;
+  // Calculate Uang Harian (Robust for both Dalam Kota and Luar Kota)
+  const surveyorObj = (surveyorUsers || []).find(u => u.name === formData.petugas) || (usersList || []).find(u => u.name === formData.petugas);
+  const effectiveGrade = formData.pangkat || surveyorObj?.grade || 'GRADE 6 A';
+  const currentGradeTariff = (gradeTariffs || []).find(
+    (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === effectiveGrade.replace(/\s+/g, '').toUpperCase()
+  );
+  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 300000;
   
   const hariLibur = Number(formData.jumlahHariLibur) || 0;
   const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
@@ -250,19 +223,19 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       nomor: formData.nomor,
       namaKapal: formData.namaKapal,
       pemohon: formData.pemohon,
-      jenisSurvey: formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS',
-      perihal: formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS',
+      jenisSurvey: (formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
+      perihal: (formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS').toUpperCase(),
       petugas: formData.petugas,
-      pangkat: formData.pangkat,
-      jabatan: formData.jabatan,
-      lokasi: formData.lokasi,
-      tempatSurvey: formData.tempatSurvey || formData.lokasi,
+      pangkat: effectiveGrade,
+      jabatan: formData.jabatan || 'SURVEYOR',
+      lokasi: (formData.lokasi || formData.tempatSurvey || defaultLocName).toUpperCase(),
+      tempatSurvey: (formData.tempatSurvey || formData.lokasi || defaultLocName).toUpperCase(),
       tarifDasar: currentBaseRate,
       agenda: formData.agenda,
       noOrder: formData.noOrder,
       tiketHotel: currentHotelFee,
       tiketPesawatTaxi: currentFlightTaxiFee,
-      kategoriPerjalanan: formData.kategoriPerjalanan,
+      kategoriPerjalanan: formData.kategoriPerjalanan || 'Dalam Kota',
       saranaTransportasi: formData.saranaTransportasi,
       keteranganLain: formData.keteranganLain,
       kepalaCabang: formData.kepalaCabang,
@@ -271,11 +244,13 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       tglSelesai: formData.tglSelesai,
       biayaTiket: totalBiayaTransportHotel + biayaTAT,
       biayaTAT: biayaTAT,
+      tanpaTAT: formData.tanpaTAT || false,
+      tanpaUangHarian: formData.tanpaUangHarian || false,
+      hariTanpaUangHarian: formData.hariTanpaUangHarian || 0,
       uangHarian: uangHarianPerHari,
       totalUangHarian: totalUangHarian,
       jumlahHari: jumlahHari,
       kategoriTransportasi: formData.kategoriTransportasi,
-      // 4 File Uploads
       fileFotoName: formData.fileFotoName,
       fileVisitName: formData.fileVisitName,
       fileTiketTransportName: formData.fileTiketTransportName,
@@ -323,18 +298,6 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       }
     }
 
-    // Auto-update Laporan Survei fields if custom hasil/notes exist
-    const existingLaporan = laporanList?.find(l => l.suratId === finalSuratId);
-    const tiketInfo = totalBiayaTransportHotel > 0 ? ` [🎟️ Hotel/Tiket: ${formatRupiah(totalBiayaTransportHotel)}]` : '';
-    const reportText = formData.hasil ? `${tiketInfo} [Kapal: ${formData.namaKapal} | Pemohon: ${formData.pemohon || '-'}] ${formData.hasil}` : `Survei kelaiklautan kapal ${formData.namaKapal}`;
-
-    if (existingLaporan) {
-      updateSuratTugas(finalSuratId, {
-        ...basePayload,
-        catatan: reportText
-      });
-    }
-
     return targetSurat;
   };
 
@@ -342,23 +305,9 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
     e.preventDefault();
     const savedSurat = processSaveSurvey();
     if (savedSurat !== null) {
-      toast.success(`Survei kapal ${formData.namaKapal} beserta 4 berkas lampiran berhasil disimpan ke sistem!`);
-      
+      toast.success(`Survei kapal ${formData.namaKapal} berhasil disimpan!`);
       if (onSave) onSave(savedSurat);
       onClose();
-    }
-  };
-
-  const handleSaveAndPrintSurvey = (e) => {
-    e.preventDefault();
-    const savedSurat = processSaveSurvey();
-    if (savedSurat !== null) {
-      onClose();
-      const itemToPrint = savedSurat || (suratTugas.length > 0 ? suratTugas[0] : null);
-      if (itemToPrint) {
-        setPrintSuratItem(itemToPrint);
-        setIsPrintModalOpen(true);
-      }
     }
   };
 
@@ -427,93 +376,71 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {tasksOnDate.map((st) => {
-                    const kwitansi = kwitansiList.find((k) => k.suratId === st.id);
-                    const laporan = laporanList.find((l) => l.suratId === st.id);
-
-                    return (
-                      <div
-                        key={st.id}
-                        style={{
-                          background: 'var(--bg-card-solid)',
-                          border: '1px solid var(--border-color-strong)',
-                          borderRadius: 'var(--radius-md)',
-                          padding: '1.25rem',
-                          display: 'flex',
-                          flexDirection: 'column',
-                          gap: '0.75rem'
-                        }}
-                      >
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                          <div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                              {st.nomor} {st.noOrder && `• Order: ${st.noOrder}`}
-                            </div>
-                            <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
-                              🚢 {st.namaKapal || 'MV Samudra Jaya'}
-                            </div>
-                            <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                              {st.jenisSurvey || st.perihal} {st.pemohon && `(Pemohon: ${st.pemohon})`}
-                            </div>
+                  {tasksOnDate.map((st) => (
+                    <div
+                      key={st.id}
+                      style={{
+                        background: 'var(--bg-card-solid)',
+                        border: '1px solid var(--border-color-strong)',
+                        borderRadius: 'var(--radius-md)',
+                        padding: '1.25rem',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '0.75rem'
+                      }}
+                    >
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
+                            {cleanDocNumber(st.nomor)} {st.noOrder && `• Order: ${st.noOrder}`}
                           </div>
-                          <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                            <button
-                              className="btn btn-primary btn-sm"
-                              style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
-                              onClick={() => handleOpenPrint(st)}
-                            >
-                              <Printer size={13} />
-                              <span>Cetak SPS</span>
-                            </button>
-                            <button
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
-                              onClick={() => handleOpenPdsPrint(st)}
-                            >
-                              <FileText size={13} />
-                              <span>Cetak PDS</span>
-                            </button>
-                            {st.visit === '1' && (
-                              <button 
-                                className="btn btn-secondary btn-sm" 
-                                style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem', background: '#3b82f6', color: '#ffffff', borderColor: '#3b82f6' }}
-                                onClick={() => handleOpenLampiranPrint(st)}
-                              >
-                                <FileText size={13} />
-                                <span>Paraf</span>
-                              </button>
-                            )}
-                            <span className={`badge ${getStatusBadgeClass(st.status)}`}>
-                              <span className="badge-dot" />
-                              {st.status}
-                            </span>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
+                            🚢 {st.namaKapal || 'MV Samudra Jaya'}
+                          </div>
+                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                            {st.jenisSurvey || st.perihal} {st.pemohon && `(Pemohon: ${st.pemohon})`}
                           </div>
                         </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                            <User size={14} />
-                            <span>{st.petugas}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                            <MapPin size={14} />
-                            <span>{st.lokasi || st.tempatSurvey}</span>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', gridColumn: 'span 2' }}>
-                            <Calendar size={14} />
-                            <span>Periode: {formatDateIndo(st.tglMulai)} s/d {formatDateIndo(st.tglSelesai)}</span>
-                          </div>
+                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
+                          <button
+                            className="btn btn-primary btn-sm"
+                            style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                            onClick={() => handleOpenPrint(st)}
+                          >
+                            <Printer size={13} />
+                            <span>Cetak SPS</span>
+                          </button>
+                          <button
+                            className="btn btn-secondary btn-sm"
+                            style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
+                            onClick={() => handleOpenPdsPrint(st)}
+                          >
+                            <FileText size={13} />
+                            <span>Cetak PDS</span>
+                          </button>
+                          <span className={`badge ${getStatusBadgeClass(st.status)}`}>
+                            <span className="badge-dot" />
+                            {st.status}
+                          </span>
                         </div>
-
-                        {/* Status CITO (if any) */}
-                        {st.isCito && (
-                          <div style={{ padding: '0.5rem 0.75rem', background: 'var(--bg-main)', borderRadius: '6px', fontSize: '0.8rem', display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
-                            <span style={{ color: '#ef4444', fontWeight: 700 }}>⚡ CITO Libur</span>
-                          </div>
-                        )}
                       </div>
-                    );
-                  })}
+
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+                          <User size={14} />
+                          <span>{st.petugas}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
+                          <MapPin size={14} />
+                          <span>{st.lokasi || st.tempatSurvey}</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', gridColumn: 'span 2' }}>
+                          <Calendar size={14} />
+                          <span>Periode: {formatDateIndo(st.tglMulai)} s/d {formatDateIndo(st.tglSelesai)}</span>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               )
             ) : !formData.kategoriPerjalanan ? (
@@ -527,7 +454,19 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     type="button"
                     className="btn btn-primary"
                     style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', fontWeight: 700 }}
-                    onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Dalam Kota', saranaTransportasi: 'DARAT DAN AIR' })}
+                    onClick={() => {
+                      const firstLoc = activeTariffs.find(loc => (loc.kategori || 'Dalam Kota') === 'Dalam Kota') || activeTariffs[0];
+                      const locName = firstLoc ? (firstLoc.tujuan || firstLoc.name) : 'Pontianak';
+                      const locRate = firstLoc ? Number(firstLoc.rate) : defaultLocRate;
+                      setFormData({
+                        ...formData,
+                        kategoriPerjalanan: 'Dalam Kota',
+                        saranaTransportasi: 'DARAT DAN AIR',
+                        lokasi: locName,
+                        tempatSurvey: locName,
+                        tarifDasar: locRate
+                      });
+                    }}
                   >
                     🚗 DALAM KOTA
                   </button>
@@ -535,14 +474,26 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     type="button"
                     className="btn btn-primary"
                     style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', background: '#0ea5e9', borderColor: '#0ea5e9', fontWeight: 700 }}
-                    onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Luar Kota', saranaTransportasi: 'UDARA, DARAT DAN AIR' })}
+                    onClick={() => {
+                      const firstLoc = activeTariffs.find(loc => (loc.kategori || 'Luar Kota') === 'Luar Kota') || activeTariffs[0];
+                      const locName = firstLoc ? (firstLoc.tujuan || firstLoc.name) : 'Kendawangan (Via Udara)';
+                      const locRate = firstLoc ? Number(firstLoc.rate) : defaultLocRate;
+                      setFormData({
+                        ...formData,
+                        kategoriPerjalanan: 'Luar Kota',
+                        saranaTransportasi: 'UDARA, DARAT DAN AIR',
+                        lokasi: locName,
+                        tempatSurvey: locName,
+                        tarifDasar: locRate
+                      });
+                    }}
                   >
                     ✈️ LUAR KOTA
                   </button>
                 </div>
               </div>
             ) : (
-              /* Input Marine Survey Form (11 Fields + 4 Uploads) */
+              /* Input Marine Survey Form */
               <form onSubmit={handleSaveSurvey}>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
@@ -565,14 +516,28 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                       <Shield size={14} color="var(--accent-primary)" />
                       <span>Nama Class Surveyor *</span>
                     </label>
-                    <input
-                      type="text"
-                      className="form-input"
+                    <select
+                      className="form-select"
                       value={formData.petugas}
-                      onChange={(e) => setFormData({ ...formData, petugas: e.target.value })}
-                      placeholder="Nama surveyor..."
+                      onChange={(e) => {
+                        const selectedUser = surveyorUsers.find(u => u.name === e.target.value);
+                        if (selectedUser) {
+                          setFormData({ 
+                            ...formData, 
+                            petugas: selectedUser.name,
+                            pangkat: selectedUser.grade || 'GRADE 6 A'
+                          });
+                        } else {
+                          setFormData({ ...formData, petugas: e.target.value });
+                        }
+                      }}
                       required
-                    />
+                    >
+                      <option value="">-- Pilih Surveyor --</option>
+                      {surveyorUsers.map(u => (
+                        <option key={u.id} value={u.name}>{u.name}</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
 
@@ -586,30 +551,23 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     marginBottom: '1.25rem'
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
                     🗓️ KUNJUNGAN (VISIT)
                   </div>
-                  <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
-                    {['1', '2', '3'].map((v) => (
-                      <label key={v} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontWeight: 600 }}>
-                        <input
-                          type="radio"
-                          name="visit_top"
-                          value={v}
-                          checked={formData.visit === v}
-                          onChange={(e) => setFormData({ ...formData, visit: e.target.value })}
-                          style={{ transform: 'scale(1.2)' }}
-                        />
-                        Visit {v}
-                      </label>
-                    ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+                      <input
+                        type="checkbox"
+                        checked={formData.visit === '1'}
+                        onChange={(e) => setFormData({ ...formData, visit: e.target.checked ? '1' : '2' })}
+                        style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                      />
+                      <span>Visit 1 (Kunjungan Pertama)</span>
+                    </label>
                   </div>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    * Jika pilih "Visit 1", cetakan SPS akan otomatis menyertakan halaman "Lampiran Permohonan Paraf".
-                  </span>
                 </div>
 
-                {/* 11 Fields Box */}
+                {/* 11 RINCIAN PENUGASAN SURVEI KAPAL */}
                 <div
                   style={{
                     background: 'var(--bg-main)',
@@ -623,18 +581,15 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     📋 11 RINCIAN PENUGASAN SURVEI KAPAL
                   </div>
 
-                  {/* 1. NAMA KAPAL / OBJEK & 2. PEMOHON */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700 }}>
                         1. NAMA KAPAL / OBJEK *
                       </label>
-                      <input
-                        type="text"
-                        className="form-input"
+                      <MultiShipInput
                         value={formData.namaKapal}
-                        onChange={(e) => setFormData({ ...formData, namaKapal: e.target.value })}
-                        placeholder="Contoh: KAPUAS BAHARI XXII"
+                        onChange={(val) => setFormData({ ...formData, namaKapal: val })}
+                        placeholder="Contoh: KAPUAS BAHARI XXII / TB. SAMUDRA 01"
                         required
                       />
                     </div>
@@ -660,26 +615,11 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                       <label className="form-label" style={{ fontWeight: 700 }}>
                         3. JENIS SURVEY *
                       </label>
-                      <select
-                        className="form-select"
+                      <MultiSurveySelect
                         value={formData.jenisSurvey}
-                        onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
-                      >
-                        <option value="">-- PILIH JENIS SURVEY --</option>
-                        <option value="PEMBAHARUAN">PEMBAHARUAN</option>
-                        <option value="TAHUNAN">TAHUNAN</option>
-                        <option value="ANTARA">ANTARA</option>
-                        <option value="PERPANJANGAN">PERPANJANGAN</option>
-                        <option value="PENGEDOKAN">PENGEDOKAN</option>
-                        <option value="UWILD">UWILD</option>
-                        <option value="TUNDA DOK">TUNDA DOK</option>
-                        <option value="POROS CABUT/TUNDA/DITEMPAT (PER POROS)">POROS CABUT/TUNDA/DITEMPAT (PER POROS)</option>
-                        <option value="KHUSUS (PER JAM)***">KHUSUS (PER JAM)***</option>
-                        <option value="PEMBARUAN LL">PEMBARUAN LL</option>
-                        <option value="TAHUNAN LL">TAHUNAN LL</option>
-                        <option value="REVALIDASI LL">REVALIDASI LL</option>
-                        <option value="CONVEYANCE SURVEY">CONVEYANCE SURVEY</option>
-                      </select>
+                        onChange={(val) => setFormData({ ...formData, jenisSurvey: val, perihal: val })}
+                        required
+                      />
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
@@ -756,21 +696,20 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <FileText size={14} color="var(--accent-primary)" />
-                        <span>7. NO AGENDA *</span>
+                        <span>7. NO AGENDA</span>
                       </label>
                       <input
                         type="text"
                         className="form-input"
                         value={formData.agenda}
                         onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
-                        placeholder="isi dengan nomor agenda"
-                        required
+                        placeholder="Contoh: 001/AG/BKI-PTK/2026"
                       />
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700 }}>
-                        8. NO.ORDER *
+                        8. NO.ORDER
                       </label>
                       <input
                         type="text"
@@ -778,52 +717,43 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                         value={formData.noOrder}
                         onChange={(e) => setFormData({ ...formData, noOrder: e.target.value })}
                         placeholder="Contoh: RFQ-0000"
-                        required
                       />
                     </div>
                   </div>
 
-                  {/* 9. TIKET HOTEL, 10. TIKET PESAWAT DAN TAXI */}
+                  {/* 9. TIKET PESAWAT & 10. HOTEL */}
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700 }}>
-                        10. KWITANSI HOTEL (Harga per/malam)
+                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Ticket size={14} color="var(--accent-primary)" />
+                        <span>9. BIAYA TIKET PESAWAT / TAXI (Rp)</span>
                       </label>
                       <input
                         type="number"
-                        min="0"
-                        step="1000"
-                        className="form-input"
-                        value={formData.tiketHotel}
-                        onChange={(e) => setFormData({ ...formData, tiketHotel: e.target.value === '' ? '' : Number(e.target.value) })}
-                        placeholder="0"
-                      />
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                        {currentHotelFee > 0 ? `${formatRupiah(currentHotelFee)} / malam (Total: ${formatRupiah(currentHotelFee * mlm)})` : 'Rp 0'}
-                      </span>
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700 }}>
-                        11. TIKET PESAWAT & TAXI (Rp)
-                      </label>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1000"
                         className="form-input"
                         value={formData.tiketPesawatTaxi}
-                        onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: e.target.value === '' ? '' : Number(e.target.value) })}
+                        onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
                         placeholder="0"
                       />
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                        {currentFlightTaxiFee > 0 ? formatRupiah(currentFlightTaxiFee) : 'Rp 0'}
-                      </span>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Ticket size={14} color="var(--accent-primary)" />
+                        <span>10. BIAYA HOTEL PER MALAM (Rp)</span>
+                      </label>
+                      <input
+                        type="number"
+                        className="form-input"
+                        value={formData.tiketHotel}
+                        onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
+                        placeholder="0"
+                      />
                     </div>
                   </div>
-                  
-                  <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid var(--border-color)' }}>
+
+                  {/* Opsi Tanpa TAT & Tanpa Uang Harian */}
+                  <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', padding: '0.6rem 0.25rem 0', borderTop: '1px solid var(--border-color)' }}>
                     {formData.kategoriPerjalanan === 'Luar Kota' && (
                       <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                         <input
@@ -832,7 +762,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                           onChange={(e) => setFormData({ ...formData, tanpaTAT: e.target.checked })}
                           style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                         />
-                        Tanpa Biaya TAT
+                        <span>Tanpa Biaya TAT</span>
                       </label>
                     )}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -843,7 +773,7 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                           onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked, hariTanpaUangHarian: e.target.checked ? jumlahHari : 0 })}
                           style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                         />
-                        Tanpa Uang Harian
+                        <span>Tanpa Uang Harian</span>
                       </label>
                       {formData.tanpaUangHarian && (
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem' }}>
@@ -854,7 +784,6 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                             value={formData.hariTanpaUangHarian !== undefined ? formData.hariTanpaUangHarian : jumlahHari}
                             onChange={(e) => setFormData({ ...formData, hariTanpaUangHarian: Number(e.target.value) })}
                             style={{ width: '60px', padding: '0.2rem 0.4rem', fontSize: '0.8rem', border: '1px solid var(--border-color)', borderRadius: '4px' }}
-                            title="Jumlah hari tanpa uang harian"
                           />
                           <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>hari (Sisa dibayar: {sisaHariUangHarian} hr)</span>
                         </div>
@@ -863,199 +792,170 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
                   </div>
                 </div>
 
-                {/* Automatic Tariff Calculation Breakdown Card */}
-                {['admin', 'developer', 'kacab', 'keuangan'].includes(currentUser?.role) && (
-                  <div
-                    style={{
-                      background: 'var(--bg-main)',
-                      border: '1.5px solid var(--border-color-strong)',
-                      padding: '0.85rem 1rem',
-                      borderRadius: 'var(--radius-md)',
-                      marginBottom: '1.25rem'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.825rem' }}>
-                        <Sparkles size={15} />
-                        <span>Kalkulasi Otomatis Biaya Lokasi & Honorarium</span>
-                      </div>
-                      <span style={{ fontSize: '0.7rem', color: '#047857', background: 'rgba(16, 185, 129, 0.15)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
-                        ⚡ Otomatis Master SK BKI
-                      </span>
+                {/* ESTIMASI KALKULASI CARD */}
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(14, 165, 233, 0.08) 100%)',
+                    border: '1.5px solid var(--accent-primary)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1.25rem',
+                    marginBottom: '1.25rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(0, 102, 204, 0.15)', paddingBottom: '0.5rem' }}>
+                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Sparkles size={16} /> Kalkulasi Otomatis Biaya Lokasi & Honorarium
+                    </span>
+                    <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                      Sistem Pintar BKI
+                    </span>
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.85rem' }}>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Kategori & Lokasi:</span>
+                      <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                        {formData.kategoriPerjalanan} - {formData.lokasi}
+                      </strong>
                     </div>
-
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
-                      <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
-                        <div style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
-                          {formatRupiah(currentBaseRate)}
-                        </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Lama Perjalanan Dinas:</span>
+                      <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                        {jumlahHari} Hari ({mlm} Malam)
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Honorarium Surveyor:</span>
+                      <strong style={{ display: 'block', color: '#0284c7' }}>
+                        {formatRupiah(currentBaseRate)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Biaya Tiket Pesawat / Transport:</span>
+                      <strong style={{ display: 'block', color: '#059669' }}>
+                        {formatRupiah(currentFlightTaxiFee)}
+                      </strong>
+                    </div>
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Biaya Hotel ({mlm} Malam):</span>
+                      <strong style={{ display: 'block', color: '#059669' }}>
+                        {formatRupiah(currentHotelFee * mlm)}
+                      </strong>
+                    </div>
+                    {formData.kategoriPerjalanan === 'Luar Kota' && (
+                      <div>
+                        <span style={{ color: 'var(--text-secondary)' }}>Transport Asal Tujuan (TAT):</span>
+                        <strong style={{ display: 'block', color: '#d97706' }}>
+                          {formatRupiah(biayaTAT)}
+                        </strong>
                       </div>
-
-
-
-                      <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Biaya Hotel & Tiket</div>
-                        <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
-                          {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
-                        </div>
-                      </div>
-
-                      {biayaTAT > 0 && (
-                        <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                          <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Tarif Asal Tujuan (TAT)</div>
-                          <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
-                            +{formatRupiah(biayaTAT)}
-                          </div>
-                        </div>
-                      )}
-
-                      <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({sisaHariUangHarian} hr)</div>
-                        <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
-                          +{formatRupiah(totalUangHarian)}
-                        </div>
-                      </div>
-
-                      <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1.5px solid var(--accent-primary)' }}>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 700 }}>Total Estimasi Biaya</div>
-                        <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--accent-primary)', marginTop: '0.1rem' }}>
-                          {formatRupiah(grandTotalEstimasi)}
-                        </div>
-                      </div>
+                    )}
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Uang Harian ({sisaHariUangHarian} Hari + Tambahan):</span>
+                      <strong style={{ display: 'block', color: '#059669' }}>
+                        {formatRupiah(totalUangHarian)}
+                        {hariLibur > 0 && <small style={{ color: '#ef4444', display: 'block', fontSize: '0.72rem' }}>Termasuk +50% Libur ({hariLibur} hr)</small>}
+                      </strong>
                     </div>
                   </div>
-                )}
 
-                {/* ====== 4 DISTINCT UPLOAD SECTIONS ====== */}
+                  <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px dashed rgba(0, 102, 204, 0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Grand Total Biaya Estimasi:</span>
+                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
+                      {formatRupiah(grandTotalEstimasi)}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4 BERKAS LAMPIRAN DOKUMEN */}
                 <div
                   style={{
                     background: 'var(--bg-main)',
                     border: '1.5px solid var(--border-color-strong)',
                     borderRadius: 'var(--radius-md)',
                     padding: '1.25rem',
-                    marginBottom: '1.25rem'
+                    marginBottom: '1.5rem'
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    📎 LAMPIRAN BERKAS & DOKUMEN LAPANGAN (4 UPLOAD)
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                    📎 4 BERKAS LAMPIRAN DOKUMEN (SURVEI KAPAL)
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                    {/* 1. Upload Foto */}
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                        <Camera size={16} color="#0284c7" />
-                        <span>1. Upload Foto (Dokumentasi/Kapal)</span>
-                      </label>
-                      <input
-                        type="file"
-                        accept="image/*,.pdf"
-                        className="form-input"
-                        onChange={(e) => handleFileUpload('fileFotoName', e)}
-                        style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                    {/* 1. Multi Photo Upload */}
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <MultiPhotoUpload
+                        fotoList={formData.fotoList || []}
+                        onChange={(newList) => setFormData({ ...formData, fotoList: newList })}
                       />
-                      {formData.fileFotoName ? (
-                        <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(2, 132, 199, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📸 {formData.fileFotoName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileFotoName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
-                            <X size={13} />
-                          </button>
-                        </div>
-                      ) : (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: JPG, PNG, PDF</span>
-                      )}
                     </div>
 
-                    {/* 2. Upload Visit */}
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                        <FileCheck2 size={16} color="#059669" />
-                        <span>2. Upload Visit (Form Visit / Lapangan)</span>
+                    {/* 2. Berita Acara (Visit 1) */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <FileCheck2 size={15} color="var(--accent-primary)" />
+                        <span>2. Berita Acara / Laporan Paraf (Visit 1)</span>
                       </label>
                       <input
                         type="file"
-                        accept="image/*,.pdf"
                         className="form-input"
+                        accept=".pdf,image/*,.doc,.docx"
                         onChange={(e) => handleFileUpload('fileVisitName', e)}
-                        style={{ padding: '0.35rem', fontSize: '0.8rem' }}
                       />
-                      {formData.fileVisitName ? (
-                        <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {formData.fileVisitName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
-                            <X size={13} />
+                      {formData.fileVisitName && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem' }}>
+                          <span>✓ {formData.fileVisitName}</span>
+                          <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                            <Trash2 size={12} />
                           </button>
                         </div>
-                      ) : (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: PDF, JPG, PNG</span>
                       )}
                     </div>
 
-                    {/* 3. Upload Tiket Transport */}
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                        <Plane size={16} color="#7c3aed" />
-                        <span>3. Upload Tiket Transport (Pesawat/Taxi)</span>
+                    {/* 3. Tiket Transport */}
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Plane size={15} color="var(--accent-primary)" />
+                        <span>3. Berkas Tiket Pesawat / Transportasi</span>
                       </label>
                       <input
                         type="file"
-                        accept="image/*,.pdf"
                         className="form-input"
+                        accept=".pdf,image/*"
                         onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
-                        style={{ padding: '0.35rem', fontSize: '0.8rem' }}
                       />
-                      {formData.fileTiketTransportName ? (
-                        <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(124, 58, 237, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✈️ {formData.fileTiketTransportName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
-                            <X size={13} />
+                      {formData.fileTiketTransportName && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem' }}>
+                          <span>✓ {formData.fileTiketTransportName}</span>
+                          <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                            <Trash2 size={12} />
                           </button>
                         </div>
-                      ) : (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: PDF, E-Ticket, JPG</span>
                       )}
                     </div>
 
                     {/* 4. Kwitansi Hotel */}
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                        <Receipt size={16} color="#d97706" />
-                        <span>4. Kwitansi Hotel (Invoice Penginapan)</span>
+                    <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
+                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Receipt size={15} color="var(--accent-primary)" />
+                        <span>4. Kwitansi Penginapan / Hotel</span>
                       </label>
                       <input
                         type="file"
-                        accept="image/*,.pdf"
                         className="form-input"
+                        accept=".pdf,image/*"
                         onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
-                        style={{ padding: '0.35rem', fontSize: '0.8rem' }}
                       />
-                      {formData.fileKwitansiHotelName ? (
-                        <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(217, 119, 6, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏨 {formData.fileKwitansiHotelName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
-                            <X size={13} />
+                      {formData.fileKwitansiHotelName && (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem' }}>
+                          <span>✓ {formData.fileKwitansiHotelName}</span>
+                          <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
+                            <Trash2 size={12} />
                           </button>
                         </div>
-                      ) : (
-                        <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: Invoice PDF, Foto Kwitansi</span>
                       )}
                     </div>
                   </div>
-                </div>
-
-
-
-                {/* Hasil & Catatan Temuan */}
-                <div className="form-group" style={{ marginBottom: '1.5rem' }}>
-                  <label className="form-label">Hasil / Catatan Temuan Survei (Opsional)</label>
-                  <textarea
-                    className="form-textarea"
-                    style={{ minHeight: '80px' }}
-                    value={formData.hasil}
-                    onChange={(e) => setFormData({ ...formData, hasil: e.target.value })}
-                    placeholder="Catatan hasil inspeksi kelaiklautan dan kondisi kapal..."
-                  />
                 </div>
 
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
@@ -1085,11 +985,6 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate, kwi
       <SuratTugasPdsPrintModal
         isOpen={isPdsPrintModalOpen}
         onClose={() => setIsPdsPrintModalOpen(false)}
-        suratTugas={printSuratItem}
-      />
-      <LampiranParafPrintModal
-        isOpen={isLampiranPrintModalOpen}
-        onClose={() => setIsLampiranPrintModalOpen(false)}
         suratTugas={printSuratItem}
       />
 

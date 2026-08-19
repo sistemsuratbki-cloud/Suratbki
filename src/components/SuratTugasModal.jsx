@@ -6,13 +6,16 @@ import { useAuth } from '../context/AuthContext';
 import { isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData } from '../utils/security';
+import MultiShipInput from './MultiShipInput';
+import MultiSurveySelect from './MultiSurveySelect';
+import MultiPhotoUpload from './MultiPhotoUpload';
 
 export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
   const { addSuratTugas, updateSuratTugas, adminSettings, tariffs, gradeTariffs } = useData();
   const { usersList, currentUser } = useAuth();
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
 
-  const defaultLocation = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'Kendawangan (Via Udara)';
+  const defaultLocation = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'DESAKA';
   const defaultRate = activeTariffs[0]?.rate || 3000000;
 
   const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab');
@@ -47,6 +50,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
     nup: adminSettings?.nup || '48199-KI',
     // 4 Distinct Upload Files
     fileFotoName: '',
+    fileFotoData: '',
+    fotoList: [],
     fileVisitName: '',
     fileTiketTransportName: '',
     fileKwitansiHotelName: '',
@@ -85,6 +90,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         kategoriTransportasi: editItem.kategoriTransportasi || 'Pesawat Terbang',
         // Uploads
         fileFotoName: editItem.fileFotoName || '',
+        fileFotoData: editItem.fileFotoData || '',
+        fotoList: editItem.fotoList || [],
         fileVisitName: editItem.fileVisitName || '',
         fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
         fileKwitansiHotelName: editItem.fileKwitansiHotelName || '',
@@ -122,6 +129,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
         kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
         nup: adminSettings?.nup || '48199-KI',
         fileFotoName: '',
+        fileFotoData: '',
+        fotoList: [],
         fileVisitName: '',
         fileTiketTransportName: '',
         fileKwitansiHotelName: '',
@@ -216,8 +225,12 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
   const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
 
   // Calculate Uang Harian
-  const currentGradeTariff = (gradeTariffs || []).find((g) => g.grade === formData.pangkat);
-  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 0;
+  const surveyorObj = (surveyorUsers || []).find(u => u.name === formData.petugas) || (usersList || []).find(u => u.name === formData.petugas);
+  const effectiveGrade = formData.pangkat || surveyorObj?.grade || 'GRADE 6 A';
+  const currentGradeTariff = (gradeTariffs || []).find(
+    (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === effectiveGrade.replace(/\s+/g, '').toUpperCase()
+  );
+  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 300000;
   
   const hariLibur = Number(formData.jumlahHariLibur) || 0;
   const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
@@ -247,8 +260,8 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
       ...formData,
       jenisSurvey: (formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
       perihal: (formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS').toUpperCase(),
-      tempatSurvey: (formData.tempatSurvey || formData.lokasi).toUpperCase(),
-      lokasi: (formData.lokasi || formData.tempatSurvey).toUpperCase(),
+      tempatSurvey: (formData.tempatSurvey || formData.lokasi || 'DESAKA').toUpperCase(),
+      lokasi: (formData.lokasi || formData.tempatSurvey || 'DESAKA').toUpperCase(),
       agenda: formData.agenda || formData.perihal || '',
       tarifDasar: currentBaseRate,
       tiketHotel: currentHotelFee,
@@ -310,7 +323,19 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   type="button"
                   className="btn btn-primary"
                   style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', fontWeight: 700 }}
-                  onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Dalam Kota', saranaTransportasi: 'DARAT DAN AIR' })}
+                  onClick={() => {
+                    const firstLoc = activeTariffs.find(loc => (loc.kategori || 'Dalam Kota') === 'Dalam Kota') || activeTariffs[0];
+                    const locName = firstLoc ? (firstLoc.tujuan || firstLoc.name).toUpperCase() : 'PONTIANAK';
+                    const locRate = firstLoc ? Number(firstLoc.rate) : defaultRate;
+                    setFormData({
+                      ...formData,
+                      kategoriPerjalanan: 'Dalam Kota',
+                      saranaTransportasi: 'DARAT DAN AIR',
+                      lokasi: formData.lokasi || locName,
+                      tempatSurvey: formData.tempatSurvey || locName,
+                      tarifDasar: formData.tarifDasar || locRate
+                    });
+                  }}
                 >
                   🚗 DALAM KOTA
                 </button>
@@ -318,7 +343,19 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   type="button"
                   className="btn btn-primary"
                   style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', background: '#0ea5e9', borderColor: '#0ea5e9', fontWeight: 700 }}
-                  onClick={() => setFormData({ ...formData, kategoriPerjalanan: 'Luar Kota', saranaTransportasi: 'UDARA, DARAT DAN AIR' })}
+                  onClick={() => {
+                    const firstLoc = activeTariffs.find(loc => (loc.kategori || 'Luar Kota') === 'Luar Kota') || activeTariffs[0];
+                    const locName = firstLoc ? (firstLoc.tujuan || firstLoc.name).toUpperCase() : 'DESAKA';
+                    const locRate = firstLoc ? Number(firstLoc.rate) : defaultRate;
+                    setFormData({
+                      ...formData,
+                      kategoriPerjalanan: 'Luar Kota',
+                      saranaTransportasi: 'UDARA, DARAT DAN AIR',
+                      lokasi: formData.lokasi || locName,
+                      tempatSurvey: formData.tempatSurvey || locName,
+                      tarifDasar: formData.tarifDasar || locRate
+                    });
+                  }}
                 >
                   ✈️ LUAR KOTA
                 </button>
@@ -406,27 +443,25 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   marginBottom: '1.25rem'
                 }}
               >
-                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
                   🗓️ KUNJUNGAN (VISIT)
                 </div>
-                <div style={{ display: 'flex', gap: '1.5rem', marginBottom: '0.5rem' }}>
-                  {['1', '2', '3'].map((v) => (
-                    <label key={v} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', cursor: 'pointer', fontWeight: 600 }}>
-                      <input
-                        type="radio"
-                        name="visit_top"
-                        value={v}
-                        checked={formData.visit === v}
-                        onChange={(e) => setFormData({ ...formData, visit: e.target.value })}
-                        style={{ transform: 'scale(1.2)' }}
-                      />
-                      Visit {v}
-                    </label>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                  <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
+                    <input
+                      type="checkbox"
+                      checked={formData.visit === '1'}
+                      onChange={(e) => setFormData({ ...formData, visit: e.target.checked ? '1' : '2' })}
+                      style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
+                    />
+                    <span>Visit 1 (Kunjungan Pertama)</span>
+                  </label>
+                  <span style={{ fontSize: '0.78rem', color: formData.visit === '1' ? 'var(--accent-primary)' : 'var(--text-muted)' }}>
+                    {formData.visit === '1' 
+                      ? '✓ Dicentang: Visit 1 (Lampiran Permohonan Paraf akan disertakan).' 
+                      : 'ℹ️ Tidak dicentang: Dianggap Visit ke-2 dan seterusnya (tanpa Lampiran Permohonan Paraf).'}
+                  </span>
                 </div>
-                <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                  * Jika pilih "Visit 1", cetakan SPS akan otomatis menyertakan halaman "Lampiran Permohonan Paraf".
-                </span>
               </div>
 
               {/* ====== 11 FIELD SESUAI CONTOH FORM ====== */}
@@ -449,11 +484,9 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       1. NAMA KAPAL / OBJEK *
                     </label>
-                    <input
-                      type="text"
-                      className="form-input"
+                    <MultiShipInput
                       value={formData.namaKapal}
-                      onChange={(e) => setFormData({ ...formData, namaKapal: e.target.value })}
+                      onChange={(val) => setFormData({ ...formData, namaKapal: val })}
                       placeholder="Contoh: KAPUAS BAHARI XXII / TB. SAMUDRA 01"
                       required
                     />
@@ -480,26 +513,11 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       3. JENIS SURVEY *
                     </label>
-                    <select
-                      className="form-select"
+                    <MultiSurveySelect
                       value={formData.jenisSurvey}
-                      onChange={(e) => setFormData({ ...formData, jenisSurvey: e.target.value, perihal: e.target.value })}
-                    >
-                      <option value="">-- PILIH JENIS SURVEY --</option>
-                      <option value="PEMBAHARUAN">PEMBAHARUAN</option>
-                      <option value="TAHUNAN">TAHUNAN</option>
-                      <option value="ANTARA">ANTARA</option>
-                      <option value="PERPANJANGAN">PERPANJANGAN</option>
-                      <option value="PENGEDOKAN">PENGEDOKAN</option>
-                      <option value="UWILD">UWILD</option>
-                      <option value="TUNDA DOK">TUNDA DOK</option>
-                      <option value="POROS CABUT/TUNDA/DITEMPAT (PER POROS)">POROS CABUT/TUNDA/DITEMPAT (PER POROS)</option>
-                      <option value="KHUSUS (PER JAM)***">KHUSUS (PER JAM)***</option>
-                      <option value="PEMBARUAN LL">PEMBARUAN LL</option>
-                      <option value="TAHUNAN LL">TAHUNAN LL</option>
-                      <option value="REVALIDASI LL">REVALIDASI LL</option>
-                      <option value="CONVEYANCE SURVEY">CONVEYANCE SURVEY</option>
-                    </select>
+                      onChange={(val) => setFormData({ ...formData, jenisSurvey: val, perihal: val })}
+                      required
+                    />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
@@ -584,74 +602,67 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <FileText size={14} color="var(--accent-primary)" />
-                      <span>7. NO AGENDA *</span>
+                      <span>7. NO AGENDA</span>
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.agenda}
                       onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
-                      placeholder="isi dengan nomor agenda"
-                      required
+                      placeholder="Contoh: 001/AG/BKI-PTK/2026"
                     />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      8. NO.ORDER *
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Hash size={14} color="var(--accent-primary)" />
+                      <span>8. NO.ORDER</span>
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noOrder}
                       onChange={(e) => setFormData({ ...formData, noOrder: e.target.value })}
-                      placeholder="Contoh: RFQ-0000"
-                      required
+                      placeholder="Contoh: RFQ-0012"
                     />
                   </div>
                 </div>
 
-                {/* 9. TIKET HOTEL, 10. TIKET PESAWAT DAN TAXI */}
+                {/* 9. TIKET & 10. HOTEL */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      10. KWITANSI HOTEL (Harga per/malam)
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Ticket size={14} color="var(--accent-primary)" />
+                      <span>9. BIAYA TIKET PESAWAT / TAXI (Total Rp)</span>
                     </label>
                     <input
                       type="number"
-                      min="0"
-                      step="1000"
-                      className="form-input"
-                      value={formData.tiketHotel}
-                      onChange={(e) => setFormData({ ...formData, tiketHotel: e.target.value === '' ? '' : Number(e.target.value) })}
-                      placeholder="0"
-                    />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                      {currentHotelFee > 0 ? `${formatRupiah(currentHotelFee)} / malam (Total: ${formatRupiah(currentHotelFee * mlm)})` : 'Rp 0'}
-                    </span>
-                  </div>
-
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      11. TIKET PESAWAT DAN TAXI (Rp)
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      step="1000"
                       className="form-input"
                       value={formData.tiketPesawatTaxi}
-                      onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: e.target.value === '' ? '' : Number(e.target.value) })}
+                      onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
                       placeholder="0"
                     />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
-                      {currentFlightTaxiFee > 0 ? formatRupiah(currentFlightTaxiFee) : 'Rp 0'}
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Ticket size={14} color="var(--accent-primary)" />
+                      <span>10. BIAYA HOTEL PER MALAM (Rp)</span>
+                    </label>
+                    <input
+                      type="number"
+                      className="form-input"
+                      value={formData.tiketHotel}
+                      onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
+                      placeholder="0"
+                    />
+                    <span style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'block' }}>
+                      Kalkulasi: {mlm} malam x {formatRupiah(currentHotelFee)} = {formatRupiah(currentHotelFee * mlm)}
                     </span>
                   </div>
                 </div>
-                
-                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', padding: '0.5rem 0', borderTop: '1px solid var(--border-color)' }}>
+                {/* Opsi Tanpa TAT & Tanpa Uang Harian */}
+                <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', padding: '0.6rem 0.25rem 0', borderTop: '1px solid var(--border-color)' }}>
                   {formData.kategoriPerjalanan === 'Luar Kota' && (
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
                       <input
@@ -660,7 +671,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                         onChange={(e) => setFormData({ ...formData, tanpaTAT: e.target.checked })}
                         style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                       />
-                      Tanpa Biaya TAT
+                      <span>Tanpa Biaya TAT</span>
                     </label>
                   )}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -671,7 +682,7 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                         onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked, hariTanpaUangHarian: e.target.checked ? jumlahHari : 0 })}
                         style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
                       />
-                      Tanpa Uang Harian
+                      <span>Tanpa Uang Harian</span>
                     </label>
                     {formData.tanpaUangHarian && (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem' }}>
@@ -691,70 +702,83 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                 </div>
               </div>
 
-              {/* Kalkulasi Otomatis Card */}
-              {['admin', 'developer', 'kacab', 'keuangan'].includes(currentUser?.role) && (
-                <div
-                  style={{
-                    background: 'var(--bg-main)',
-                    border: '1.5px solid var(--border-color-strong)',
-                    padding: '0.85rem 1rem',
-                    borderRadius: 'var(--radius-md)',
-                    marginBottom: '1.25rem'
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--accent-primary)', fontWeight: 800, fontSize: '0.825rem' }}>
-                      <Sparkles size={15} />
-                      <span>Kalkulasi Otomatis Biaya Lokasi & Honorarium Surveyor</span>
-                    </div>
-                    <span style={{ fontSize: '0.7rem', color: '#047857', background: 'rgba(16, 185, 129, 0.15)', padding: '0.15rem 0.5rem', borderRadius: '4px', fontWeight: 700 }}>
-                      ⚡ Otomatis Master SK BKI
-                    </span>
+              {/* ESTIMASI KALKULASI CARD */}
+              <div
+                style={{
+                  background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(14, 165, 233, 0.08) 100%)',
+                  border: '1.5px solid var(--accent-primary)',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1.25rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(0, 102, 204, 0.15)', paddingBottom: '0.5rem' }}>
+                  <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Sparkles size={16} /> Kalkulasi Otomatis Biaya Lokasi & Honorarium
+                  </span>
+                  <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                    Sistem Pintar BKI
+                  </span>
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.85rem' }}>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Kategori & Lokasi:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {formData.kategoriPerjalanan} - {formData.lokasi}
+                    </strong>
                   </div>
-
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem' }}>
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>Tarif Standar Lokasi</div>
-                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.1rem' }}>
-                        {formatRupiah(currentBaseRate)}
-                      </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Lama Perjalanan Dinas:</span>
+                    <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
+                      {jumlahHari} Hari ({mlm} Malam)
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Honorarium Surveyor:</span>
+                    <strong style={{ display: 'block', color: '#0284c7' }}>
+                      {formatRupiah(currentBaseRate)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Biaya Tiket Pesawat / Transport:</span>
+                    <strong style={{ display: 'block', color: '#059669' }}>
+                      {formatRupiah(currentFlightTaxiFee)}
+                    </strong>
+                  </div>
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Biaya Hotel ({mlm} Malam):</span>
+                    <strong style={{ display: 'block', color: '#059669' }}>
+                      {formatRupiah(currentHotelFee * mlm)}
+                    </strong>
+                  </div>
+                  {formData.kategoriPerjalanan === 'Luar Kota' && (
+                    <div>
+                      <span style={{ color: 'var(--text-secondary)' }}>Transport Asal Tujuan (TAT):</span>
+                      <strong style={{ display: 'block', color: '#d97706' }}>
+                        {formatRupiah(biayaTAT)}
+                      </strong>
                     </div>
-
-
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)' }}>Hotel & Transport</div>
-                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: totalBiayaTransportHotel > 0 ? '#0284c7' : 'var(--text-muted)', marginTop: '0.1rem' }}>
-                        {totalBiayaTransportHotel > 0 ? `+${formatRupiah(totalBiayaTransportHotel)}` : 'Rp 0'}
-                      </div>
-                    </div>
-
-                    {biayaTAT > 0 && (
-                      <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                        <div style={{ fontSize: '0.7rem', color: '#10b981' }}>Tarif Asal Tujuan (TAT)</div>
-                        <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#10b981', marginTop: '0.1rem' }}>
-                          +{formatRupiah(biayaTAT)}
-                        </div>
-                      </div>
-                    )}
-
-                    <div style={{ background: 'var(--bg-card-solid)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ fontSize: '0.7rem', color: '#f59e0b' }}>Uang Harian ({sisaHariUangHarian} hr)</div>
-                      <div style={{ fontSize: '0.925rem', fontWeight: 800, color: '#f59e0b', marginTop: '0.1rem' }}>
-                        +{formatRupiah(totalUangHarian)}
-                      </div>
-                    </div>
-
-                    <div style={{ background: 'var(--accent-light)', padding: '0.5rem 0.75rem', borderRadius: '6px', border: '1.5px solid var(--accent-primary)' }}>
-                      <div style={{ fontSize: '0.7rem', color: 'var(--accent-primary)', fontWeight: 700 }}>Total Estimasi Biaya</div>
-                      <div style={{ fontSize: '1rem', fontWeight: 900, color: 'var(--accent-primary)', marginTop: '0.1rem' }}>
-                        {formatRupiah(totalEstimasiGrand)}
-                      </div>
-                    </div>
+                  )}
+                  <div>
+                    <span style={{ color: 'var(--text-secondary)' }}>Uang Harian ({jumlahHari} Hari + Tambahan):</span>
+                    <strong style={{ display: 'block', color: '#7c3aed' }}>
+                      {formatRupiah(totalUangHarian)}
+                    </strong>
                   </div>
                 </div>
-              )}
 
-              {/* ====== 4 DISTINCT UPLOAD SECTIONS ====== */}
+                <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1.5px dashed var(--accent-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                    Total Estimasi Biaya (Surat Tugas):
+                  </span>
+                  <span style={{ fontSize: '1.25rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
+                    {formatRupiah(totalEstimasiGrand)}
+                  </span>
+                </div>
+              </div>
+
+              {/* 4 DOKUMEN LAMPIRAN */}
               <div
                 style={{
                   background: 'var(--bg-main)',
@@ -764,34 +788,29 @@ export const SuratTugasModal = ({ isOpen, onClose, editItem = null, onPrint = nu
                   marginBottom: '1.25rem'
                 }}
               >
-                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                  📎 LAMPIRAN BERKAS & DOKUMEN LAPANGAN (4 UPLOAD)
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  📎 4 DOKUMEN & FOTO DOKUMENTASI (OPSIONAL)
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
-                  {/* 1. Upload Foto */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  {/* 1. Upload Foto Dokumentasi */}
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                      <Camera size={16} color="#0284c7" />
-                      <span>1. Upload Foto (Dokumentasi/Kapal)</span>
+                      <Camera size={16} color="var(--accent-primary)" />
+                      <span>1. Foto Dokumentasi Lapangan (Max 5)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="form-input"
-                      onChange={(e) => handleFileUpload('fileFotoName', e)}
-                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                    <MultiPhotoUpload
+                      fotoList={formData.fotoList || []}
+                      onChange={(updatedList) => {
+                        setFormData({
+                          ...formData,
+                          fotoList: updatedList,
+                          fileFotoName: updatedList.length > 0 ? `${updatedList.length} Foto Terlampir` : '',
+                          fileFotoData: updatedList[0]?.url || ''
+                        });
+                      }}
+                      maxPhotos={5}
                     />
-                    {formData.fileFotoName ? (
-                      <div style={{ fontSize: '0.75rem', color: '#0284c7', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(2, 132, 199, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📸 {formData.fileFotoName}</span>
-                        <button type="button" onClick={() => handleRemoveFile('fileFotoName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', padding: '0 0.2rem' }}>
-                          <X size={13} />
-                        </button>
-                      </div>
-                    ) : (
-                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', marginTop: '0.25rem', display: 'block' }}>Format: JPG, PNG, PDF</span>
-                    )}
                   </div>
 
                   {/* 2. Upload Visit */}

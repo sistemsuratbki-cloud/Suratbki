@@ -9,12 +9,13 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
   const { suratTugas, kwitansiHonor, laporanSurvei, tariffs } = useData();
   const { currentUser, role, usersList, logout } = useAuth();
   
-  const [expandedMenus, setExpandedMenus] = useState({ surat: true });
+  const [expandedMenus, setExpandedMenus] = useState({ surat: true, laporan: true });
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas');
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
   const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas');
 
+  const parafCount = filteredSurat.filter((item) => item.visit === '1' || item.visit === 1 || item.visit === true).length;
   const unpaidCount = filteredKwitansi.filter((item) => item.status === 'Belum Dibayar').length;
   const draftCount = filteredLaporan.filter((item) => item.status === 'Draf').length;
 
@@ -49,9 +50,28 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     },
     {
       id: 'laporan',
-      label: 'Laporan',
+      label: 'Laporan BKI',
       icon: BarChart2,
-      badge: draftCount > 0 ? draftCount : null
+      badge: null,
+      subItems: [
+        {
+          id: 'laporan_pds',
+          label: 'Laporan PDS',
+          badge: filteredLaporan.length
+        },
+        {
+          id: 'laporan_paraf',
+          label: 'Laporan Paraf',
+          badge: parafCount > 0 ? parafCount : null,
+          badgeColor: '#2563eb'
+        },
+        {
+          id: 'buku_agenda',
+          label: 'Buku Agenda',
+          badge: filteredSurat.length > 0 ? filteredSurat.length : null,
+          badgeColor: '#059669'
+        }
+      ]
     }
   ];
 
