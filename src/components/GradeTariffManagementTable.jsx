@@ -1,12 +1,14 @@
 import React, { useState } from 'react';
 import { Plus, Search, Edit2, Trash2, TrendingUp, RefreshCcw } from 'lucide-react';
 import { useData } from '../context/DataContext';
+import { useAuth } from '../context/AuthContext';
 import { GradeTariffModal } from './GradeTariffModal';
 import { ConfirmModal } from './ConfirmModal';
 import { formatRupiah } from '../utils/formatters';
 
 export const GradeTariffManagementTable = () => {
   const { gradeTariffs, deleteGradeTariff, resetGradeTariffs } = useData();
+  const { currentUser } = useAuth();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -71,10 +73,12 @@ export const GradeTariffManagementTable = () => {
             />
           </div>
 
-          <button className="btn btn-secondary" onClick={() => setIsConfirmResetOpen(true)} title="Reset ke Default BKI">
-            <RefreshCcw size={16} />
-            <span>Reset Data</span>
-          </button>
+          {currentUser?.role === 'developer' && (
+            <button className="btn btn-secondary" onClick={() => setIsConfirmResetOpen(true)} title="Reset ke Default BKI (Khusus Developer)">
+              <RefreshCcw size={16} />
+              <span>Reset Data</span>
+            </button>
+          )}
 
           <button className="btn btn-primary" onClick={handleOpenAdd}>
             <Plus size={16} />
@@ -151,9 +155,10 @@ export const GradeTariffManagementTable = () => {
         onClose={() => setIsConfirmResetOpen(false)}
         onConfirm={handleConfirmReset}
         title="Konfirmasi Reset Grade Uang Harian"
-        message="Apakah Anda yakin ingin mengembalikan seluruh daftar Grade & Uang Harian ke kondisi default bawaan sistem? Semua data yang ditambahkan akan hilang."
+        message="Tindakan ini akan mengembalikan seluruh daftar Grade & Uang Harian ke kondisi default bawaan sistem. Masukkan password developer Anda untuk melanjutkan."
         confirmText="Ya, Reset Uang Harian"
         type="danger"
+        requirePassword={true}
       />
     </div>
   );

@@ -1,6 +1,8 @@
-import React from 'react';
-import { AlertTriangle, Trash2, X, RotateCcw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { AlertTriangle, Trash2, X, RotateCcw, Lock, CheckCircle2 } from 'lucide-react';
 import { ModalPortal } from './ModalPortal';
+import { useAuth } from '../context/AuthContext';
+import { verifyPassword } from '../utils/security';
 
 export const ConfirmModal = ({
   isOpen,
@@ -10,9 +12,52 @@ export const ConfirmModal = ({
   message = 'Apakah Anda yakin ingin melanjutkan tindakan ini?',
   confirmText = 'Ya, Lanjutkan',
   cancelText = 'Batal',
-  type = 'danger'
+  type = 'danger',
+  requirePassword = false
 }) => {
+  const { currentUser } = useAuth();
+  const [password, setPassword] = useState('');
+  const [errorMsg, setErrorMsg] = useState('');
+  const [isVerifying, setIsVerifying] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setPassword('');
+      setErrorMsg('');
+      setIsVerifying(false);
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
+
+  const handleConfirmClick = async (e) => {
+    if (e) e.preventDefault();
+
+    if (requirePassword) {
+      if (!password.trim()) {
+        setErrorMsg('Password wajib dimasukkan untuk melanjutkan tindakan ini.');
+        return;
+      }
+
+      setIsVerifying(true);
+      try {
+        const isMatch = await verifyPassword(password, currentUser?.password);
+        if (!isMatch) {
+          setErrorMsg('Password salah! Tindakan dibatalkan demi keamanan.');
+          setIsVerifying(false);
+          return;
+        }
+      } catch (err) {
+        setErrorMsg('Terjadi kesalahan verifikasi password.');
+        setIsVerifying(false);
+        return;
+      }
+      setIsVerifying(false);
+    }
+
+    onConfirm();
+    onClose();
+  };
 
   const getIcon = () => {
     if (type === 'danger') {
@@ -72,23 +117,50 @@ export const ConfirmModal = ({
             {title}
           </h3>
 
-          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: '1.75rem' }}>
+          <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', lineHeight: '1.5', marginBottom: requirePassword ? '1rem' : '1.75rem' }}>
             {message}
           </p>
 
+          {requirePassword && (
+            <form onSubmit={handleConfirmClick} style={{ marginBottom: '1.5rem' }}>
+              <label style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.85rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.4rem' }}>
+                <Lock size={14} color="var(--accent-primary)" />
+                <span>Masukkan Password Developer untuk Konfirmasi:</span>
+              </label>
+              <input
+                type="password"
+                className="form-input"
+                placeholder="Masukkan password akun Anda..."
+                value={password}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setErrorMsg('');
+                }}
+                autoFocus
+                style={{
+                  borderColor: errorMsg ? '#ef4444' : undefined,
+                  width: '100%'
+                }}
+              />
+              {errorMsg && (
+                <div style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: '0.4rem', fontWeight: 600 }}>
+                  ⚠️ {errorMsg}
+                </div>
+              )}
+            </form>
+          )}
+
           <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-            <button className="btn btn-secondary" onClick={onClose}>
+            <button className="btn btn-secondary" onClick={onClose} disabled={isVerifying}>
               {cancelText}
             </button>
             <button
               className={`btn ${type === 'danger' ? 'btn-danger' : 'btn-primary'}`}
-              onClick={() => {
-                onConfirm();
-                onClose();
-              }}
+              onClick={handleConfirmClick}
+              disabled={isVerifying}
             >
               {type === 'danger' && <Trash2 size={16} />}
-              <span>{confirmText}</span>
+              <span>{isVerifying ? 'Memverifikasi...' : confirmText}</span>
             </button>
           </div>
         </div>

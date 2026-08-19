@@ -563,15 +563,15 @@ export const SettingsTab = () => {
         </div>
       )}
 
-      {/* Admin Maintenance Box */}
-      {(currentUser?.role === 'admin' || currentUser?.role === 'developer') && (
+      {/* Developer Maintenance Box */}
+      {currentUser?.role === 'developer' && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
           <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
             <div className="card-title-group">
               <Shield size={22} color="#dc2626" />
               <div>
                 <h3 className="card-title" style={{ color: '#dc2626' }}>Pemeliharaan Sistem & Reset Data Demo</h3>
-                <div className="card-subtitle">Kembalikan seluruh akun pengguna dan data ke status awal</div>
+                <div className="card-subtitle">Kembalikan seluruh akun pengguna dan data ke status awal (Akses Khusus Developer)</div>
               </div>
             </div>
           </div>
@@ -588,9 +588,10 @@ export const SettingsTab = () => {
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmResetDemo}
         title="Konfirmasi Reset Data Demo"
-        message="Apakah Anda yakin ingin mengembalikan seluruh akun pengguna, password, dan data surat tugas ke kondisi default bawaan sistem?"
+        message="Tindakan ini akan mengembalikan seluruh akun pengguna, password, dan data sistem ke status default bawaan. Masukkan password developer Anda untuk melanjutkan."
         confirmText="Ya, Reset Semua Data"
         type="danger"
+        requirePassword={true}
       />
     </div>
   );

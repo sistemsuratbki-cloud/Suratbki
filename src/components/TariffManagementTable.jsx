@@ -325,14 +325,16 @@ export const TariffManagementTable = () => {
               <option value="Air">🚢 Via Air / Speedboat</option>
             </select>
 
-            <button
-              className="btn btn-secondary"
-              onClick={() => setIsConfirmResetOpen(true)}
-              title="Reset ke Standar SK 31 Lokasi BKI"
-            >
-              <RotateCcw size={15} />
-              <span>Reset Standar SK</span>
-            </button>
+            {currentUser?.role === 'developer' && (
+              <button
+                className="btn btn-secondary"
+                onClick={() => setIsConfirmResetOpen(true)}
+                title="Reset ke Standar SK 31 Lokasi BKI (Khusus Developer)"
+              >
+                <RotateCcw size={15} />
+                <span>Reset Standar SK</span>
+              </button>
+            )}
 
             <button className="btn btn-primary" onClick={handleOpenAdd}>
               <Plus size={16} />
@@ -445,9 +447,10 @@ export const TariffManagementTable = () => {
         onClose={() => setIsConfirmResetOpen(false)}
         onConfirm={handleConfirmReset}
         title="Konfirmasi Reset Master Tarif BKI"
-        message="Apakah Anda yakin ingin mengembalikan seluruh daftar tarif ke standar resmi 31 lokasi SK Cabang Madya Klas Pontianak?"
+        message="Tindakan ini akan mengembalikan seluruh daftar tarif ke standar resmi 31 lokasi SK Cabang Madya Klas Pontianak. Masukkan password developer Anda untuk melanjutkan."
         confirmText="Ya, Reset ke Standar SK"
         type="warning"
+        requirePassword={true}
       />
     </div>
   );

@@ -50,14 +50,16 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
       </div>
 
       <div className="header-right">
-        <button
-          onClick={() => setIsResetConfirmOpen(true)}
-          className="btn btn-secondary btn-sm"
-          title="Kosongkan seluruh data tugas, kwitansi, dan laporan"
-        >
-          <RotateCcw size={14} />
-          <span>Kosongkan Data</span>
-        </button>
+        {currentUser?.role === 'developer' && (
+          <button
+            onClick={() => setIsResetConfirmOpen(true)}
+            className="btn btn-secondary btn-sm"
+            title="Kosongkan seluruh data tugas, kwitansi, dan laporan (Khusus Developer)"
+          >
+            <RotateCcw size={14} />
+            <span>Kosongkan Data</span>
+          </button>
+        )}
 
         <button
           onClick={toggleTheme}
@@ -95,9 +97,10 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmReset}
         title="Konfirmasi Kosongkan Data"
-        message="Apakah Anda yakin ingin menghapus/mengosongkan seluruh data Surat Tugas, Kwitansi Honor, dan Laporan Survei?"
+        message="Tindakan ini akan mengosongkan seluruh data Surat Tugas, Kwitansi Honor, dan Laporan Survei. Masukkan password developer Anda untuk melanjutkan."
         confirmText="Ya, Kosongkan Data"
         type="warning"
+        requirePassword={true}
       />
     </header>
   );
