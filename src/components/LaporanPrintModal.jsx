@@ -130,7 +130,7 @@ export const LaporanPrintModal = ({
                       allData.map((item, index) => {
                         const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
                         const dateFormatted = formatDateIndo(item.tglLapor || item.tanggal || linkedSurat?.tglMulai);
-                        const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
+                        const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();
                         const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
                         const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
                         const namaSurveyor = item.petugas || (linkedSurat ? linkedSurat.petugas : '-');

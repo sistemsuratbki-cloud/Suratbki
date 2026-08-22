@@ -73,8 +73,9 @@ export const LaporanTable = () => {
   const [previewFullImage, setPreviewFullImage] = useState(null);
   const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
 
-  const canAddLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab';
-  const canEditLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab';
+  const isFinance = role === 'finance' || role === 'keuangan';
+  const canAddLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab' || isFinance;
+  const canEditLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab' || isFinance;
   const canDelete = role === 'admin' || role === 'developer';
 
   const monthNames = [
@@ -194,6 +195,12 @@ export const LaporanTable = () => {
     // 1. Filter
     const result = laporanSurvei.filter((item) => {
       const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
+
+      // Hanya tampilkan laporan untuk dokumen PDS jika sudah di-ACC oleh Admin
+      if (linkedSurat && (linkedSurat.docType === 'PDS' || linkedSurat.isPds) && linkedSurat.approvalStatus !== 'ACC') {
+        return false;
+      }
+
       const dateStr = item.tglLapor || item.tanggal || linkedSurat?.tglMulai || '';
 
       // Month & Year Filter
@@ -297,25 +304,86 @@ export const LaporanTable = () => {
     return result;
   }, [laporanSurvei, suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm, sortBy]);
 
+  // Pecah / Pisahkan nama kapal dan nominal untuk PDS multi-kapal
+  const flattenedData = useMemo(() => {
+    const list = [];
+    filteredData.forEach((item) => {
+      const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
+      const shipsDetail = (Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0)
+        ? item.shipsDetail
+        : (linkedSurat && Array.isArray(linkedSurat.shipsDetail) && linkedSurat.shipsDetail.length > 0)
+          ? linkedSurat.shipsDetail
+          : null;
+
+      const totalNilai = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? Number(linkedSurat.jumlahEstimasi) : 0) || 0;
+
+      if (shipsDetail && shipsDetail.length > 0) {
+        shipsDetail.forEach((sh, sIdx) => {
+          const splitNilai = sh.biayaSurvei !== undefined && sh.biayaSurvei !== '' && Number(sh.biayaSurvei) > 0
+            ? Number(sh.biayaSurvei)
+            : Math.round(totalNilai / shipsDetail.length);
+
+          list.push({
+            ...item,
+            _flatKey: `${item.id || 'lap'}-ship-${sIdx}`,
+            namaKapal: (sh.namaKapal || item.namaKapal || '-').toUpperCase(),
+            nilai: splitNilai,
+            noAgenda: sh.noAgenda || item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'),
+            noSo: sh.noOrder || item.noSo || (linkedSurat ? linkedSurat.noOrder : '-'),
+            originalItem: item,
+            isSplitChild: shipsDetail.length > 1,
+            splitIndex: sIdx,
+            totalShips: shipsDetail.length
+          });
+        });
+      } else {
+        const rawName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '');
+        const shipNames = String(rawName || '').split(',').map((s) => s.trim()).filter(Boolean);
+
+        if (shipNames.length > 1) {
+          const perShipNilai = Math.round(totalNilai / shipNames.length);
+          shipNames.forEach((sName, sIdx) => {
+            list.push({
+              ...item,
+              _flatKey: `${item.id || 'lap'}-ship-${sIdx}`,
+              namaKapal: sName.toUpperCase(),
+              nilai: perShipNilai,
+              originalItem: item,
+              isSplitChild: true,
+              splitIndex: sIdx,
+              totalShips: shipNames.length
+            });
+          });
+        } else {
+          list.push({
+            ...item,
+            _flatKey: item.id || Math.random().toString(),
+            namaKapal: (rawName || '-').toUpperCase(),
+            nilai: totalNilai,
+            originalItem: item,
+            isSplitChild: false
+          });
+        }
+      }
+    });
+
+    return list;
+  }, [filteredData, suratTugas]);
+
   /* Total Nilai Calculation */
   const totalNilaiPerjalanan = useMemo(() => {
-    return filteredData.reduce((acc, curr) => {
-      const linkedSurat = suratTugas.find((s) => s.id === curr.suratId);
-      const val = Number(curr.nilai) || Number(curr.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0) || 0;
-      return acc + val;
-    }, 0);
-  }, [filteredData, suratTugas]);
+    return flattenedData.reduce((acc, curr) => acc + (Number(curr.nilai) || 0), 0);
+  }, [flattenedData]);
 
   /* Helper to prepare export rows */
   const getPreparedRows = () => {
-    const dataToExport = filteredData.length > 0 ? filteredData : laporanSurvei;
-    return dataToExport.map((item, index) => {
+    return flattenedData.map((item, index) => {
       const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
       const dateVal = item.tglLapor || item.tanggal || linkedSurat?.tglMulai || '';
       const dateFormatted = dateVal ? formatDateIndo(dateVal) : '-';
-      const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();
+      const vesselName = (item.namaKapal || '-').toUpperCase();
       const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
-      const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
+      const nilaiNum = Number(item.nilai) || 0;
       const namaSurveyor = (item.petugas || (linkedSurat ? linkedSurat.petugas : '-')).toUpperCase();
       const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
       const noAgenda = extractAgendaNumber(noAgendaRaw);
@@ -1145,7 +1213,7 @@ export const LaporanTable = () => {
             </tr>
           </thead>
           <tbody>
-            {filteredData.length === 0 ? (
+            {flattenedData.length === 0 ? (
               <tr>
                 <td colSpan="11" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <Anchor size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
@@ -1166,12 +1234,12 @@ export const LaporanTable = () => {
                 </td>
               </tr>
             ) : (
-              filteredData.map((item, index) => {
+              flattenedData.map((item, index) => {
                 const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
                 const dateVal = item.tglLapor || item.tanggal || linkedSurat?.tglMulai;
                 const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
                 const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
-                const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
+                const nilaiNum = Number(item.nilai) || 0;
                 const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
                 const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
                 const noAgenda = extractAgendaNumber(noAgendaRaw);
@@ -1180,7 +1248,7 @@ export const LaporanTable = () => {
                 const noWbs = item.noWbs || '-';
 
                 return (
-                  <tr key={item.id}>
+                  <tr key={item._flatKey || item.id || index}>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>
                       {index + 1}
                     </td>
@@ -1191,6 +1259,11 @@ export const LaporanTable = () => {
                       <div style={{ fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
                         {vesselName}
                       </div>
+                      {item.isSplitChild && (
+                        <div style={{ fontSize: '0.7rem', color: '#0284c7', fontWeight: 600 }}>
+                          (Kapal {item.splitIndex + 1} dari {item.totalShips})
+                        </div>
+                      )}
                     </td>
                     <td>
                       <span style={{ fontWeight: 600 }}>{lokasi}</span>
@@ -1220,7 +1293,7 @@ export const LaporanTable = () => {
                         {canEditLaporan && (
                           <button
                             className="btn btn-secondary btn-icon btn-sm"
-                            onClick={() => handleOpenEdit(item)}
+                            onClick={() => handleOpenEdit(item.originalItem || item)}
                             title="Edit Data"
                           >
                             <Edit2 size={14} />
@@ -1230,7 +1303,7 @@ export const LaporanTable = () => {
                         {canDelete && (
                           <button
                             className="btn btn-danger btn-icon btn-sm"
-                            onClick={() => promptDelete(item)}
+                            onClick={() => promptDelete(item.originalItem || item)}
                             title="Hapus Data"
                           >
                             <Trash2 size={14} />
@@ -1238,12 +1311,13 @@ export const LaporanTable = () => {
                         )}
 
                         {(() => {
-                          const photos = (Array.isArray(item.fotoList) && item.fotoList.length > 0)
-                            ? item.fotoList
-                            : (item.fileFotoData || item.fileFotoName)
-                              ? (item.fileFotoName || '').split(',').map((name, i) => ({
+                          const targetItem = item.originalItem || item;
+                          const photos = (Array.isArray(targetItem.fotoList) && targetItem.fotoList.length > 0)
+                            ? targetItem.fotoList
+                            : (targetItem.fileFotoData || targetItem.fileFotoName)
+                              ? (targetItem.fileFotoName || '').split(',').map((name, i) => ({
                                   name: name.trim(),
-                                  data: (item.fileFotoData || '').split('|||')[i] || item.fileFotoData || ''
+                                  data: (targetItem.fileFotoData || '').split('|||')[i] || targetItem.fileFotoData || ''
                                 })).filter(p => p.name || p.data)
                               : [];
 
@@ -1252,7 +1326,7 @@ export const LaporanTable = () => {
                           return (
                             <button
                               type="button"
-                              onClick={() => setViewPhotosItem({ ...item, parsedPhotos: photos })}
+                              onClick={() => setViewPhotosItem({ ...targetItem, parsedPhotos: photos })}
                               className="btn btn-secondary btn-icon btn-sm"
                               title={`Lihat / Unduh ${photos.length} Foto Dokumentasi`}
                               style={{ borderColor: '#0284c7', color: '#0284c7', position: 'relative' }}
@@ -1283,51 +1357,60 @@ export const LaporanTable = () => {
                           );
                         })()}
 
-                        {(item.fileVisitData || item.fileVisitName) && (
+                        {((item.originalItem || item).fileVisitData || (item.originalItem || item).fileVisitName) && (
                           <button
                             type="button"
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Formulir Kunjungan Lapangan (Visit Form)',
-                              fileData: item.fileVisitData || item.fileVisitName,
-                              fileName: item.fileVisitName || 'Form_Visit'
-                            })}
+                            onClick={() => {
+                              const targetItem = item.originalItem || item;
+                              setPreviewAttachment({
+                                isOpen: true,
+                                title: 'Formulir Kunjungan Lapangan (Visit Form)',
+                                fileData: targetItem.fileVisitData || targetItem.fileVisitName,
+                                fileName: targetItem.fileVisitName || 'Form_Visit'
+                              });
+                            }}
                             className="btn btn-secondary btn-icon btn-sm"
-                            title={`Lihat Form Visit: ${item.fileVisitName || 'Terlampir'}`}
+                            title={`Lihat Form Visit: ${(item.originalItem || item).fileVisitName || 'Terlampir'}`}
                             style={{ borderColor: '#059669', color: '#059669' }}
                           >
                             <FileCheck2 size={14} />
                           </button>
                         )}
 
-                        {(item.fileTiketTransportData || item.fileTiketTransportName) && (
+                        {((item.originalItem || item).fileTiketTransportData || (item.originalItem || item).fileTiketTransportName) && (
                           <button
                             type="button"
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Bukti Tiket Transportasi',
-                              fileData: item.fileTiketTransportData || item.fileTiketTransportName,
-                              fileName: item.fileTiketTransportName || 'Tiket_Transport'
-                            })}
+                            onClick={() => {
+                              const targetItem = item.originalItem || item;
+                              setPreviewAttachment({
+                                isOpen: true,
+                                title: 'Bukti Tiket Transportasi',
+                                fileData: targetItem.fileTiketTransportData || targetItem.fileTiketTransportName,
+                                fileName: targetItem.fileTiketTransportName || 'Tiket_Transport'
+                              });
+                            }}
                             className="btn btn-secondary btn-icon btn-sm"
-                            title={`Lihat Tiket: ${item.fileTiketTransportName || 'Terlampir'}`}
+                            title={`Lihat Tiket: ${(item.originalItem || item).fileTiketTransportName || 'Terlampir'}`}
                             style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
                           >
                             <Plane size={14} />
                           </button>
                         )}
 
-                        {(item.fileKwitansiHotelData || item.fileKwitansiHotelName) && (
+                        {((item.originalItem || item).fileKwitansiHotelData || (item.originalItem || item).fileKwitansiHotelName) && (
                           <button
                             type="button"
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Bukti Kwitansi Hotel / Penginapan',
-                              fileData: item.fileKwitansiHotelData || item.fileKwitansiHotelName,
-                              fileName: item.fileKwitansiHotelName || 'Kwitansi_Hotel'
-                            })}
+                            onClick={() => {
+                              const targetItem = item.originalItem || item;
+                              setPreviewAttachment({
+                                isOpen: true,
+                                title: 'Bukti Kwitansi Hotel / Penginapan',
+                                fileData: targetItem.fileKwitansiHotelData || targetItem.fileKwitansiHotelName,
+                                fileName: targetItem.fileKwitansiHotelName || 'Kwitansi_Hotel'
+                              });
+                            }}
                             className="btn btn-secondary btn-icon btn-sm"
-                            title={`Lihat Kwitansi Hotel: ${item.fileKwitansiHotelName || 'Terlampir'}`}
+                            title={`Lihat Kwitansi Hotel: ${(item.originalItem || item).fileKwitansiHotelName || 'Terlampir'}`}
                             style={{ borderColor: '#d97706', color: '#d97706' }}
                           >
                             <Receipt size={14} />
@@ -1340,11 +1423,11 @@ export const LaporanTable = () => {
               })
             )}
           </tbody>
-          {filteredData.length > 0 && (
+          {flattenedData.length > 0 && (
             <tfoot>
               <tr style={{ background: 'var(--bg-main)', fontWeight: 800 }}>
                 <td colSpan="4" style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>
-                  TOTAL NILAI PERJALANAN DINAS ({filteredData.length} Kegiatan):
+                  TOTAL NILAI PERJALANAN DINAS ({flattenedData.length} Kegiatan):
                 </td>
                 <td style={{ textAlign: 'right', padding: '0.75rem', color: 'var(--accent-primary)', fontSize: '0.95rem' }}>
                   {formatRupiah(totalNilaiPerjalanan)}
@@ -1545,7 +1628,7 @@ export const LaporanTable = () => {
         onClose={() => setIsPrintModalOpen(false)}
         laporan={selectedPrintItem}
         isPrintAll={isPrintAllMode}
-        allData={filteredData}
+        allData={flattenedData}
         currentPeriod={currentMonthLabel}
         totalNilai={totalNilaiPerjalanan}
         suratTugas={suratTugas}

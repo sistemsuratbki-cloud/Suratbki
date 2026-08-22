@@ -127,14 +127,17 @@ function AppContent() {
 }
 
 import { Toaster } from 'react-hot-toast';
+import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   return (
-    <AuthProvider>
-      <DataProvider>
-        <Toaster position="top-center" />
-        <AppContent />
-      </DataProvider>
-    </AuthProvider>
+    <ErrorBoundary>
+      <AuthProvider>
+        <DataProvider>
+          <Toaster position="top-center" />
+          <AppContent />
+        </DataProvider>
+      </AuthProvider>
+    </ErrorBoundary>
   );
 }

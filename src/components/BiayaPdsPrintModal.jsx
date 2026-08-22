@@ -16,20 +16,20 @@ export const BiayaPdsPrintModal = ({
 
   if (!isOpen || !suratTugas) return null;
 
-  const isLuarKota = (suratTugas.kategoriPerjalanan || 'Luar Kota') === 'Luar Kota';
+  const isLuarKota = (suratTugas.kategoriPerjalanan || '').toLowerCase().includes('luar') || suratTugas.kategoriPerjalanan === 'Luar Kota';
 
   // Calculate Days and Nights
-  const startDate = new Date(suratTugas.tglMulai);
-  const endDate = new Date(suratTugas.tglSelesai);
-  const timeDiff = endDate.getTime() - startDate.getTime();
-  let hr = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-  if (hr < 1) hr = 1;
-  let mlm = hr - 1;
-  if (mlm < 0) mlm = 0;
+  const startDate = suratTugas.tglMulai ? new Date(suratTugas.tglMulai) : new Date();
+  const endDate = suratTugas.tglSelesai ? new Date(suratTugas.tglSelesai) : startDate;
+  const timeDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 3600 * 24)) + 1;
+  const hr = timeDiff > 0 ? timeDiff : 1;
+  const mlm = Math.max(0, hr - 1);
 
-  // Calculate Weekends (Hari Libur)
-  let hrLbr = Number(suratTugas.jumlahHariLibur) || 0;
-  if (!suratTugas.jumlahHariLibur && !isNaN(startDate) && !isNaN(endDate)) {
+  // Weekends (Hari Libur) - prioritise explicit user input
+  let hrLbr = 0;
+  if (suratTugas.jumlahHariLibur !== undefined && suratTugas.jumlahHariLibur !== '' && !isNaN(Number(suratTugas.jumlahHariLibur))) {
+    hrLbr = Number(suratTugas.jumlahHariLibur);
+  } else if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
     let cur = new Date(startDate);
     let countLibur = 0;
     while (cur <= endDate) {
@@ -51,25 +51,34 @@ export const BiayaPdsPrintModal = ({
   let sisaHariUangHarian = hr;
   if (suratTugas.tanpaUangHarian) {
     const deduct = suratTugas.hariTanpaUangHarian !== undefined ? Number(suratTugas.hariTanpaUangHarian) : hr;
-    const validDeduct = Math.max(0, Math.min(deduct, hr));
-    sisaHariUangHarian = hr - validDeduct;
+    sisaHariUangHarian = Math.max(0, hr - Math.max(0, Math.min(deduct, hr)));
   }
 
-  const uangHarianRate = (suratTugas.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (Number(suratTugas.uangHarian) || Number(gradeData.uangHarian) || 300000);
+  const uangHarianRate = (suratTugas.tanpaUangHarian && sisaHariUangHarian === 0)
+    ? 0
+    : (Number(suratTugas.uangHarian) || Number(gradeData.uangHarian) || 300000);
   const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
   const uangHotelRate = Number(suratTugas.tiketHotel) || 0;
   const uangHotelTotal = uangHotelRate * mlm;
   const hrLbrTotal = (suratTugas.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (hrLbr * uangHarianRate * 0.5);
   const tiketPesawatTaxi = Number(suratTugas.tiketPesawatTaxi) || Number(suratTugas.biayaTiket) || 0;
-  const biayaTAT = suratTugas.tanpaTAT ? 0 : (Number(suratTugas.biayaTAT) || (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
+  const biayaTAT = suratTugas.tanpaTAT
+    ? 0
+    : (suratTugas.biayaTAT !== undefined && suratTugas.biayaTAT !== ''
+        ? Number(suratTugas.biayaTAT)
+        : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
   const rateSK = Number(suratTugas.tarifDasar) || 0;
 
-  let jumlah = 0;
+  let calculatedJumlah = 0;
   if (isLuarKota) {
-    jumlah = tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+    calculatedJumlah = tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
   } else {
-    jumlah = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+    calculatedJumlah = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
   }
+
+  const jumlah = suratTugas.jumlahEstimasi && Number(suratTugas.jumlahEstimasi) > 0
+    ? Number(suratTugas.jumlahEstimasi)
+    : calculatedJumlah;
 
   const kepalaCabang = adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT';
   const nup = adminSettings?.nup || '48199-KI';
@@ -103,7 +112,7 @@ export const BiayaPdsPrintModal = ({
   const tglSelesaiStr = formatDateIndo(suratTugas.tglSelesai).toUpperCase();
   const lokasiStr = (suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase();
   const kapalStr = Array.isArray(suratTugas.shipsDetail) && suratTugas.shipsDetail.length > 0
-    ? suratTugas.shipsDetail.map(s => s.noAgenda && s.noAgenda !== '-' ? `${s.namaKapal} (AGENDA: ${s.noAgenda})` : s.namaKapal).join(', ').toUpperCase()
+    ? suratTugas.shipsDetail.map(s => s.namaKapal).filter(Boolean).join(', ').toUpperCase()
     : (suratTugas.namaKapal || '-').toUpperCase();
   const petugasStr = (suratTugas.petugas || '-').toUpperCase();
 

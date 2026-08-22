@@ -31,16 +31,17 @@ export const BukuAgendaPrintModal = ({
       return Number(item.jumlahEstimasi);
     }
 
-    const isLuarKota = (item.kategoriPerjalanan || 'Luar Kota') === 'Luar Kota';
-    const start = new Date(item.tglMulai);
-    const end = new Date(item.tglSelesai);
-    const timeDiff = end.getTime() - start.getTime();
-    let hr = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-    if (hr < 1 || isNaN(hr)) hr = 1;
-    let mlm = Math.max(0, hr - 1);
+    const isLuarKota = (item.kategoriPerjalanan || '').toLowerCase().includes('luar') || item.kategoriPerjalanan === 'Luar Kota';
+    const start = item.tglMulai ? new Date(item.tglMulai) : new Date();
+    const end = item.tglSelesai ? new Date(item.tglSelesai) : start;
+    const timeDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+    const hr = timeDiff > 0 ? timeDiff : 1;
+    const mlm = Math.max(0, hr - 1);
 
-    let hrLbr = Number(item.jumlahHariLibur) || 0;
-    if (!item.jumlahHariLibur && !isNaN(start) && !isNaN(end)) {
+    let hrLbr = 0;
+    if (item.jumlahHariLibur !== undefined && item.jumlahHariLibur !== '' && !isNaN(Number(item.jumlahHariLibur))) {
+      hrLbr = Number(item.jumlahHariLibur);
+    } else if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
       let cur = new Date(start);
       let countLibur = 0;
       while (cur <= end) {
@@ -60,17 +61,22 @@ export const BukuAgendaPrintModal = ({
     let sisaHariUangHarian = hr;
     if (item.tanpaUangHarian) {
       const deduct = item.hariTanpaUangHarian !== undefined ? Number(item.hariTanpaUangHarian) : hr;
-      const validDeduct = Math.max(0, Math.min(deduct, hr));
-      sisaHariUangHarian = hr - validDeduct;
+      sisaHariUangHarian = Math.max(0, hr - Math.max(0, Math.min(deduct, hr)));
     }
 
-    const uangHarianRate = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (Number(item.uangHarian) || Number(gradeData.uangHarian) || 300000);
+    const uangHarianRate = (item.tanpaUangHarian && sisaHariUangHarian === 0)
+      ? 0
+      : (Number(item.uangHarian) || Number(gradeData.uangHarian) || 300000);
     const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
     const uangHotelRate = Number(item.tiketHotel) || 0;
     const uangHotelTotal = uangHotelRate * mlm;
     const hrLbrTotal = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (hrLbr * uangHarianRate * 0.5);
     const tiketPesawatTaxi = Number(item.tiketPesawatTaxi) || Number(item.biayaTiket) || 0;
-    const biayaTAT = item.tanpaTAT ? 0 : (Number(item.biayaTAT) || (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
+    const biayaTAT = item.tanpaTAT
+      ? 0
+      : (item.biayaTAT !== undefined && item.biayaTAT !== ''
+          ? Number(item.biayaTAT)
+          : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(item.tarifDasar) || 0;
 
     if (isLuarKota) {
@@ -204,7 +210,9 @@ export const BukuAgendaPrintModal = ({
                             {cleanDocNumber(item.nomor) || '-'}
                           </td>
                           <td style={{ border: '1px solid black', padding: '4px 6px', fontWeight: 600 }}>
-                            {item.namaKapal || '-'}
+                            {Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0
+                              ? item.shipsDetail.map(s => s.namaKapal).join(', ')
+                              : (item.namaKapal || '-')}
                           </td>
                           <td style={{ border: '1px solid black', padding: '4px 6px' }}>
                             {lokasi}

@@ -35,11 +35,11 @@ import { formatRupiah, cleanDocNumber, isDocumentLocked } from '../utils/formatt
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
-import MultiSurveySelect from './MultiSurveySelect';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
 import { extractShipDatabase } from '../utils/shipDatabase';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
+import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 
 export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
   const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs } = useData();
@@ -211,7 +211,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         nomor: `A 0    /SV.${nextNum}/PK/KI-26`,
         namaKapal: '',
         pemohon: '',
-        jenisSurvey: '',
+        jenisSurvey: 'DINAS SURVEY KLAS',
         perihal: 'DINAS SURVEY KLAS',
         petugas: defaultSurveyor,
         pangkat: userGrade,
@@ -443,31 +443,6 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     }
   };
 
-  // Helper for multi-ship fee split
-  const handleAutoSplitTariff = () => {
-    if (shipsDetail.length === 0) return;
-    const count = shipsDetail.length;
-    const rateSK = Number(formData.tarifDasar) || 0;
-    const perShip = Math.floor(rateSK / count);
-    const remainder = rateSK - (perShip * count);
-
-    const updated = shipsDetail.map((s, idx) => ({
-      ...s,
-      biayaSurvei: idx === count - 1 ? perShip + remainder : perShip
-    }));
-    setShipsDetail(updated);
-    toast.success(`Tarif lokasi ${formatRupiah(rateSK)} berhasil dibagi rata ke ${count} kapal.`);
-  };
-
-  const targetTarifLokasi = Number(formData.tarifDasar) || 0;
-  const totalPembagianKapal = useMemo(() => {
-    if (shipsDetail.length <= 1) return targetTarifLokasi;
-    return shipsDetail.reduce((sum, s) => sum + (Number(s.biayaSurvei) || 0), 0);
-  }, [shipsDetail, targetTarifLokasi]);
-
-  const selisihPembagian = totalPembagianKapal - targetTarifLokasi;
-  const isPembagianValid = shipsDetail.length <= 1 || selisihPembagian === 0;
-
   // Date Calculation: Days, Nights, Weekend holidays
   const { totalDays, totalNights, autoHolidays } = useMemo(() => {
     if (!formData.tglMulai || !formData.tglSelesai) {
@@ -563,6 +538,32 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     };
   }, [formData, totalDays, totalNights, gradeTariffs, adminSettings]);
 
+  const targetEstimasiTotal = calculations.totalBiaya;
+
+  // Helper for multi-ship fee split from total estimasi biaya
+  const handleAutoSplitTariff = () => {
+    if (shipsDetail.length === 0) return;
+    const count = shipsDetail.length;
+    const totalEstimasi = Number(targetEstimasiTotal) || 0;
+    const perShip = Math.floor(totalEstimasi / count);
+    const remainder = totalEstimasi - (perShip * count);
+
+    const updated = shipsDetail.map((s, idx) => ({
+      ...s,
+      biayaSurvei: idx === count - 1 ? perShip + remainder : perShip
+    }));
+    setShipsDetail(updated);
+    toast.success(`Estimasi biaya surat tugas ${formatRupiah(totalEstimasi)} berhasil dibagi rata ke ${count} kapal.`);
+  };
+
+  const totalPembagianKapal = useMemo(() => {
+    if (shipsDetail.length <= 1) return targetEstimasiTotal;
+    return shipsDetail.reduce((sum, s) => sum + (Number(s.biayaSurvei) || 0), 0);
+  }, [shipsDetail, targetEstimasiTotal]);
+
+  const selisihPembagian = totalPembagianKapal - targetEstimasiTotal;
+  const isPembagianValid = shipsDetail.length <= 1 || selisihPembagian === 0;
+
   // File Upload Handlers with 3MB Limit
   const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
@@ -629,21 +630,11 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       return;
     }
 
-    const cleanJenis = (formData.jenisSurvey || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s && s.toUpperCase() !== 'DINAS SURVEY KLAS');
-
-    if (cleanJenis.length === 0) {
-      toast.error('Jenis Survey wajib dipilih (minimal 1 jenis survei)!');
-      return;
-    }
-
     // Validation for multi-ship fee splitting
     if (shipsDetail.length > 1 && !isPembagianValid) {
       const selisih = Math.abs(selisihPembagian);
       const statusText = selisihPembagian < 0 ? 'kurang' : 'lebih';
-      toast.error(`Gagal Terbitkan PDS! Total alokasi biaya kapal (${formatRupiah(totalPembagianKapal)}) ${statusText} ${formatRupiah(selisih)} dari tarif lokasi (${formatRupiah(targetTarifLokasi)}). Mohon sesuaikan nominal pembagian biaya agar pas.`);
+      toast.error(`Gagal Terbitkan PDS! Total alokasi biaya kapal (${formatRupiah(totalPembagianKapal)}) ${statusText} ${formatRupiah(selisih)} dari estimasi biaya surat tugas (${formatRupiah(targetEstimasiTotal)}). Mohon sesuaikan nominal pembagian biaya agar pas.`);
       return;
     }
 
@@ -659,7 +650,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
           namaKapal: formData.namaKapal.toUpperCase(),
           noAgenda: formData.noAgenda || '-',
           noOrder: formData.noOrder || '-',
-          biayaSurvei: targetTarifLokasi
+          biayaSurvei: calculations.totalBiaya
         }
       ]
     });
@@ -773,7 +764,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     >
                       {surveyorUsers.map((u) => (
                         <option key={u.id} value={u.name}>
-                          {u.name} ({u.roleLabel || u.role})
+                          {u.name}
                         </option>
                       ))}
                     </select>
@@ -1174,7 +1165,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                       <div style={{ background: 'var(--bg-card)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.45rem' }}>
                           <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-                            Tarif Lokasi SK ({formData.lokasi}): <span style={{ color: '#0284c7', fontWeight: 800 }}>{formatRupiah(targetTarifLokasi)}</span>
+                            Estimasi Biaya Surat Tugas: <span style={{ color: '#0284c7', fontWeight: 800 }}>{formatRupiah(targetEstimasiTotal)}</span>
                           </div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                             <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
@@ -1185,7 +1176,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                               onClick={handleAutoSplitTariff}
                               className="btn btn-secondary btn-sm"
                               style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', fontWeight: 700, background: '#0284c7', color: '#ffffff', borderColor: '#0284c7' }}
-                              title="Bagi rata tarif lokasi ke semua kapal"
+                              title="Bagi rata estimasi biaya ke semua kapal"
                             >
                               ⚡ Bagi Rata Otomatis
                             </button>
@@ -1195,17 +1186,17 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                         {isPembagianValid ? (
                           <div style={{ fontSize: '0.78rem', color: '#047857', background: '#ecfdf5', padding: '0.4rem 0.75rem', borderRadius: '4px', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
                             <Check size={14} />
-                            <span>Total pembagian biaya survei telah SESUAI dengan tarif lokasi ({formatRupiah(targetTarifLokasi)}).</span>
+                            <span>Total pembagian biaya survei telah SESUAI dengan estimasi biaya surat tugas ({formatRupiah(targetEstimasiTotal)}).</span>
                           </div>
                         ) : selisihPembagian < 0 ? (
                           <div style={{ fontSize: '0.78rem', color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '4px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
                             <AlertCircle size={14} />
-                            <span>⚠️ Total alokasi masih KURANG {formatRupiah(Math.abs(selisihPembagian))} dari tarif lokasi. Dokumen PDS tidak dapat diterbitkan sebelum nominal pas.</span>
+                            <span>⚠️ Total alokasi masih KURANG {formatRupiah(Math.abs(selisihPembagian))} dari estimasi biaya surat tugas. Dokumen PDS tidak dapat diterbitkan sebelum nominal pas.</span>
                           </div>
                         ) : (
                           <div style={{ fontSize: '0.78rem', color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '4px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
                             <AlertCircle size={14} />
-                            <span>⚠️ Total alokasi MELEBIHI {formatRupiah(selisihPembagian)} dari tarif lokasi. Dokumen PDS tidak dapat diterbitkan sebelum nominal pas.</span>
+                            <span>⚠️ Total alokasi MELEBIHI {formatRupiah(selisihPembagian)} dari estimasi biaya surat tugas. Dokumen PDS tidak dapat diterbitkan sebelum nominal pas.</span>
                           </div>
                         )}
                       </div>
@@ -1237,18 +1228,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   📋 RINCIAN SURVEI, LOKASI & TANGGAL
                 </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      Jenis Survey *
-                    </label>
-                    <MultiSurveySelect
-                      value={formData.jenisSurvey}
-                      onChange={(val) => setFormData({ ...formData, jenisSurvey: val })}
-                      placeholder="-- PILIH JENIS SURVEY (BISA LEBIH DARI 1) --"
-                    />
-                  </div>
-
+                <div style={{ marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700 }}>Tempat Survey & Tarif SK *</span>
@@ -1652,89 +1632,22 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 </div>
               </div>
 
-              {/* Section 8: Multi Upload Foto Bukti Survei & Visit Form */}
-              <div style={{ marginBottom: '1.25rem' }}>
-                <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <Camera size={15} color="var(--accent-primary)" />
-                  <span>Foto Dokumentasi Survei Kapal Lapangan</span>
-                </label>
-                <MultiPhotoUpload
-                  fotoList={formData.fotoList || []}
-                  onChange={(list) => setFormData({ ...formData, fotoList: list })}
-                  disabled={isAdmin}
-                />
-              </div>
-
-              {/* Section 9: Form Kunjungan Lapangan (Visit Form) */}
-              <div
-                style={{
-                  background: 'var(--bg-card)',
-                  padding: '1rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: '1px solid var(--border-color)',
-                  marginBottom: '1.25rem'
+              {/* Section: Upload Bukti Visit & Foto Selfie Per Kapal (PDF Maks. 3 MB) */}
+              <ShipAttachmentsUpload
+                shipsDetail={shipsDetail}
+                onChangeShipsDetail={(updated) => setShipsDetail(updated)}
+                defaultShipName={formData.namaKapal}
+                defaultAgenda={formData.noAgenda}
+                onSyncPrimaryFiles={({ fileVisitName, fileVisitData, fileFotoName, fileFotoData }) => {
+                  setFormData((prev) => ({
+                    ...prev,
+                    ...(fileVisitName !== undefined && { fileVisitName, fileVisitData }),
+                    ...(fileFotoName !== undefined && { fileFotoName, fileFotoData })
+                  }));
                 }}
-              >
-                <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                  <FileCheck2 size={15} color="var(--accent-primary)" />
-                  <span>Formulir Kunjungan Lapangan (Visit Form) (Maks. 3 MB)</span>
-                </label>
-                {isAdmin ? (
-                  formData.fileVisitName ? (
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
-                      <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                        <Check size={13} color="#059669" /> Formulir kunjungan lapangan terlampir
-                      </span>
-                      <button
-                        type="button"
-                        className="btn btn-sm"
-                        style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                        onClick={() => setPreviewAttachment({
-                          isOpen: true,
-                          title: 'Formulir Kunjungan Lapangan (Visit Form)',
-                          fileData: formData.fileVisitName,
-                          fileName: 'Formulir_Kunjungan_Lapangan'
-                        })}
-                      >
-                        <Eye size={12} />
-                        <span>Cek Lampiran</span>
-                      </button>
-                    </div>
-                  ) : (
-                    <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                      Belum ada lampiran formulir kunjungan dari surveyor
-                    </div>
-                  )
-                ) : (
-                  <>
-                    <input
-                      type="file"
-                      className="form-input"
-                      accept="image/*,.pdf"
-                      onChange={(e) => handleFileUpload('visit', e.target.files[0])}
-                      style={{ fontSize: '0.8rem' }}
-                    />
-                    {formData.fileVisitName && (
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-                        <span style={{ fontSize: '0.75rem', color: '#10b981' }}>✓ Formulir kunjungan lapangan terlampir</span>
-                        <button
-                          type="button"
-                          className="btn btn-secondary btn-sm"
-                          style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                          onClick={() => setPreviewAttachment({
-                            isOpen: true,
-                            title: 'Formulir Kunjungan Lapangan (Visit Form)',
-                            fileData: formData.fileVisitName,
-                            fileName: 'Formulir_Kunjungan_Lapangan'
-                          })}
-                        >
-                          <Eye size={11} /> Cek
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
+                disabled={isAdmin}
+                onPreview={(previewObj) => setPreviewAttachment({ isOpen: true, ...previewObj })}
+              />
 
               {/* Section 10: Hasil Survei / Catatan Lapangan */}
               <div className="form-group" style={{ marginBottom: '1.5rem' }}>

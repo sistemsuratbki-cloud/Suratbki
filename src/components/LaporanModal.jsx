@@ -1,9 +1,10 @@
 import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
-import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles, Eye, Check } from 'lucide-react';
+import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles, Eye, Check, ClipboardList } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
+import { isEditWindowExpired, formatRupiah, cleanDocNumber, formatDateIndo } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData } from '../utils/security';
 import MultiShipInput from './MultiShipInput';
@@ -15,6 +16,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   const { suratTugas, addLaporanSurvei, updateLaporanSurvei, updateSuratTugas, tariffs } = useData();
   const { role, currentUser } = useAuth();
   const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
+  const isFinance = role === 'finance' || role === 'keuangan';
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
   const defaultLoc = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'Kendawangan (Via Udara)';
   const defaultRate = activeTariffs[0]?.rate || 3000000;
@@ -197,6 +199,28 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   };
 
   const processSave = () => {
+    if (isFinance) {
+      const payload = sanitizeFormData({
+        ...(editItem || {}),
+        ...formData,
+        noSo: formData.noSo?.trim() || '',
+        noWbs: formData.noWbs?.trim() || ''
+      });
+
+      if (editItem) {
+        updateLaporanSurvei(editItem.id, payload);
+        if (editItem.suratId) {
+          updateSuratTugas(editItem.suratId, {
+            noOrder: formData.noSo?.trim() || editItem.noSo,
+            noWbs: formData.noWbs?.trim() || editItem.noWbs
+          });
+        }
+        toast.success(`No. SO & WBS untuk ${formData.namaKapal || 'dokumen'} berhasil diperbarui.`);
+        return { ...payload, id: editItem.id };
+      }
+      return null;
+    }
+
     if (!formData.namaKapal || !formData.petugas) {
       toast.error('Mohon lengkapi Nama Kapal dan Nama Marine Surveyor!');
       return null;
@@ -240,13 +264,23 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '840px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content" style={{ maxWidth: isFinance ? '680px' : '840px' }} onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="card-title-group">
-              <Anchor size={22} style={{ color: 'var(--accent-primary)' }} />
+              {isFinance ? <ClipboardList size={22} style={{ color: 'var(--accent-primary)' }} /> : <Anchor size={22} style={{ color: 'var(--accent-primary)' }} />}
               <div>
-                <h3 className="modal-title">{editItem ? 'Edit Data Perjalanan Dinas Survey' : 'Input Perjalanan Dinas Survey'}</h3>
-                <div className="card-subtitle">Format Standar Cabang Madya Klas Pontianak</div>
+                <h3 className="modal-title">
+                  {isFinance
+                    ? 'Edit No. SO & No. WBS'
+                    : editItem
+                    ? 'Edit Data Perjalanan Dinas Survey'
+                    : 'Input Perjalanan Dinas Survey'}
+                </h3>
+                <div className="card-subtitle">
+                  {isFinance
+                    ? `Perjalanan Dinas: ${(formData.namaKapal || '-').toUpperCase()} • ${(formData.petugas || '-').toUpperCase()}`
+                    : 'Format Standar Cabang Madya Klas Pontianak'}
+                </div>
               </div>
             </div>
             <button className="btn btn-secondary btn-icon" onClick={onClose}>
@@ -255,16 +289,126 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
           </div>
 
           <div className="modal-body" style={{ maxHeight: 'calc(90vh - 130px)', overflowY: 'auto' }}>
-            {isLockedForSurveyor && (
-              <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
-                <Lock size={20} color="#ef4444" />
-                <div style={{ fontSize: '0.85rem', color: '#b91c1c' }}>
-                  <strong>Data Terkunci:</strong> Batas waktu perubahan (24 jam) telah berakhir. Hubungi Admin/Kepala Cabang jika perlu perubahan.
+            {isFinance ? (
+              <form onSubmit={handleSubmit}>
+                {/* Summary Info Card for Finance */}
+                <div
+                  style={{
+                    background: 'var(--bg-main)',
+                    border: '1px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1rem 1.25rem',
+                    marginBottom: '1.25rem'
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: '0.82rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <ClipboardList size={15} />
+                    <span>RINGKASAN DOKUMEN REALISASI SURVEI</span>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '0.75rem', fontSize: '0.82rem' }}>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>NAMA KAPAL</div>
+                      <div style={{ fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase' }}>{formData.namaKapal || '-'}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>SURVEYOR</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)', textTransform: 'uppercase' }}>{formData.petugas || '-'}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>TANGGAL SURVEI</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formData.tglLapor ? formatDateIndo(formData.tglLapor) : '-'}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>LOKASI</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>{formData.lokasi || '-'}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>NILAI REALISASI</div>
+                      <div style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>{formatRupiah(formData.nilai)}</div>
+                    </div>
+                    <div>
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600 }}>NO. AGENDA / SURAT</div>
+                      <div style={{ fontWeight: 700, color: 'var(--text-secondary)' }}>{formData.noAgenda || '-'}</div>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            )}
 
-            <form onSubmit={handleSubmit}>
+                {/* Input Fields for Finance: 9. NO. SO & 10. NO. WBS */}
+                <div
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1.5px solid var(--accent-primary)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1.25rem',
+                    marginBottom: '1.25rem'
+                  }}
+                >
+                  <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                    💼 INPUT / EDIT DATA KEUANGAN
+                  </div>
+
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem' }}>
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                        9. NO.SO
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.noSo}
+                        onChange={(e) => setFormData({ ...formData, noSo: e.target.value })}
+                        placeholder="Contoh: RFQ260280 / 3000255955"
+                        style={{ fontSize: '0.9rem', fontWeight: 700, padding: '0.5rem 0.75rem' }}
+                        autoFocus
+                      />
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
+                        Nomor Sales Order (SO) / RFQ
+                      </span>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 800, color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                        10. NO.WBS
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.noWbs}
+                        onChange={(e) => setFormData({ ...formData, noWbs: e.target.value })}
+                        placeholder="Contoh: 00578-PK-Z4-0426"
+                        style={{ fontSize: '0.9rem', fontWeight: 700, padding: '0.5rem 0.75rem' }}
+                      />
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.3rem', display: 'block' }}>
+                        Kode Work Breakdown Structure (WBS)
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action Buttons for Finance */}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={onClose}>
+                    Batal
+                  </button>
+
+                  <button type="submit" className="btn btn-primary" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Save size={16} />
+                    <span>Simpan No. SO & WBS</span>
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <>
+                {isLockedForSurveyor && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.1)', border: '1px solid #ef4444', padding: '0.85rem 1rem', borderRadius: 'var(--radius-md)', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                    <Lock size={20} color="#ef4444" />
+                    <div style={{ fontSize: '0.85rem', color: '#b91c1c' }}>
+                      <strong>Data Terkunci:</strong> Batas waktu perubahan (24 jam) telah berakhir. Hubungi Admin/Kepala Cabang jika perlu perubahan.
+                    </div>
+                  </div>
+                )}
+
+                <form onSubmit={handleSubmit}>
               {/* Reference Surat Tugas */}
               <div className="form-group" style={{ marginBottom: '1.25rem' }}>
                 <label className="form-label" style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
@@ -721,7 +865,9 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                 </button>
               </div>
             </form>
-          </div>
+          </>
+        )}
+      </div>
         </div>
       </div>
 

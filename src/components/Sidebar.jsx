@@ -13,7 +13,14 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas');
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
-  const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas');
+  const activeLaporan = (laporanSurvei || []).filter((lap) => {
+    const linkedSurat = (suratTugas || []).find((s) => s.id === lap.suratId);
+    if (linkedSurat && (linkedSurat.docType === 'PDS' || linkedSurat.isPds)) {
+      return linkedSurat.approvalStatus === 'ACC';
+    }
+    return true;
+  });
+  const filteredLaporan = filterDataByRole(activeLaporan, currentUser, role, 'petugas');
 
   const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS').length;
   const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
@@ -71,15 +78,15 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       badge: null,
       subItems: [
         {
-          id: 'laporan_pds',
-          label: 'Laporan PDS',
-          badge: filteredLaporan.length
-        },
-        {
           id: 'laporan_paraf',
           label: 'Laporan Paraf',
           badge: parafCount > 0 ? parafCount : null,
           badgeColor: '#2563eb'
+        },
+        {
+          id: 'laporan_pds',
+          label: 'Laporan PDS',
+          badge: filteredLaporan.length
         },
         {
           id: 'buku_agenda',

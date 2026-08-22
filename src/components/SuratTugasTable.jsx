@@ -23,7 +23,9 @@ import {
   Unlock,
   CheckCircle,
   MessageSquare,
-  AlertTriangle
+  AlertTriangle,
+  Send,
+  CheckCheck
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
@@ -102,15 +104,34 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   };
   const canDelete = role === 'admin' || role === 'developer';
 
+  const handleKirimParaf = (item) => {
+    updateSuratTugas(item.id, {
+      isParafSent: true,
+      parafSentAt: new Date().toISOString(),
+      parafSentBy: currentUser?.name || item.petugas
+    });
+    toast.success(`Laporan Paraf untuk kapal ${item.namaKapal} berhasil dikirim ke Laporan Paraf BKI!`);
+  };
+
+  const handleBatalkanKirimParaf = (item) => {
+    updateSuratTugas(item.id, {
+      isParafSent: false,
+      parafSentAt: null,
+      parafSentBy: null
+    });
+    toast.info(`Pengiriman Laporan Paraf untuk ${item.namaKapal} dibatalkan.`);
+  };
+
   // ACC / Revisi Handlers
   const handleAccPds = (item) => {
     updateSuratTugas(item.id, {
       approvalStatus: 'ACC',
+      status: 'Selesai',
       approvalNote: '',
       approvalBy: currentUser?.name || 'Admin',
       approvalAt: new Date().toISOString()
     });
-    toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC / disetujui.`);
+    toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
   };
 
   const handleOpenRevisi = (item) => {
@@ -1002,6 +1023,46 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           </span>
                         )}
 
+                        {effectiveFilterType === 'SPS' && (
+                          item.isParafSent ? (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                padding: '0.1rem 0.45rem',
+                                borderRadius: '4px'
+                              }}
+                              title={`Laporan Paraf telah dikirim oleh ${item.parafSentBy || item.petugas || 'Surveyor'}`}
+                            >
+                              <CheckCheck size={11} /> Paraf Terkirim
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                background: '#fffbeb',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                                padding: '0.1rem 0.45rem',
+                                borderRadius: '4px'
+                              }}
+                              title="Menunggu surveyor mengirimkan laporan paraf"
+                            >
+                              <Clock size={11} /> Belum Kirim Paraf
+                            </span>
+                          )
+                        )}
+
                         {(() => {
                           const isLocked = isDocumentLocked(item, 3);
                           if (isLocked) {
@@ -1054,6 +1115,57 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                     {/* Column 9: Aksi */}
                     <td style={{ textAlign: 'right' }}>
                       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {/* SPS Kirim Laporan Paraf Action Button */}
+                        {effectiveFilterType === 'SPS' && (
+                          !item.isParafSent ? (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => handleKirimParaf(item)}
+                              title="Kirim Laporan Paraf (Masuk ke Laporan Paraf BKI)"
+                              style={{
+                                background: '#0284c7',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.72rem',
+                                padding: '0.25rem 0.55rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <Send size={12} />
+                              <span>Kirim Paraf</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => handleBatalkanKirimParaf(item)}
+                              title="Laporan Paraf sudah terkirim (Klik untuk batalkan jika perlu)"
+                              style={{
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.7rem',
+                                padding: '0.2rem 0.45rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <CheckCheck size={12} />
+                              <span>Terkirim</span>
+                            </button>
+                          )
+                        )}
+
                         {/* ACC / Revisi Buttons (Admin/Kacab only, PDS only) */}
                         {filterType === 'PDS' && isAdminOrKacab && (
                           <>

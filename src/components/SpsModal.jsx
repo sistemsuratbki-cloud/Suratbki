@@ -9,8 +9,6 @@ import {
   Calendar,
   MapPin,
   User,
-  Plus,
-  Trash2,
   Sparkles
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
@@ -37,12 +35,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     [usersList]
   );
 
-  // Ship rows state: [{ id, namaKapal, noAgenda }]
-  const [ships, setShips] = useState([
-    { id: 'ship-1', namaKapal: '', noAgenda: '' }
-  ]);
-
   const [formData, setFormData] = useState({
+    namaKapal: '',
+    noAgenda: '',
     pemohon: '',
     jenisSurvey: '',
     perihal: 'DINAS SURVEY KLAS',
@@ -60,20 +55,13 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     if (editItem) {
       const editLoc = editItem.lokasi || editItem.tempatSurvey || defaultLocation;
       const initialAgenda = editItem.noAgenda || editItem.agenda || '';
-      
-      setShips([
-        {
-          id: 'ship-1',
-          namaKapal: editItem.namaKapal || '',
-          noAgenda: initialAgenda
-        }
-      ]);
-
       const initialPetugas = role === 'surveyor'
         ? (editItem.petugas || currentUser?.name || '')
         : (editItem.petugas || '');
 
       setFormData({
+        namaKapal: editItem.namaKapal || '',
+        noAgenda: initialAgenda,
         pemohon: editItem.pemohon || '',
         jenisSurvey: (editItem.jenisSurvey || '').toUpperCase(),
         perihal: (editItem.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
@@ -93,11 +81,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       const todayDate = new Date().toISOString().split('T')[0];
       const initialLoc = defaultLocation || 'WAJOK';
 
-      setShips([
-        { id: `ship-${Date.now()}-1`, namaKapal: '', noAgenda: '' }
-      ]);
-
       setFormData({
+        namaKapal: '',
+        noAgenda: '',
         pemohon: '',
         jenisSurvey: '',
         perihal: 'DINAS SURVEY KLAS',
@@ -115,83 +101,26 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
 
   if (!isOpen) return null;
 
-  const handleAddShipRow = () => {
-    const lastAgenda = ships[ships.length - 1]?.noAgenda || '';
-    let nextAgenda = '';
-    const matchNum = lastAgenda.match(/(\d+)$/);
-    if (matchNum) {
-      const numVal = parseInt(matchNum[1], 10) + 1;
-      nextAgenda = lastAgenda.replace(/\d+$/, String(numVal));
-    } else {
-      nextAgenda = '';
-    }
-
-    setShips([
-      ...ships,
-      { id: `ship-${Date.now()}-${ships.length + 1}`, namaKapal: '', noAgenda: nextAgenda }
-    ]);
-  };
-
-  const handleRemoveShipRow = (id) => {
-    if (ships.length <= 1) return;
-    setShips(ships.filter((s) => s.id !== id));
-  };
-
-  const handleShipChange = (id, field, value) => {
-    setShips((prev) =>
-      prev.map((s) => {
-        if (s.id === id) {
-          const updated = { ...s, [field]: value };
-          if (field === 'namaKapal') {
-            const upper = value.toUpperCase().trim();
-            const match = shipDatabase.find((db) => db.namaKapal.toUpperCase() === upper);
-            if (match) {
-              if (match.noAgenda) {
-                updated.noAgenda = match.noAgenda;
-              }
-              // Auto-fill lokasi, jenisSurvey, noOrder if available (exclude pemohon)
-              setFormData((f) => ({
-                ...f,
-                lokasi: match.lokasi ? match.lokasi.toUpperCase() : f.lokasi,
-                tempatSurvey: match.lokasi ? match.lokasi.toUpperCase() : f.tempatSurvey,
-                jenisSurvey: f.jenisSurvey || match.jenisSurvey,
-                noOrder: match.noOrder && match.noOrder !== 'RFQ-0000' ? match.noOrder : f.noOrder
-              }));
-            }
-          }
-          return updated;
-        }
-        return s;
-      })
-    );
+  const handleNamaKapalChange = (value) => {
+    const upper = value.toUpperCase();
+    const match = shipDatabase.find((db) => db.namaKapal.toUpperCase() === upper.trim());
+    setFormData((f) => ({
+      ...f,
+      namaKapal: upper,
+      noAgenda: match?.noAgenda ? match.noAgenda : f.noAgenda,
+      lokasi: match?.lokasi ? match.lokasi.toUpperCase() : f.lokasi,
+      tempatSurvey: match?.lokasi ? match.lokasi.toUpperCase() : f.tempatSurvey,
+      jenisSurvey: f.jenisSurvey || match?.jenisSurvey || '',
+      noOrder: match?.noOrder && match.noOrder !== 'RFQ-0000' ? match.noOrder : f.noOrder
+    }));
   };
 
   const handleSelectShipFromDatabase = (foundShip) => {
     if (!foundShip) return;
-
-    const emptyRow = ships.find((s) => !s.namaKapal.trim());
-    if (emptyRow) {
-      setShips((prev) =>
-        prev.map((s) =>
-          s.id === emptyRow.id
-            ? { ...s, namaKapal: foundShip.namaKapal, noAgenda: foundShip.noAgenda || s.noAgenda }
-            : s
-        )
-      );
-    } else {
-      const newId = `ship-${Date.now()}-${ships.length + 1}`;
-      setShips((prev) => [
-        ...prev,
-        {
-          id: newId,
-          namaKapal: foundShip.namaKapal,
-          noAgenda: foundShip.noAgenda || String(Math.floor(Math.random() * 900) + 100)
-        }
-      ]);
-    }
-
     setFormData((f) => ({
       ...f,
+      namaKapal: foundShip.namaKapal,
+      noAgenda: foundShip.noAgenda || f.noAgenda || String(Math.floor(Math.random() * 900) + 100),
       lokasi: foundShip.lokasi ? foundShip.lokasi.toUpperCase() : f.lokasi,
       tempatSurvey: foundShip.lokasi ? foundShip.lokasi.toUpperCase() : f.tempatSurvey,
       jenisSurvey: f.jenisSurvey || foundShip.jenisSurvey || '',
@@ -202,9 +131,16 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
   const handleSubmit = (e) => {
     e.preventDefault();
 
-    const validShips = ships.filter((s) => s.namaKapal.trim().length > 0);
-    if (validShips.length === 0) {
-      toast.error('Mohon masukkan minimal 1 Nama Kapal!');
+    const shipNameUpper = (formData.namaKapal || '').trim().toUpperCase();
+    const agendaClean = (formData.noAgenda || '').trim();
+
+    if (!shipNameUpper) {
+      toast.error('Mohon masukkan Nama Kapal!');
+      return;
+    }
+
+    if (!agendaClean) {
+      toast.error('Mohon masukkan No. Agenda!');
       return;
     }
 
@@ -224,32 +160,32 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     }
 
     if (editItem) {
-      // Single edit
-      const shipItem = validShips[0];
       updateSuratTugas(editItem.id, {
         ...editItem,
         ...formData,
-        namaKapal: shipItem.namaKapal.trim().toUpperCase(),
-        noAgenda: shipItem.noAgenda.trim(),
-        agenda: shipItem.noAgenda.trim(),
+        namaKapal: shipNameUpper,
+        noAgenda: agendaClean,
+        agenda: agendaClean,
         docType: 'SPS',
         isSps: true,
         visit: editItem.visit || '1',
         isSentToSurveyor: true
       });
-      toast.success('Penugasan SPS berhasil disimpan & dikirim ke surveyor! Masuk ke Laporan Paraf.');
+      toast.success('Penugasan SPS berhasil disimpan!');
     } else {
-      // Batch creation for multiple ships
       addSpsBatch({
         ...formData,
         visit: '1',
         isSentToSurveyor: true,
-        shipsList: validShips.map((s) => ({
-          namaKapal: s.namaKapal.trim().toUpperCase(),
-          noAgenda: s.noAgenda.trim() || String(Math.floor(Math.random() * 900) + 100)
-        }))
+        isParafSent: false,
+        shipsList: [
+          {
+            namaKapal: shipNameUpper,
+            noAgenda: agendaClean || String(Math.floor(Math.random() * 900) + 100)
+          }
+        ]
       });
-      toast.success(`Berhasil menerbitkan & mengirim ${validShips.length} penugasan SPS ke surveyor & Laporan Paraf!`);
+      toast.success(`Penugasan SPS untuk ${shipNameUpper} berhasil diterbitkan (Menunggu surveyor kirim Laporan Paraf).`);
     }
 
     onClose();
@@ -326,7 +262,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                     >
                       {surveyorUsers.map((u) => (
                         <option key={u.id} value={u.name}>
-                          {u.name} ({u.roleLabel || u.role})
+                          {u.name}
                         </option>
                       ))}
                     </select>
@@ -370,7 +306,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                 </div>
               </div>
 
-              {/* Section 2: Nama Kapal & No. Agenda per Kapal */}
+              {/* Section 2: Objek Survei / Nama Kapal & No. Agenda */}
               <div
                 style={{
                   background: 'var(--bg-main)',
@@ -383,19 +319,8 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
                   <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <Anchor size={16} />
-                    <span>Daftar Kapal & No. Agenda Terkait *</span>
+                    <span>Objek Survei (Nama Kapal & No. Agenda) *</span>
                   </label>
-                  {!editItem && (
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={handleAddShipRow}
-                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
-                    >
-                      <Plus size={14} />
-                      <span>Tambah Kapal</span>
-                    </button>
-                  )}
                 </div>
 
                 {/* Dropdown Pemilihan Cepat dari Database */}
@@ -404,78 +329,50 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                     <Sparkles size={14} color="var(--accent-primary)" />
                     <span>Pilih dari Database Kapal (Otomatis Isi Nama Kapal & No. Agenda):</span>
                   </div>
-                    <ShipDatabaseSearchSelect
-                      shipDatabase={shipDatabase}
-                      onSelect={(foundShip) => handleSelectShipFromDatabase(foundShip)}
-                      placeholder="-- 🚢 Ketik nama kapal / no. agenda untuk mencari dari database --"
-                    />
-                  </div>
-
-                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.75rem' }}>
-                  Setiap nama kapal memiliki No. Agenda masing-masing yang akan terhubung otomatis ke form PDS dan Laporan.
+                  <ShipDatabaseSearchSelect
+                    shipDatabase={shipDatabase}
+                    onSelect={(foundShip) => handleSelectShipFromDatabase(foundShip)}
+                    placeholder="-- 🚢 Ketik nama kapal / no. agenda untuk mencari dari database --"
+                  />
                 </div>
 
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {ships.map((ship, idx) => (
-                    <div
-                      key={ship.id}
-                      style={{
-                        display: 'grid',
-                        gridTemplateColumns: 'auto 1.5fr 1fr auto',
-                        gap: '0.6rem',
-                        alignItems: 'center',
-                        background: 'var(--bg-card)',
-                        padding: '0.5rem 0.75rem',
-                        borderRadius: 'var(--radius-sm)',
-                        border: '1px solid var(--border-color)'
-                      }}
-                    >
-                      <span style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)', width: '22px' }}>
-                        #{idx + 1}
-                      </span>
-                      <div>
-                        <input
-                          type="text"
-                          className="form-input"
-                          list="sps-ship-database-list"
-                          placeholder="Nama Kapal (Ketik / Pilih Database)"
-                          value={ship.namaKapal}
-                          onChange={(e) => handleShipChange(ship.id, 'namaKapal', e.target.value.toUpperCase())}
-                          required
-                          style={{ fontWeight: 700 }}
-                        />
-                        <datalist id="sps-ship-database-list">
-                          {shipDatabase.map((s, dIdx) => (
-                            <option key={`${s.namaKapal}-${dIdx}`} value={s.namaKapal}>
-                              No. Agenda: {s.noAgenda || '-'}
-                            </option>
-                          ))}
-                        </datalist>
-                      </div>
-                      <div>
-                        <input
-                          type="text"
-                          className="form-input"
-                          placeholder="No. Agenda (contoh: 021/2026)"
-                          value={ship.noAgenda}
-                          onChange={(e) => handleShipChange(ship.id, 'noAgenda', e.target.value)}
-                          required
-                        />
-                      </div>
-                      {!editItem && ships.length > 1 ? (
-                        <button
-                          type="button"
-                          className="btn btn-danger btn-icon btn-sm"
-                          onClick={() => handleRemoveShipRow(ship.id)}
-                          title="Hapus baris kapal ini"
-                        >
-                          <Trash2 size={14} />
-                        </button>
-                      ) : (
-                        <div style={{ width: '28px' }} />
-                      )}
-                    </div>
-                  ))}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.5fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      Nama Kapal *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      list="sps-ship-database-list"
+                      placeholder="Contoh: TB. SAMUDRA 01"
+                      value={formData.namaKapal}
+                      onChange={(e) => handleNamaKapalChange(e.target.value)}
+                      required
+                      style={{ fontWeight: 700 }}
+                    />
+                    <datalist id="sps-ship-database-list">
+                      {shipDatabase.map((s, dIdx) => (
+                        <option key={`${s.namaKapal}-${dIdx}`} value={s.namaKapal}>
+                          No. Agenda: {s.noAgenda || '-'}
+                        </option>
+                      ))}
+                    </datalist>
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      No. Agenda *
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      placeholder="Contoh: 021/2026"
+                      value={formData.noAgenda}
+                      onChange={(e) => setFormData({ ...formData, noAgenda: e.target.value })}
+                      required
+                    />
+                  </div>
                 </div>
               </div>
 

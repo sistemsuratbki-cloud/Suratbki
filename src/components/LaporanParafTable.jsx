@@ -13,9 +13,13 @@ import {
   Phone,
   FileCheck,
   FileSpreadsheet,
-  ChevronDown
+  ChevronDown,
+  Send,
+  CheckCheck,
+  CheckCircle2
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
+import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
@@ -24,8 +28,11 @@ import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SpsModal } from './SpsModal';
 
 export const LaporanParafTable = () => {
-  const { suratTugas } = useData();
-  const { role, usersList } = useAuth();
+  const { suratTugas, updateSuratTugas } = useData();
+  const { role, usersList, currentUser } = useAuth();
+
+  // Status Tab: 'terkirim' (Default Laporan Paraf) vs 'menunggu' (Menunggu Kirim Surveyor)
+  const [statusTab, setStatusTab] = useState('terkirim');
 
   // Search & Basic Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -163,6 +170,42 @@ export const LaporanParafTable = () => {
     return 'SEMUA PERIODE';
   }, [startDate, endDate, selectedMonth, selectedYear]);
 
+  const totalTerkirimCount = useMemo(() => {
+    return suratTugas.filter((item) => {
+      if (item.docType === 'PDS' || item.isPds) return false;
+      const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
+      if (!isVisit1) return false;
+      return item.isParafSent === true || (item.isParafSent === undefined && item.status === 'Selesai');
+    }).length;
+  }, [suratTugas]);
+
+  const totalMenungguCount = useMemo(() => {
+    return suratTugas.filter((item) => {
+      if (item.docType === 'PDS' || item.isPds) return false;
+      const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
+      if (!isVisit1) return false;
+      return !item.isParafSent && item.status !== 'Selesai';
+    }).length;
+  }, [suratTugas]);
+
+  const handleKirimParaf = (item) => {
+    updateSuratTugas(item.id, {
+      isParafSent: true,
+      parafSentAt: new Date().toISOString(),
+      parafSentBy: currentUser?.name || item.petugas
+    });
+    toast.success(`Laporan Paraf untuk kapal ${item.namaKapal} berhasil dikirim ke Laporan Paraf BKI!`);
+  };
+
+  const handleBatalkanKirimParaf = (item) => {
+    updateSuratTugas(item.id, {
+      isParafSent: false,
+      parafSentAt: null,
+      parafSentBy: null
+    });
+    toast.info(`Pengiriman Laporan Paraf untuk ${item.namaKapal} dibatalkan.`);
+  };
+
   // Filter ONLY Visit Pertama items (`visit === '1' || visit === 1 || visit === true`)
   const filteredData = useMemo(() => {
     // 1. Filter
@@ -175,6 +218,11 @@ export const LaporanParafTable = () => {
       // Must be Visit 1 (Visit Pertama)
       const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
       if (!isVisit1) return false;
+
+      // Status Tab Filter (Terkirim vs Menunggu Pengiriman)
+      const isSent = item.isParafSent === true || (item.isParafSent === undefined && item.status === 'Selesai');
+      if (statusTab === 'terkirim' && !isSent) return false;
+      if (statusTab === 'menunggu' && isSent) return false;
 
       // Surveyor Filter
       if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
@@ -265,7 +313,7 @@ export const LaporanParafTable = () => {
     });
 
     return result;
-  }, [suratTugas, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
+  }, [suratTugas, statusTab, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
 
   // Open Accumulated Print Modal (All filtered items)
   const handleOpenPrintAll = () => {
@@ -550,6 +598,79 @@ export const LaporanParafTable = () => {
             )}
           </div>
         </div>
+      </div>
+
+      {/* Status Switcher Tabs: Laporan Paraf Terkirim vs Menunggu Pengiriman Surveyor */}
+      <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.65rem' }}>
+        <button
+          type="button"
+          onClick={() => setStatusTab('terkirim')}
+          style={{
+            padding: '0.45rem 0.95rem',
+            borderRadius: '6px',
+            border: 'none',
+            fontWeight: 800,
+            fontSize: '0.84rem',
+            cursor: 'pointer',
+            background: statusTab === 'terkirim' ? 'var(--accent-primary)' : 'var(--bg-main)',
+            color: statusTab === 'terkirim' ? '#ffffff' : 'var(--text-secondary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            boxShadow: statusTab === 'terkirim' ? '0 2px 5px rgba(2, 132, 199, 0.25)' : 'none',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <CheckCircle2 size={16} />
+          <span>Laporan Paraf Terkirim</span>
+          <span
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              padding: '0.1rem 0.45rem',
+              borderRadius: '10px',
+              background: statusTab === 'terkirim' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.07)',
+              color: statusTab === 'terkirim' ? '#ffffff' : 'inherit'
+            }}
+          >
+            {totalTerkirimCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setStatusTab('menunggu')}
+          style={{
+            padding: '0.45rem 0.95rem',
+            borderRadius: '6px',
+            border: 'none',
+            fontWeight: 800,
+            fontSize: '0.84rem',
+            cursor: 'pointer',
+            background: statusTab === 'menunggu' ? '#f59e0b' : 'var(--bg-main)',
+            color: statusTab === 'menunggu' ? '#ffffff' : 'var(--text-secondary)',
+            display: 'inline-flex',
+            alignItems: 'center',
+            gap: '0.45rem',
+            boxShadow: statusTab === 'menunggu' ? '0 2px 5px rgba(245, 158, 11, 0.25)' : 'none',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          <Clock size={16} />
+          <span>Menunggu Pengiriman Surveyor</span>
+          <span
+            style={{
+              fontSize: '0.72rem',
+              fontWeight: 800,
+              padding: '0.1rem 0.45rem',
+              borderRadius: '10px',
+              background: statusTab === 'menunggu' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.07)',
+              color: statusTab === 'menunggu' ? '#ffffff' : 'inherit'
+            }}
+          >
+            {totalMenungguCount}
+          </span>
+        </button>
       </div>
 
       {/* COMPACT FILTER & SORTING TOOLBAR */}
@@ -854,17 +975,23 @@ export const LaporanParafTable = () => {
               </th>
               <th>LOKASI</th>
               <th style={{ textAlign: 'center' }}>RFQ</th>
-              {canPrintSps && <th style={{ textAlign: 'center', width: '120px' }}>CETAK SPS</th>}
+              <th style={{ textAlign: 'center', width: '160px' }}>AKSI</th>
             </tr>
           </thead>
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={canPrintSps ? 9 : 8} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                <td colSpan={9} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <div className="table-empty-icon" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📑</div>
-                  <p style={{ fontWeight: 700 }}>Tidak ada data laporan permohonan paraf untuk periode ini.</p>
+                  <p style={{ fontWeight: 700 }}>
+                    {statusTab === 'terkirim'
+                      ? 'Tidak ada data Laporan Paraf Terkirim untuk periode ini.'
+                      : 'Tidak ada SPS yang menunggu pengiriman Laporan Paraf dari surveyor.'}
+                  </p>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
-                    Pilih bulan/tahun lain atau ubah rentang tanggal pada filter di atas.
+                    {statusTab === 'terkirim'
+                      ? 'SPS yang baru dibuat oleh admin akan berada di tab "Menunggu Pengiriman Surveyor" sebelum dikirim.'
+                      : 'Semua penugasan SPS telah dikirim ke Laporan Paraf Terkirim.'}
                   </p>
                   {hasActiveFilters && (
                     <button
@@ -918,28 +1045,80 @@ export const LaporanParafTable = () => {
                     <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
                       {rfq}
                     </td>
-                    {canPrintSps && (
-                      <td style={{ textAlign: 'center' }}>
-                        <button
-                          type="button"
-                          className="btn btn-primary btn-sm"
-                          style={{
-                            padding: '0.2rem 0.55rem',
-                            fontSize: '0.74rem',
-                            fontWeight: 700,
-                            display: 'inline-flex',
-                            alignItems: 'center',
-                            gap: '0.3rem',
-                            whiteSpace: 'nowrap'
-                          }}
-                          onClick={() => handlePrintSps(item)}
-                          title="Download / Cetak Dokumen SPS"
-                        >
-                          <Printer size={13} />
-                          <span>Cetak SPS</span>
-                        </button>
-                      </td>
-                    )}
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.35rem', flexWrap: 'wrap' }}>
+                        {/* Tombol Kirim Paraf jika belum terkirim */}
+                        {statusTab === 'menunggu' || !item.isParafSent ? (
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{
+                              padding: '0.2rem 0.6rem',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              background: '#0284c7',
+                              color: '#ffffff',
+                              border: 'none',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              cursor: 'pointer'
+                            }}
+                            onClick={() => handleKirimParaf(item)}
+                            title="Kirim Laporan Paraf (Masuk ke Laporan Paraf Terkirim)"
+                          >
+                            <Send size={12} />
+                            <span>Kirim Paraf</span>
+                          </button>
+                        ) : (
+                          (role === 'admin' || role === 'developer' || role === 'kacab') && (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{
+                                padding: '0.15rem 0.45rem',
+                                fontSize: '0.68rem',
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.2rem',
+                                cursor: 'pointer'
+                              }}
+                              onClick={() => handleBatalkanKirimParaf(item)}
+                              title="Laporan Paraf Terkirim (Klik untuk batalkan pengiriman)"
+                            >
+                              <CheckCheck size={11} />
+                              <span>Terkirim</span>
+                            </button>
+                          )
+                        )}
+
+                        {canPrintSps && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-sm"
+                            style={{
+                              padding: '0.2rem 0.5rem',
+                              fontSize: '0.74rem',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.25rem',
+                              whiteSpace: 'nowrap'
+                            }}
+                            onClick={() => handlePrintSps(item)}
+                            title="Download / Cetak Dokumen SPS"
+                          >
+                            <Printer size={13} />
+                            <span>SPS</span>
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 );
               })

@@ -7,13 +7,28 @@ import {
   RotateCcw,
   User,
   ArrowUpDown,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Calculator,
+  FileText,
+  Paperclip,
+  Eye,
+  CheckCircle2,
+  Anchor,
+  FileCheck2,
+  Camera,
+  Plane,
+  Receipt,
+  X
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber, formatRupiah } from '../utils/formatters';
+import { ModalPortal } from './ModalPortal';
+import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { BukuAgendaPrintModal } from './BukuAgendaPrintModal';
+import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
+import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 
 export const BukuAgendaTable = () => {
   const { suratTugas, gradeTariffs, adminSettings } = useData();
@@ -29,6 +44,145 @@ export const BukuAgendaTable = () => {
   const [endDate, setEndDate] = useState('');
   const [sortBy, setSortBy] = useState('nomor_asc'); // nomor_asc, nomor_desc, tgl_desc, tgl_asc, kapal_asc, surveyor_asc
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
+  const [isBiayaPrintModalOpen, setIsBiayaPrintModalOpen] = useState(false);
+  const [selectedPrintItem, setSelectedPrintItem] = useState(null);
+
+  // Lampiran Modal State
+  const [lampiranModalItem, setLampiranModalItem] = useState(null);
+  const [isLampiranModalOpen, setIsLampiranModalOpen] = useState(false);
+  const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
+
+  const resolvePdsItem = (item) => {
+    if (!item) return null;
+    if (item.docType === 'PDS' || item.isPds) return item;
+    if (item.pdsId) {
+      const parent = suratTugas.find(st => st.id === item.pdsId);
+      if (parent) return parent;
+    }
+    const parentByLink = suratTugas.find(st => (st.isPds || st.docType === 'PDS') && Array.isArray(st.linkedSpsIds) && st.linkedSpsIds.includes(item.id));
+    if (parentByLink) return parentByLink;
+    return item;
+  };
+
+  const getPdsAttachments = (item) => {
+    const pds = resolvePdsItem(item);
+    if (!pds) return { totalCount: 0, shipAttachments: [], generalAttachments: [] };
+
+    const shipAttachments = [];
+    const generalAttachments = [];
+
+    // Ships detail attachments
+    if (Array.isArray(pds.shipsDetail) && pds.shipsDetail.length > 0) {
+      pds.shipsDetail.forEach((sh, sIdx) => {
+        const shipName = (sh.namaKapal || `Kapal #${sIdx + 1}`).toUpperCase();
+        const agenda = sh.noAgenda || '-';
+        const files = [];
+
+        if (sh.fileVisitData || sh.fileVisitName) {
+          files.push({
+            type: 'visit',
+            label: 'Formulir Visit Lapangan (PDF)',
+            fileName: sh.fileVisitName || `Form_Visit_${shipName}.pdf`,
+            fileData: sh.fileVisitData || sh.fileVisitName
+          });
+        }
+        if (sh.fileFotoData || sh.fileFotoName) {
+          files.push({
+            type: 'selfie',
+            label: 'Foto Selfie Lapangan (PDF)',
+            fileName: sh.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
+            fileData: sh.fileFotoData || sh.fileFotoName
+          });
+        }
+
+        if (files.length > 0) {
+          shipAttachments.push({
+            shipName,
+            agenda,
+            files
+          });
+        }
+      });
+    } else {
+      const shipName = (pds.namaKapal || 'KAPAL UTAMA').toUpperCase();
+      const files = [];
+      if (pds.fileVisitData || pds.fileVisitName) {
+        files.push({
+          type: 'visit',
+          label: 'Formulir Visit Lapangan (PDF)',
+          fileName: pds.fileVisitName || `Form_Visit_${shipName}.pdf`,
+          fileData: pds.fileVisitData || pds.fileVisitName
+        });
+      }
+      if (pds.fileFotoData || pds.fileFotoName) {
+        files.push({
+          type: 'selfie',
+          label: 'Foto Selfie Lapangan (PDF)',
+          fileName: pds.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
+          fileData: pds.fileFotoData || pds.fileFotoName
+        });
+      }
+      if (files.length > 0) {
+        shipAttachments.push({
+          shipName,
+          agenda: pds.noAgenda || '-',
+          files
+        });
+      }
+    }
+
+    // General travel attachments
+    if (pds.fileTiketTransportData || pds.fileTiketTransportName || pds.fileTiketName) {
+      generalAttachments.push({
+        type: 'tiket',
+        label: 'Bukti Tiket Transportasi (Pesawat/Taxi/BBM)',
+        fileName: pds.fileTiketTransportName || pds.fileTiketName || 'Tiket_Transport',
+        fileData: pds.fileTiketTransportData || pds.fileTiketTransportName || pds.fileTiketName
+      });
+    }
+
+    if (pds.fileKwitansiHotelData || pds.fileKwitansiHotelName) {
+      generalAttachments.push({
+        type: 'hotel',
+        label: 'Bukti Kwitansi Hotel / Penginapan',
+        fileName: pds.fileKwitansiHotelName || 'Kwitansi_Hotel',
+        fileData: pds.fileKwitansiHotelData || pds.fileKwitansiHotelName
+      });
+    }
+
+    if (Array.isArray(pds.fotoList) && pds.fotoList.length > 0) {
+      pds.fotoList.forEach((f, fIdx) => {
+        generalAttachments.push({
+          type: 'foto_survey',
+          label: `Foto Lapangan #${fIdx + 1}`,
+          fileName: typeof f === 'string' ? f : f.name || `Foto_${fIdx + 1}`,
+          fileData: typeof f === 'string' ? f : f.url || f.data
+        });
+      });
+    }
+
+    const totalCount =
+      shipAttachments.reduce((sum, s) => sum + s.files.length, 0) + generalAttachments.length;
+
+    return { totalCount, shipAttachments, generalAttachments };
+  };
+
+  const handleOpenBiayaPrint = (item) => {
+    setSelectedPrintItem(resolvePdsItem(item));
+    setIsBiayaPrintModalOpen(true);
+  };
+
+  const handleOpenPdsPrint = (item) => {
+    setSelectedPrintItem(resolvePdsItem(item));
+    setIsPdsPrintModalOpen(true);
+  };
+
+  const handleOpenLampiran = (item) => {
+    const resolved = resolvePdsItem(item);
+    setLampiranModalItem(resolved);
+    setIsLampiranModalOpen(true);
+  };
 
   const monthNames = [
     { value: '01', label: 'Januari' },
@@ -70,16 +224,17 @@ export const BukuAgendaTable = () => {
       return Number(item.jumlahEstimasi);
     }
 
-    const isLuarKota = (item.kategoriPerjalanan || 'Luar Kota') === 'Luar Kota';
-    const start = new Date(item.tglMulai);
-    const end = new Date(item.tglSelesai);
-    const timeDiff = end.getTime() - start.getTime();
-    let hr = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
-    if (hr < 1 || isNaN(hr)) hr = 1;
-    let mlm = Math.max(0, hr - 1);
+    const isLuarKota = (item.kategoriPerjalanan || '').toLowerCase().includes('luar') || item.kategoriPerjalanan === 'Luar Kota';
+    const start = item.tglMulai ? new Date(item.tglMulai) : new Date();
+    const end = item.tglSelesai ? new Date(item.tglSelesai) : start;
+    const timeDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+    const hr = timeDiff > 0 ? timeDiff : 1;
+    const mlm = Math.max(0, hr - 1);
 
-    let hrLbr = Number(item.jumlahHariLibur) || 0;
-    if (!item.jumlahHariLibur && !isNaN(start) && !isNaN(end)) {
+    let hrLbr = 0;
+    if (item.jumlahHariLibur !== undefined && item.jumlahHariLibur !== '' && !isNaN(Number(item.jumlahHariLibur))) {
+      hrLbr = Number(item.jumlahHariLibur);
+    } else if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
       let cur = new Date(start);
       let countLibur = 0;
       while (cur <= end) {
@@ -99,17 +254,22 @@ export const BukuAgendaTable = () => {
     let sisaHariUangHarian = hr;
     if (item.tanpaUangHarian) {
       const deduct = item.hariTanpaUangHarian !== undefined ? Number(item.hariTanpaUangHarian) : hr;
-      const validDeduct = Math.max(0, Math.min(deduct, hr));
-      sisaHariUangHarian = hr - validDeduct;
+      sisaHariUangHarian = Math.max(0, hr - Math.max(0, Math.min(deduct, hr)));
     }
 
-    const uangHarianRate = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (Number(item.uangHarian) || Number(gradeData.uangHarian) || 300000);
+    const uangHarianRate = (item.tanpaUangHarian && sisaHariUangHarian === 0)
+      ? 0
+      : (Number(item.uangHarian) || Number(gradeData.uangHarian) || 300000);
     const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
     const uangHotelRate = Number(item.tiketHotel) || 0;
     const uangHotelTotal = uangHotelRate * mlm;
     const hrLbrTotal = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (hrLbr * uangHarianRate * 0.5);
     const tiketPesawatTaxi = Number(item.tiketPesawatTaxi) || Number(item.biayaTiket) || 0;
-    const biayaTAT = item.tanpaTAT ? 0 : (Number(item.biayaTAT) || (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
+    const biayaTAT = item.tanpaTAT
+      ? 0
+      : (item.biayaTAT !== undefined && item.biayaTAT !== ''
+          ? Number(item.biayaTAT)
+          : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(item.tarifDasar) || 0;
 
     if (isLuarKota) {
@@ -187,8 +347,9 @@ export const BukuAgendaTable = () => {
   // Filter and Sort Data
   const filteredData = useMemo(() => {
     const result = suratTugas.filter((item) => {
-      // Hanya tampilkan dokumen per kapal (SPS individual), exclude gabungan multi-kapal (PDS)
-      if (item.docType === 'PDS' || item.isPds) {
+      // Sumber data Buku Agenda berasal dari dokumen PDS (Perjalanan Dinas Surveyor)
+      const isPds = item.docType === 'PDS' || item.isPds === true || (!item.docType && item.status !== 'Menunggu Survei' && !item.isSps);
+      if (!isPds) {
         return false;
       }
 
@@ -229,13 +390,15 @@ export const BukuAgendaTable = () => {
 
       // Search
       const searchLower = searchTerm.toLowerCase();
+      const shipsStr = Array.isArray(item.shipsDetail) ? item.shipsDetail.map(s => s.namaKapal).join(' ') : '';
       const matchesSearch =
         !searchTerm ||
         (item.nomor || '').toLowerCase().includes(searchLower) ||
         (item.namaKapal || '').toLowerCase().includes(searchLower) ||
+        shipsStr.toLowerCase().includes(searchLower) ||
         (item.lokasi || item.tempatSurvey || '').toLowerCase().includes(searchLower) ||
         (item.petugas || '').toLowerCase().includes(searchLower) ||
-        (item.agenda || '').toLowerCase().includes(searchLower) ||
+        (item.agenda || item.noAgenda || '').toLowerCase().includes(searchLower) ||
         (item.noOrder || '').toLowerCase().includes(searchLower);
 
       return matchesSearch;
@@ -711,6 +874,9 @@ export const BukuAgendaTable = () => {
                   <ArrowUpDown size={12} color="#ffffff" />
                 </div>
               </th>
+              <th rowSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px' }}>
+                AKSI
+              </th>
             </tr>
             <tr style={{ background: '#4f81bd', color: '#ffffff' }}>
               <th style={{ textAlign: 'center', fontSize: '0.78rem', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px' }}>
@@ -724,7 +890,7 @@ export const BukuAgendaTable = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={8} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                <td colSpan={9} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <div className="table-empty-icon" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📖</div>
                   <p style={{ fontWeight: 700 }}>Tidak ada data Buku Agenda yang sesuai dengan filter.</p>
                   {hasActiveFilters && (
@@ -756,7 +922,7 @@ export const BukuAgendaTable = () => {
                     </td>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0
-                        ? item.shipsDetail.map(s => s.noAgenda && s.noAgenda !== '-' ? `${s.namaKapal} (Agenda: ${s.noAgenda})` : s.namaKapal).join(', ')
+                        ? item.shipsDetail.map(s => s.namaKapal).filter(Boolean).join(', ')
                         : (item.namaKapal || '-')}
                     </td>
                     <td style={{ color: 'var(--text-primary)' }}>
@@ -774,6 +940,71 @@ export const BukuAgendaTable = () => {
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {item.petugas || '-'}
                     </td>
+                    <td style={{ textAlign: 'center' }}>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
+                        {/* Tombol Akses / Lihat Lampiran PDS */}
+                        {(() => {
+                          const attInfo = getPdsAttachments(item);
+                          const hasFiles = attInfo.totalCount > 0;
+                          return (
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-icon btn-sm"
+                              onClick={() => handleOpenLampiran(item)}
+                              title={hasFiles ? `Lihat ${attInfo.totalCount} Lampiran PDS (Form Visit, Foto Selfie, dll)` : 'Lihat / Cek Lampiran PDS'}
+                              style={{
+                                background: hasFiles ? '#10b981' : 'var(--bg-main)',
+                                color: hasFiles ? '#ffffff' : 'var(--text-secondary)',
+                                borderColor: hasFiles ? '#10b981' : 'var(--border-color)',
+                                position: 'relative'
+                              }}
+                            >
+                              <Paperclip size={14} />
+                              {hasFiles && (
+                                <span
+                                  style={{
+                                    position: 'absolute',
+                                    top: '-4px',
+                                    right: '-4px',
+                                    background: '#ef4444',
+                                    color: '#ffffff',
+                                    fontSize: '0.6rem',
+                                    fontWeight: 800,
+                                    borderRadius: '50%',
+                                    width: '14px',
+                                    height: '14px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    lineHeight: 1
+                                  }}
+                                >
+                                  {attInfo.totalCount}
+                                </span>
+                              )}
+                            </button>
+                          );
+                        })()}
+
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-icon btn-sm"
+                          onClick={() => handleOpenBiayaPrint(item)}
+                          title="Cetak Rincian PDS (Biaya Perjalanan Dinas)"
+                          style={{ background: '#0284c7', color: '#ffffff', borderColor: '#0284c7' }}
+                        >
+                          <Calculator size={15} />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-icon btn-sm"
+                          onClick={() => handleOpenPdsPrint(item)}
+                          title="Cetak Surat PDS (Surat Perintah Dinas)"
+                        >
+                          <FileText size={15} />
+                        </button>
+                      </div>
+                    </td>
                   </tr>
                 );
               })
@@ -789,18 +1020,256 @@ export const BukuAgendaTable = () => {
                   {Number(totalBiayaAkumulasi).toLocaleString('id-ID')}
                 </td>
                 <td></td>
+                <td></td>
               </tr>
             </tfoot>
           )}
         </table>
       </div>
 
-      {/* Print PDF Preview Modal */}
+      {/* Print PDF Preview Modals */}
       <BukuAgendaPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         data={filteredData}
         currentPeriod={currentPeriodLabel}
+      />
+
+      <BiayaPdsPrintModal
+        isOpen={isBiayaPrintModalOpen}
+        onClose={() => setIsBiayaPrintModalOpen(false)}
+        suratTugas={selectedPrintItem}
+      />
+
+      <SuratTugasPdsPrintModal
+        isOpen={isPdsPrintModalOpen}
+        onClose={() => setIsPdsPrintModalOpen(false)}
+        suratTugas={selectedPrintItem}
+      />
+
+      {/* Modal Detail Lampiran PDS */}
+      {isLampiranModalOpen && lampiranModalItem && (
+        <ModalPortal>
+          <div className="modal-overlay" onClick={() => setIsLampiranModalOpen(false)}>
+            <div
+              className="modal-content"
+              style={{ maxWidth: '640px', width: '95vw', maxHeight: '88vh' }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="modal-header" style={{ padding: '1rem 1.25rem', borderBottom: '1px solid var(--border-color)' }}>
+                <div className="card-title-group">
+                  <Paperclip size={20} style={{ color: '#10b981' }} />
+                  <div>
+                    <h3 className="modal-title" style={{ fontSize: '1rem', fontWeight: 800 }}>
+                      Lampiran Dokumen PDS
+                    </h3>
+                    <div className="card-subtitle" style={{ fontSize: '0.74rem' }}>
+                      {cleanDocNumber(lampiranModalItem.nomor)} • {lampiranModalItem.namaKapal} ({lampiranModalItem.petugas || 'Surveyor'})
+                    </div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-icon"
+                  onClick={() => setIsLampiranModalOpen(false)}
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="modal-body" style={{ padding: '1.25rem', maxHeight: 'calc(88vh - 130px)', overflowY: 'auto' }}>
+                {(() => {
+                  const { totalCount, shipAttachments, generalAttachments } = getPdsAttachments(lampiranModalItem);
+
+                  if (totalCount === 0) {
+                    return (
+                      <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)' }}>
+                        <Paperclip size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.35 }} />
+                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.25rem' }}>
+                          Belum Ada Lampiran
+                        </h4>
+                        <p style={{ fontSize: '0.78rem' }}>
+                          Surveyor belum mengunggah Form Visit, Foto Selfie, ataupun bukti tiket perjalanan untuk PDS ini.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                      {/* Section 1: Lampiran Per Kapal */}
+                      {shipAttachments.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--accent-primary)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Anchor size={14} />
+                            <span>LAMPIRAN PER KAPAL (VISIT FORM & FOTO SELFIE)</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                            {shipAttachments.map((sAtt, sIdx) => (
+                              <div
+                                key={`ship-att-${sIdx}`}
+                                style={{
+                                  background: 'var(--bg-main)',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: 'var(--radius-md)',
+                                  padding: '0.85rem'
+                                }}
+                              >
+                                <div style={{ fontWeight: 800, fontSize: '0.82rem', marginBottom: '0.5rem', color: 'var(--text-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>🚢 {sAtt.shipName}</span>
+                                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Agenda: {sAtt.agenda}</span>
+                                </div>
+
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                                  {sAtt.files.map((file, fIdx) => (
+                                    <div
+                                      key={`file-${fIdx}`}
+                                      style={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        padding: '0.45rem 0.65rem',
+                                        background: 'var(--bg-card)',
+                                        border: '1px solid var(--border-color)',
+                                        borderRadius: 'var(--radius-sm)'
+                                      }}
+                                    >
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                        {file.type === 'visit' ? (
+                                          <FileText size={14} color="#0284c7" />
+                                        ) : (
+                                          <Camera size={14} color="#7c3aed" />
+                                        )}
+                                        <span>{file.label}</span>
+                                      </div>
+
+                                      <button
+                                        type="button"
+                                        className="btn btn-sm"
+                                        style={{
+                                          padding: '0.2rem 0.55rem',
+                                          fontSize: '0.72rem',
+                                          background: file.type === 'visit' ? '#0284c7' : '#7c3aed',
+                                          color: '#ffffff',
+                                          border: 'none',
+                                          borderRadius: '4px',
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '0.25rem',
+                                          cursor: 'pointer'
+                                        }}
+                                        onClick={() => {
+                                          setPreviewAttachment({
+                                            isOpen: true,
+                                            title: `${file.label} - ${sAtt.shipName}`,
+                                            fileData: file.fileData,
+                                            fileName: file.fileName
+                                          });
+                                        }}
+                                      >
+                                        <Eye size={12} />
+                                        <span>Cek / Unduh</span>
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Section 2: Bukti Perjalanan & Kwitansi */}
+                      {generalAttachments.length > 0 && (
+                        <div>
+                          <div style={{ fontSize: '0.78rem', fontWeight: 800, color: 'var(--text-secondary)', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <Receipt size={14} />
+                            <span>BUKTI BIAYA PERJALANAN & FOTO LAPANGAN</span>
+                          </div>
+
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                            {generalAttachments.map((gen, gIdx) => (
+                              <div
+                                key={`gen-${gIdx}`}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  padding: '0.5rem 0.75rem',
+                                  background: 'var(--bg-main)',
+                                  border: '1px solid var(--border-color)',
+                                  borderRadius: 'var(--radius-sm)'
+                                }}
+                              >
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                  {gen.type === 'tiket' ? (
+                                    <Plane size={14} color="#0284c7" />
+                                  ) : gen.type === 'hotel' ? (
+                                    <Receipt size={14} color="#d97706" />
+                                  ) : (
+                                    <Camera size={14} color="#059669" />
+                                  )}
+                                  <span>{gen.label}</span>
+                                </div>
+
+                                <button
+                                  type="button"
+                                  className="btn btn-sm btn-secondary"
+                                  style={{
+                                    padding: '0.2rem 0.55rem',
+                                    fontSize: '0.72rem',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    cursor: 'pointer'
+                                  }}
+                                  onClick={() => {
+                                    setPreviewAttachment({
+                                      isOpen: true,
+                                      title: gen.label,
+                                      fileData: gen.fileData,
+                                      fileName: gen.fileName
+                                    });
+                                  }}
+                                >
+                                  <Eye size={12} />
+                                  <span>Cek / Unduh</span>
+                                </button>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Footer */}
+              <div className="modal-footer" style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => setIsLampiranModalOpen(false)}
+                >
+                  Tutup
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={previewAttachment.isOpen}
+        onClose={() => setPreviewAttachment({ isOpen: false, title: '', fileData: null, fileName: '' })}
+        title={previewAttachment.title}
+        fileData={previewAttachment.fileData}
+        fileName={previewAttachment.fileName}
       />
     </div>
   );

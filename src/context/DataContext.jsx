@@ -7,6 +7,28 @@ import {
 import { INITIAL_LOCATION_TARIFFS, INITIAL_GRADE_TARIFFS } from '../utils/tariffData';
 import { cleanDocNumber } from '../utils/formatters';
 
+const safeSetLocalStorage = (key, data) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (e) {
+    console.warn(`LocalStorage write warning for ${key}:`, e);
+    try {
+      // Jika quota penyimpanan terlampaui (misal file base64 pdf), simpan versi ringan tanpa string base64 besar
+      const sanitized = JSON.parse(
+        JSON.stringify(data, (k, v) => {
+          if (typeof v === 'string' && v.startsWith('data:') && v.length > 20000) {
+            return '[DATA_URL_ATTACHMENT]';
+          }
+          return v;
+        })
+      );
+      localStorage.setItem(key, JSON.stringify(sanitized));
+    } catch (e2) {
+      console.error(`LocalStorage fallback failed for ${key}:`, e2);
+    }
+  }
+};
+
 const cleanEntityObject = (item) => {
   if (!item || typeof item !== 'object') return item;
   const cleaned = {};
@@ -77,32 +99,32 @@ export const DataProvider = ({ children }) => {
     };
   });
 
-  // Sync to LocalStorage (Cleaned)
+  // Sync to LocalStorage (Cleaned & Quota Safe)
   useEffect(() => {
     const cleaned = suratTugas.map(cleanEntityObject);
-    localStorage.setItem('st_surat_tugas', JSON.stringify(cleaned));
+    safeSetLocalStorage('st_surat_tugas', cleaned);
   }, [suratTugas]);
 
   useEffect(() => {
     const cleaned = kwitansiHonor.map(cleanEntityObject);
-    localStorage.setItem('st_kwitansi_honor', JSON.stringify(cleaned));
+    safeSetLocalStorage('st_kwitansi_honor', cleaned);
   }, [kwitansiHonor]);
 
   useEffect(() => {
     const cleaned = laporanSurvei.map(cleanEntityObject);
-    localStorage.setItem('st_laporan_survei', JSON.stringify(cleaned));
+    safeSetLocalStorage('st_laporan_survei', cleaned);
   }, [laporanSurvei]);
 
   useEffect(() => {
-    localStorage.setItem('st_tariffs_v2', JSON.stringify(tariffs));
+    safeSetLocalStorage('st_tariffs_v2', tariffs);
   }, [tariffs]);
 
   useEffect(() => {
-    localStorage.setItem('st_grade_tariffs', JSON.stringify(gradeTariffs));
+    safeSetLocalStorage('st_grade_tariffs', gradeTariffs);
   }, [gradeTariffs]);
 
   useEffect(() => {
-    localStorage.setItem('st_admin_settings', JSON.stringify(adminSettings));
+    safeSetLocalStorage('st_admin_settings', adminSettings);
   }, [adminSettings]);
 
   // Auto-sync / heal Kwitansi & Laporan only for PDS (Perjalanan Dinas Surveyor)
@@ -111,7 +133,7 @@ export const DataProvider = ({ children }) => {
       let kwitansiUpdated = false;
       let laporanUpdated = false;
       const updatedKwitansiList = [...kwitansiHonor];
-      const updatedLaporanList = [...laporanSurvei];
+      let updatedLaporanList = [...laporanSurvei];
 
       // Only PDS items (or items that are already executed/not pending SPS) get Kwitansi & Laporan
       const pdsItems = suratTugas.filter(
@@ -154,36 +176,46 @@ export const DataProvider = ({ children }) => {
           kwitansiUpdated = true;
         }
 
-        // 2. Check Laporan Survei
+        // 2. Check Laporan Survei (HANYA masuk jika sudah di-ACC oleh Admin)
+        const isAcc = st.approvalStatus === 'ACC';
         const existingLap = updatedLaporanList.find((l) => l.suratId === st.id);
-        if (!existingLap) {
-          updatedLaporanList.push(cleanEntityObject({
-            id: `LAP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900) + 100}`,
-            suratId: st.id,
-            tglLapor: st.tglMulai || new Date().toISOString().split('T')[0],
-            tanggal: st.tglMulai || new Date().toISOString().split('T')[0],
-            namaKapal: st.namaKapal,
-            lokasi: st.tempatSurvey || st.lokasi,
-            lokasiSurvey: st.tempatSurvey || st.lokasi,
-            nilai: totalHonor,
-            tarifDasar: baseRate,
-            namaSurvey: st.jenisSurvey || st.perihal || 'DINAS SURVEY KLAS',
-            noAgenda: cleanDocNumber(st.noAgenda || st.nomor),
-            noCda: st.noCda || '5100010',
-            noSo: st.noSo || '',
-            noWbs: st.noWbs || '',
-            petugas: st.petugas,
-            isCito: !!st.isCito,
-            hasil: st.catatan || `Survei kelaiklautan kapal ${st.namaKapal}`,
-            status: 'Terkirim',
-            fileFotoName: st.fileFotoName || '',
-            fileFotoData: st.fileFotoData || '',
-            fotoList: st.fotoList || [],
-            fileVisitName: st.fileVisitName || '',
-            fileTiketTransportName: st.fileTiketTransportName || st.fileTiketName || '',
-            fileKwitansiHotelName: st.fileKwitansiHotelName || ''
-          }));
-          laporanUpdated = true;
+
+        if (isAcc) {
+          if (!existingLap) {
+            updatedLaporanList.push(cleanEntityObject({
+              id: `LAP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900) + 100}`,
+              suratId: st.id,
+              tglLapor: st.tglMulai || new Date().toISOString().split('T')[0],
+              tanggal: st.tglMulai || new Date().toISOString().split('T')[0],
+              namaKapal: st.namaKapal,
+              lokasi: st.tempatSurvey || st.lokasi,
+              lokasiSurvey: st.tempatSurvey || st.lokasi,
+              nilai: totalHonor,
+              tarifDasar: baseRate,
+              namaSurvey: st.jenisSurvey || st.perihal || 'DINAS SURVEY KLAS',
+              noAgenda: cleanDocNumber(st.noAgenda || st.nomor),
+              noCda: st.noCda || '5100010',
+              noSo: st.noSo || '',
+              noWbs: st.noWbs || '',
+              petugas: st.petugas,
+              isCito: !!st.isCito,
+              hasil: st.catatan || `Survei kelaiklautan kapal ${st.namaKapal}`,
+              status: 'Terkirim',
+              fileFotoName: st.fileFotoName || '',
+              fileFotoData: st.fileFotoData || '',
+              fotoList: st.fotoList || [],
+              fileVisitName: st.fileVisitName || '',
+              fileTiketTransportName: st.fileTiketTransportName || st.fileTiketName || '',
+              fileKwitansiHotelName: st.fileKwitansiHotelName || ''
+            }));
+            laporanUpdated = true;
+          }
+        } else {
+          // Jika status belum ACC / diminta revisi, keluarkan dari Laporan Survei
+          if (existingLap) {
+            updatedLaporanList = updatedLaporanList.filter((l) => l.suratId !== st.id);
+            laporanUpdated = true;
+          }
         }
       });
 
@@ -324,6 +356,9 @@ export const DataProvider = ({ children }) => {
         docType: 'SPS',
         isSps: true,
         status: cleaned.status || 'Menunggu Survei',
+        isParafSent: false, // Menunggu surveyor kirim laporan paraf
+        parafSentAt: null,
+        parafSentBy: null,
         pdsId: null,
         createdAt: new Date().toISOString()
       });
@@ -452,7 +487,7 @@ export const DataProvider = ({ children }) => {
       docType: 'PDS',
       isPds: true,
       nomor: cleanDocNumber(cleaned.nomor || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`),
-      status: cleaned.status || 'Berjalan',
+      status: cleaned.status || 'Selesai',
       linkedSpsIds: Array.isArray(linkedSpsIds) ? linkedSpsIds : [linkedSpsIds].filter(Boolean),
       shipsDetail: resolvedShipsDetail,
       createdAt: new Date().toISOString()
@@ -503,35 +538,37 @@ export const DataProvider = ({ children }) => {
     });
     setKwitansiHonor((prev) => [newKwitansi, ...prev]);
 
-    // 2. Generate 1 Laporan Perjalanan Dinas for the combined PDS
-    const newLaporan = cleanEntityObject({
-      id: `LAP-${Date.now().toString().slice(-6)}`,
-      suratId: newPdsId,
-      tglLapor: newPds.tglMulai || new Date().toISOString().split('T')[0],
-      tanggal: newPds.tglMulai || new Date().toISOString().split('T')[0],
-      namaKapal: newPds.namaKapal,
-      lokasi: newPds.tempatSurvey || newPds.lokasi,
-      lokasiSurvey: newPds.tempatSurvey || newPds.lokasi,
-      nilai: totalHonor,
-      tarifDasar: baseRate,
-      namaSurvey: newPds.jenisSurvey || newPds.perihal || 'DINAS SURVEY KLAS',
-      noAgenda: cleanDocNumber(newPds.noAgenda || newPds.nomor),
-      noCda: newPds.noCda || '5100010',
-      noSo: newPds.noSo || '',
-      noWbs: newPds.noWbs || '',
-      petugas: newPds.petugas,
-      isCito: !!newPds.isCito,
-      hasil: newPds.catatan || `Survei kelaiklautan kapal ${newPds.namaKapal}`,
-      status: 'Terkirim',
-      shipsDetail: resolvedShipsDetail,
-      fileFotoName: newPds.fileFotoName || '',
-      fileFotoData: newPds.fileFotoData || '',
-      fotoList: newPds.fotoList || [],
-      fileVisitName: newPds.fileVisitName || '',
-      fileTiketTransportName: newPds.fileTiketTransportName || newPds.fileTiketName || '',
-      fileKwitansiHotelName: newPds.fileKwitansiHotelName || ''
-    });
-    setLaporanSurvei((prev) => [newLaporan, ...prev]);
+    // 2. Generate 1 Laporan Perjalanan Dinas for the combined PDS HANYA jika sudah di-ACC
+    if (newPds.approvalStatus === 'ACC') {
+      const newLaporan = cleanEntityObject({
+        id: `LAP-${Date.now().toString().slice(-6)}`,
+        suratId: newPdsId,
+        tglLapor: newPds.tglMulai || new Date().toISOString().split('T')[0],
+        tanggal: newPds.tglMulai || new Date().toISOString().split('T')[0],
+        namaKapal: newPds.namaKapal,
+        lokasi: newPds.tempatSurvey || newPds.lokasi,
+        lokasiSurvey: newPds.tempatSurvey || newPds.lokasi,
+        nilai: totalHonor,
+        tarifDasar: baseRate,
+        namaSurvey: newPds.jenisSurvey || newPds.perihal || 'DINAS SURVEY KLAS',
+        noAgenda: cleanDocNumber(newPds.noAgenda || newPds.nomor),
+        noCda: newPds.noCda || '5100010',
+        noSo: newPds.noSo || '',
+        noWbs: newPds.noWbs || '',
+        petugas: newPds.petugas,
+        isCito: !!newPds.isCito,
+        hasil: newPds.catatan || `Survei kelaiklautan kapal ${newPds.namaKapal}`,
+        status: 'Terkirim',
+        shipsDetail: resolvedShipsDetail,
+        fileFotoName: newPds.fileFotoName || '',
+        fileFotoData: newPds.fileFotoData || '',
+        fotoList: newPds.fotoList || [],
+        fileVisitName: newPds.fileVisitName || '',
+        fileTiketTransportName: newPds.fileTiketTransportName || newPds.fileTiketName || '',
+        fileKwitansiHotelName: newPds.fileKwitansiHotelName || ''
+      });
+      setLaporanSurvei((prev) => [newLaporan, ...prev]);
+    }
 
     return newPds;
   };
@@ -603,64 +640,99 @@ export const DataProvider = ({ children }) => {
       }
     });
 
-    // Auto-update or create linked Laporan Survei
+    // Auto-update or create linked Laporan Survei ONLY if PDS is ACC
+    const currentItem = suratTugas.find((s) => s.id === id) || {};
+    const effectiveApproval = cleanedData.approvalStatus !== undefined ? cleanedData.approvalStatus : currentItem.approvalStatus;
+    const isPdsDoc = currentItem.docType === 'PDS' || currentItem.isPds || cleanedData.docType === 'PDS' || cleanedData.isPds;
+    const isAcc = effectiveApproval === 'ACC';
+
     setLaporanSurvei((prev) => {
       const exists = prev.some((l) => l.suratId === id);
-      if (exists) {
-        return prev.map((l) =>
-          l.suratId === id
-            ? cleanEntityObject({
-                ...l,
-                namaKapal: cleanedData.namaKapal || l.namaKapal,
-                lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
-                lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
-                nilai: totalHonor,
-                tarifDasar: baseRate,
-                namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
-                noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
-                noCda: cleanedData.noCda || l.noCda || '5100010',
-                noSo: cleanedData.noSo || cleanedData.noOrder || l.noSo,
-                petugas: cleanedData.petugas || l.petugas,
-                isCito: !!cleanedData.isCito,
-                tglLapor: cleanedData.tglMulai || l.tglLapor,
-                tanggal: cleanedData.tglMulai || l.tanggal,
-                fileFotoName: cleanedData.fileFotoName || l.fileFotoName,
-                fileFotoData: cleanedData.fileFotoData || l.fileFotoData,
-                fotoList: cleanedData.fotoList || l.fotoList,
-                fileVisitName: cleanedData.fileVisitName || l.fileVisitName,
-                fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || l.fileTiketTransportName,
-                fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || l.fileKwitansiHotelName
-              })
-            : l
-        );
+      if (isPdsDoc) {
+        if (isAcc) {
+          if (exists) {
+            return prev.map((l) =>
+              l.suratId === id
+                ? cleanEntityObject({
+                    ...l,
+                    namaKapal: cleanedData.namaKapal || l.namaKapal,
+                    lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
+                    lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
+                    nilai: totalHonor,
+                    tarifDasar: baseRate,
+                    namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
+                    noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
+                    noCda: cleanedData.noCda || l.noCda || '5100010',
+                    noSo: cleanedData.noSo || cleanedData.noOrder || l.noSo,
+                    petugas: cleanedData.petugas || l.petugas,
+                    isCito: !!cleanedData.isCito,
+                    tglLapor: cleanedData.tglMulai || l.tglLapor,
+                    tanggal: cleanedData.tglMulai || l.tanggal,
+                    fileFotoName: cleanedData.fileFotoName || l.fileFotoName,
+                    fileFotoData: cleanedData.fileFotoData || l.fileFotoData,
+                    fotoList: cleanedData.fotoList || l.fotoList,
+                    fileVisitName: cleanedData.fileVisitName || l.fileVisitName,
+                    fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || l.fileTiketTransportName,
+                    fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || l.fileKwitansiHotelName
+                  })
+                : l
+            );
+          } else {
+            const newLap = cleanEntityObject({
+              id: `LAP-${Date.now().toString().slice(-6)}`,
+              suratId: id,
+              tglLapor: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
+              tanggal: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
+              namaKapal: cleanedData.namaKapal,
+              lokasi: cleanedData.tempatSurvey || cleanedData.lokasi,
+              lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi,
+              nilai: totalHonor,
+              tarifDasar: baseRate,
+              namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || 'DINAS SURVEY KLAS',
+              noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor),
+              noCda: cleanedData.noCda || '5100010',
+              noSo: cleanedData.noSo || '',
+              noWbs: cleanedData.noWbs || '',
+              petugas: cleanedData.petugas,
+              isCito: !!cleanedData.isCito,
+              hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
+              status: 'Terkirim',
+              fileFotoName: cleanedData.fileFotoName || '',
+              fileFotoData: cleanedData.fileFotoData || '',
+              fotoList: cleanedData.fotoList || [],
+              fileVisitName: cleanedData.fileVisitName || '',
+              fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
+              fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || ''
+            });
+            return [newLap, ...prev];
+          }
+        } else {
+          // If PDS is not ACC (e.g. pending or revised), remove it from laporan
+          if (exists) {
+            return prev.filter((l) => l.suratId !== id);
+          }
+          return prev;
+        }
       } else {
-        const newLap = cleanEntityObject({
-          id: `LAP-${Date.now().toString().slice(-6)}`,
-          suratId: id,
-          tglLapor: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
-          tanggal: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
-          namaKapal: cleanedData.namaKapal,
-          lokasi: cleanedData.tempatSurvey || cleanedData.lokasi,
-          lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi,
-          nilai: totalHonor,
-          tarifDasar: baseRate,
-          namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || 'DINAS SURVEY KLAS',
-          noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor),
-          noCda: cleanedData.noCda || '5100010',
-          noSo: cleanedData.noSo || '',
-          noWbs: cleanedData.noWbs || '',
-          petugas: cleanedData.petugas,
-          isCito: !!cleanedData.isCito,
-          hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
-          status: 'Terkirim',
-          fileFotoName: cleanedData.fileFotoName || '',
-          fileFotoData: cleanedData.fileFotoData || '',
-          fotoList: cleanedData.fotoList || [],
-          fileVisitName: cleanedData.fileVisitName || '',
-          fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
-          fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || ''
-        });
-        return [newLap, ...prev];
+        // For non-PDS items (if any)
+        if (exists) {
+          return prev.map((l) =>
+            l.suratId === id
+              ? cleanEntityObject({
+                  ...l,
+                  namaKapal: cleanedData.namaKapal || l.namaKapal,
+                  lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
+                  lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
+                  nilai: totalHonor,
+                  tarifDasar: baseRate,
+                  namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
+                  noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
+                  petugas: cleanedData.petugas || l.petugas
+                })
+              : l
+          );
+        }
+        return prev;
       }
     });
   };
