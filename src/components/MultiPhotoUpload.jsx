@@ -2,6 +2,7 @@ import React, { useState, useRef, useMemo } from 'react';
 import { Camera, X, Plus, Image as ImageIcon, Eye, Trash2, Upload, FileText, CheckCircle2 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { validateFileUpload } from '../utils/security';
 
 export default function MultiPhotoUpload({
   fileNames = '',
@@ -67,11 +68,12 @@ export default function MultiPhotoUpload({
     if (!fileList || fileList.length === 0) return;
     const rawFiles = Array.from(fileList);
 
-    // Filter files by 3MB max size
+    // Filter files by 3MB max size & permitted formats
     const validFiles = [];
     for (const file of rawFiles) {
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`File "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB) dan dilewati.`);
+      const validation = validateFileUpload(file, 3 * 1024 * 1024);
+      if (!validation.isValid) {
+        toast.error(validation.message);
       } else {
         validFiles.push(file);
       }

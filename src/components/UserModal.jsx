@@ -4,7 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
-import { sanitizeFormData, validatePasswordStrength } from '../utils/security';
+import { sanitizeFormData, validatePasswordStrength, validateFileUpload } from '../utils/security';
 
 export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   const { addUser, updateUser, currentUser } = useAuth();
@@ -94,6 +94,13 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   const handleSignatureUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+
+    const validation = validateFileUpload(file, 2 * 1024 * 1024);
+    if (!validation.isValid) {
+      setErrorMsg(validation.message);
+      e.target.value = '';
+      return;
+    }
 
     setIsUploadingTtd(true);
     const fileExt = file.name.split('.').pop();

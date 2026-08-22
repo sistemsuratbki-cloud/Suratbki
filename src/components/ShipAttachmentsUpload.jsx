@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { FileText, Camera, Eye, Trash2, CheckCircle2, Upload, Anchor } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
+import { validateFileUpload } from '../utils/security';
 
 export const ShipAttachmentsUpload = ({
   shipsDetail = [],
@@ -45,16 +46,13 @@ export const ShipAttachmentsUpload = ({
     ];
   }, [shipsDetail, defaultShipName, defaultAgenda]);
 
-  const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-
   const handleFileUpload = async (e, shipIdx, fileType) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(
-        `Ukuran file "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB). Mohon gunakan file PDF di bawah 3 MB.`
-      );
+    const validation = validateFileUpload(file, 3 * 1024 * 1024);
+    if (!validation.isValid) {
+      toast.error(validation.message);
       e.target.value = '';
       return;
     }

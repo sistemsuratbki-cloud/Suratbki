@@ -33,7 +33,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatRupiah, cleanDocNumber, isDocumentLocked } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
-import { sanitizeFormData } from '../utils/security';
+import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
@@ -564,14 +564,13 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const selisihPembagian = totalPembagianKapal - targetEstimasiTotal;
   const isPembagianValid = shipsDetail.length <= 1 || selisihPembagian === 0;
 
-  // File Upload Handlers with 3MB Limit
-  const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-
+  // File Upload Handlers with Security & Size Validation
   const handleFileUpload = async (fieldKey, file) => {
     if (!file) return;
 
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(`Ukuran file "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB). Mohon gunakan file di bawah 3 MB.`);
+    const validation = validateFileUpload(file, 3 * 1024 * 1024);
+    if (!validation.isValid) {
+      toast.error(validation.message);
       return;
     }
 

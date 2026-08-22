@@ -49,7 +49,7 @@ import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { PdsModal } from './PdsModal';
-import { sanitizeFormData } from '../utils/security';
+import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import { extractShipDatabase } from '../utils/shipDatabase';
@@ -528,14 +528,13 @@ export const DayDetailModal = ({
   const isPembagianValid = shipsDetail.length <= 1 || selisihPembagian === 0;
 
   // Upload file handlers
-  const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-
   const handleFileUpload = async (e, fieldKey) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > MAX_FILE_SIZE) {
-      toast.error(`Ukuran file "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB). Mohon gunakan file di bawah 3 MB.`);
+    const validation = validateFileUpload(file, 3 * 1024 * 1024);
+    if (!validation.isValid) {
+      toast.error(validation.message);
       e.target.value = '';
       return;
     }

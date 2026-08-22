@@ -6,7 +6,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { isEditWindowExpired, formatRupiah, cleanDocNumber, formatDateIndo } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
-import { sanitizeFormData } from '../utils/security';
+import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiShipInput from './MultiShipInput';
 import MultiSurveySelect from './MultiSurveySelect';
 import MultiPhotoUpload from './MultiPhotoUpload';
@@ -146,9 +146,9 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   const handleFileUpload = async (fieldKey, e) => {
     const file = e.target.files[0];
     if (file) {
-      const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
-      if (file.size > MAX_FILE_SIZE) {
-        toast.error(`Ukuran file "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB).`);
+      const validation = validateFileUpload(file, 3 * 1024 * 1024);
+      if (!validation.isValid) {
+        toast.error(validation.message);
         e.target.value = '';
         return;
       }

@@ -76,31 +76,96 @@ export function unescapeHtml(str) {
 }
 
 /**
- * Clean dangerous HTML tags to prevent XSS injection.
+ * Clean dangerous HTML tags and script injections to prevent XSS injection.
  * Use this on user text inputs before saving to state/localStorage.
  */
 export function sanitizeInput(str) {
   if (typeof str !== 'string') return str;
   return unescapeHtml(str)
+    // Remove null bytes
+    .replace(/\0/g, '')
+    // Remove script tags and contents
     .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/<[^>]+>/g, '');
+    // Remove iframe/embed/object tags
+    .replace(/<(iframe|object|embed|svg|link|style)\b[^<]*(?:(?!<\/\1>)<[^<]*)*<\/\1>/gi, '')
+    // Remove inline event handlers (onerror=, onload=, onclick=, etc)
+    .replace(/on\w+\s*=\s*(?:'[^']*'|"[^"]*"|[^\s>]+)/gi, '')
+    // Remove javascript:/vbscript:/data: protocols in attributes
+    .replace(/(?:javascript|vbscript|data\s*:\s*text\/html):/gi, '')
+    // Strip any remaining HTML tags
+    .replace(/<[^>]+>/g, '')
+    .trim();
 }
 
 /**
- * Sanitize all string values in a flat object.
- * Non-string values are left untouched.
+ * Sanitize all string values in an object (recursively for nested objects/arrays).
+ * Non-string values and password fields are left untouched.
  */
 export function sanitizeFormData(formObj) {
+  if (!formObj || typeof formObj !== 'object') return formObj;
+
+  if (Array.isArray(formObj)) {
+    return formObj.map((item) => sanitizeFormData(item));
+  }
+
   const sanitized = {};
   for (const [key, value] of Object.entries(formObj)) {
     // Don't sanitize password fields — they need exact characters
     if (key.toLowerCase().includes('password') || key === 'pass') {
       sanitized[key] = value;
+    } else if (value && typeof value === 'object') {
+      sanitized[key] = sanitizeFormData(value);
     } else {
       sanitized[key] = typeof value === 'string' ? sanitizeInput(value) : value;
     }
   }
   return sanitized;
+}
+
+// ============================================================
+// 2. FILE UPLOAD SECURITY VALIDATION
+// ============================================================
+
+export const ALLOWED_FILE_EXTENSIONS = ['pdf', 'jpg', 'jpeg', 'png', 'webp'];
+export const ALLOWED_MIME_TYPES = [
+  'application/pdf',
+  'image/jpeg',
+  'image/png',
+  'image/webp'
+];
+
+/**
+ * Validates uploaded file against size and permitted file types.
+ * Prevents executable, script, or unauthorized file uploads.
+ */
+export function validateFileUpload(file, maxSize = 3 * 1024 * 1024) {
+  if (!file) return { isValid: false, message: 'Tidak ada file yang dipilih.' };
+
+  if (file.size > maxSize) {
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    const maxMb = (maxSize / (1024 * 1024)).toFixed(0);
+    return {
+      isValid: false,
+      message: `Ukuran file "${file.name}" (${sizeMb} MB) melebihi batas maksimum ${maxMb} MB.`
+    };
+  }
+
+  const ext = (file.name.split('.').pop() || '').toLowerCase();
+  if (!ALLOWED_FILE_EXTENSIONS.includes(ext)) {
+    return {
+      isValid: false,
+      message: `Ekstensi file .${ext} tidak diizinkan! Hanya diperbolehkan berkas PDF, JPG, PNG, atau WEBP.`
+    };
+  }
+
+  if (file.type && !ALLOWED_MIME_TYPES.includes(file.type.toLowerCase())) {
+    return {
+      isValid: false,
+      message: `Tipe file tidak valid (${file.type}). Pastikan berkas berupa dokumen PDF atau foto asli.`
+    };
+  }
+
+  return { isValid: true };
 }
 
 
