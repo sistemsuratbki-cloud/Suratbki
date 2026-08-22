@@ -818,7 +818,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
               <th onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Periode Pelaksanaan</span>
+                  <span>{filterType === 'PDS' ? 'Periode Pelaksanaan' : 'Tanggal Mulai'}</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
@@ -941,28 +941,51 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                       </div>
                     </td>
 
-                    {/* Column 6: Periode */}
+                    {/* Column 6: Periode / Tanggal Mulai */}
                     <td>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
-                          <Calendar size={13} color="var(--text-muted)" />
-                          <span>{formatDateIndo(item.tglMulai)} s/d {formatDateIndo(item.tglSelesai)}</span>
+                      {filterType === 'PDS' ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
+                            <Calendar size={13} color="var(--text-muted)" />
+                            <span>{formatDateIndo(item.tglMulai)} s/d {formatDateIndo(item.tglSelesai)}</span>
+                          </div>
+                          <div>
+                            <span
+                              style={{
+                                fontSize: '0.7rem',
+                                fontWeight: 800,
+                                background: daysCount > 1 ? 'rgba(2, 132, 199, 0.12)' : 'rgba(100, 116, 139, 0.1)',
+                                color: daysCount > 1 ? '#0284c7' : 'var(--text-secondary)',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px'
+                              }}
+                            >
+                              ⏳ {daysCount} Hari Pelaksanaan
+                            </span>
+                          </div>
                         </div>
-                        <div>
-                          <span
-                            style={{
-                              fontSize: '0.7rem',
-                              fontWeight: 800,
-                              background: daysCount > 1 ? 'rgba(2, 132, 199, 0.12)' : 'rgba(100, 116, 139, 0.1)',
-                              color: daysCount > 1 ? '#0284c7' : 'var(--text-secondary)',
-                              padding: '0.1rem 0.4rem',
-                              borderRadius: '4px'
-                            }}
-                          >
-                            ⏳ {daysCount} Hari Pelaksanaan
-                          </span>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                            <Calendar size={13} color="var(--accent-primary)" />
+                            <span>{formatDateIndo(item.tglMulai)}</span>
+                          </div>
+                          <div>
+                            <span
+                              style={{
+                                fontSize: '0.68rem',
+                                fontWeight: 700,
+                                background: 'rgba(234, 179, 8, 0.12)',
+                                color: '#b45309',
+                                padding: '0.1rem 0.4rem',
+                                borderRadius: '4px'
+                              }}
+                            >
+                              ⏳ Tentatif
+                            </span>
+                          </div>
                         </div>
-                      </div>
+                      )}
                     </td>
 
                     {/* Column 7: PDS Total Biaya */}

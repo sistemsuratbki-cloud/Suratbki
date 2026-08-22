@@ -163,6 +163,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       updateSuratTugas(editItem.id, {
         ...editItem,
         ...formData,
+        tglSelesai: formData.tglMulai,
         namaKapal: shipNameUpper,
         noAgenda: agendaClean,
         agenda: agendaClean,
@@ -175,6 +176,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     } else {
       addSpsBatch({
         ...formData,
+        tglSelesai: formData.tglMulai,
         visit: '1',
         isSentToSurveyor: true,
         isParafSent: false,
@@ -224,7 +226,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1.2fr 1fr 1fr',
+                  gridTemplateColumns: '1.3fr 1fr',
                   gap: '1rem',
                   marginBottom: '1.25rem',
                   background: 'var(--bg-main)',
@@ -272,7 +274,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <Calendar size={14} color="var(--accent-primary)" />
-                    <span>Tgl Mulai *</span>
+                    <span>Tanggal Mulai Survei *</span>
                   </label>
                   <input
                     type="date"
@@ -283,24 +285,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                       setFormData({
                         ...formData,
                         tglMulai: val,
-                        tglSelesai: formData.tglSelesai && formData.tglSelesai < val ? val : formData.tglSelesai || val
+                        tglSelesai: val
                       });
                     }}
-                    required
-                  />
-                </div>
-
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Calendar size={14} color="var(--accent-primary)" />
-                    <span>Tgl Selesai *</span>
-                  </label>
-                  <input
-                    type="date"
-                    className="form-input"
-                    value={formData.tglSelesai}
-                    min={formData.tglMulai}
-                    onChange={(e) => setFormData({ ...formData, tglSelesai: e.target.value })}
                     required
                   />
                 </div>
