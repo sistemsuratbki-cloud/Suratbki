@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Camera, Eye, Trash2, CheckCircle2, Upload, FileCheck2, Anchor } from 'lucide-react';
+import { FileText, Camera, Eye, Trash2, CheckCircle2, Upload, Anchor } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 

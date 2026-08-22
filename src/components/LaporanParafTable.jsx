@@ -24,8 +24,6 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
-import { SuratTugasPrintModal } from './SuratTugasPrintModal';
-import { SpsModal } from './SpsModal';
 
 export const LaporanParafTable = () => {
   const { suratTugas, updateSuratTugas } = useData();

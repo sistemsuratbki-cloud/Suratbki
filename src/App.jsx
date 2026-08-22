@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
+import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
@@ -125,9 +127,6 @@ function AppContent() {
     </div>
   );
 }
-
-import { Toaster } from 'react-hot-toast';
-import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
   return (
