@@ -1214,14 +1214,6 @@ export const LaporanTable = () => {
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
-                        <button
-                          className="btn btn-secondary btn-icon btn-sm"
-                          onClick={() => handleOpenPrintSingle(item)}
-                          title="Cetak Lembar Laporan"
-                        >
-                          <Printer size={14} />
-                        </button>
-
                         {canEditLaporan && (
                           <button
                             className="btn btn-secondary btn-icon btn-sm"
