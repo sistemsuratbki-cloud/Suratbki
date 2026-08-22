@@ -83,8 +83,8 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         namaSurvey: defaultSurat?.jenisSurvey || '',
         noAgenda: cleanDocNumber(defaultSurat?.nomor) || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
         noCda: defaultSurat?.noCda || '5100010',
-        noSo: defaultSurat?.noSo || (defaultSurat?.noOrder && /^\d{10}$/.test(defaultSurat.noOrder) ? defaultSurat.noOrder : '') || '3000255955',
-        noWbs: defaultSurat?.noWbs || '00578-PK-Z4-0426',
+        noSo: defaultSurat?.noSo || '',
+        noWbs: defaultSurat?.noWbs || '',
         petugas: defaultSurat?.petugas || currentUser?.name || 'ALFIAN BONE PUTRA',
 
         hasil: defaultSurat?.catatan || '',

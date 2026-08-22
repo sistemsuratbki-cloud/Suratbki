@@ -40,11 +40,11 @@ export const DataProvider = ({ children }) => {
         if (!cleaned.noCda || cleaned.noCda.startsWith('CDA-')) {
           cleaned.noCda = '5100010';
         }
-        if (!cleaned.noSo || cleaned.noSo.startsWith('SO-') || cleaned.noSo.startsWith('RFQ-')) {
-          cleaned.noSo = '3000255955';
+        if (cleaned.noSo === '3000255955' || cleaned.noSo?.startsWith('SO-') || cleaned.noSo?.startsWith('RFQ-')) {
+          cleaned.noSo = '';
         }
-        if (!cleaned.noWbs || cleaned.noWbs.startsWith('WBS.')) {
-          cleaned.noWbs = '00578-PK-Z4-0426';
+        if (cleaned.noWbs === '00578-PK-Z4-0426' || cleaned.noWbs?.startsWith('WBS.')) {
+          cleaned.noWbs = '';
         }
         return cleaned;
       });
@@ -170,8 +170,8 @@ export const DataProvider = ({ children }) => {
             namaSurvey: st.jenisSurvey || st.perihal || 'DINAS SURVEY KLAS',
             noAgenda: cleanDocNumber(st.noAgenda || st.nomor),
             noCda: st.noCda || '5100010',
-            noSo: st.noSo || (st.noOrder && /^\d{10}$/.test(st.noOrder) ? st.noOrder : '') || '3000255955',
-            noWbs: st.noWbs || '00578-PK-Z4-0426',
+            noSo: st.noSo || '',
+            noWbs: st.noWbs || '',
             petugas: st.petugas,
             isCito: !!st.isCito,
             hasil: st.catatan || `Survei kelaiklautan kapal ${st.namaKapal}`,
@@ -399,8 +399,8 @@ export const DataProvider = ({ children }) => {
       namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || 'DINAS SURVEY KLAS',
       noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor),
       noCda: cleanedData.noCda || '5100010',
-      noSo: cleanedData.noSo || (cleanedData.noOrder && /^\d{10}$/.test(cleanedData.noOrder) ? cleanedData.noOrder : '') || '3000255955',
-      noWbs: cleanedData.noWbs || '00578-PK-Z4-0426',
+      noSo: cleanedData.noSo || '',
+      noWbs: cleanedData.noWbs || '',
       petugas: cleanedData.petugas,
       isCito: !!cleanedData.isCito,
       hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
@@ -517,8 +517,8 @@ export const DataProvider = ({ children }) => {
       namaSurvey: newPds.jenisSurvey || newPds.perihal || 'DINAS SURVEY KLAS',
       noAgenda: cleanDocNumber(newPds.noAgenda || newPds.nomor),
       noCda: newPds.noCda || '5100010',
-      noSo: newPds.noSo || (newPds.noOrder && /^\d{10}$/.test(newPds.noOrder) ? newPds.noOrder : '') || '3000255955',
-      noWbs: newPds.noWbs || '00578-PK-Z4-0426',
+      noSo: newPds.noSo || '',
+      noWbs: newPds.noWbs || '',
       petugas: newPds.petugas,
       isCito: !!newPds.isCito,
       hasil: newPds.catatan || `Survei kelaiklautan kapal ${newPds.namaKapal}`,
@@ -647,8 +647,8 @@ export const DataProvider = ({ children }) => {
           namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || 'DINAS SURVEY KLAS',
           noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor),
           noCda: cleanedData.noCda || '5100010',
-          noSo: cleanedData.noSo || (cleanedData.noOrder && /^\d{10}$/.test(cleanedData.noOrder) ? cleanedData.noOrder : '') || '3000255955',
-          noWbs: cleanedData.noWbs || '00578-PK-Z4-0426',
+          noSo: cleanedData.noSo || '',
+          noWbs: cleanedData.noWbs || '',
           petugas: cleanedData.petugas,
           isCito: !!cleanedData.isCito,
           hasil: cleanedData.catatan || `Survei kelaiklautan kapal ${cleanedData.namaKapal}`,
