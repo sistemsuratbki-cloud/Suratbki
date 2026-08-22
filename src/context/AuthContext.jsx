@@ -388,10 +388,10 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  // Verify current password for the logged-in user (for change password flow)
+  // Verify current password for the logged-in user (for change password flow and confirm modals)
   const verifyCurrentPassword = useCallback(async (inputPassword) => {
     if (!currentUser) return false;
-    const fullUser = usersList.find((u) => u.id === currentUser.id);
+    const fullUser = usersList.find((u) => u.id === currentUser.id || u.username === currentUser.username);
     if (!fullUser) return false;
     return await verifyPassword(inputPassword, fullUser.password);
   }, [currentUser, usersList]);

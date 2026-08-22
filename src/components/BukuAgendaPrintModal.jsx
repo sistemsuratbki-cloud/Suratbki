@@ -97,7 +97,7 @@ export const BukuAgendaPrintModal = ({
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay print-only-modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
           style={{ maxWidth: '1150px', width: '98vw', background: '#ffffff', color: '#000000' }}
@@ -117,11 +117,7 @@ export const BukuAgendaPrintModal = ({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-                <Printer size={15} />
-                <span>Cetak / Download PDF</span>
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={onClose}>
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup">
                 <X size={16} />
               </button>
             </div>

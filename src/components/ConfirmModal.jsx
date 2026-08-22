@@ -15,7 +15,7 @@ export const ConfirmModal = ({
   type = 'danger',
   requirePassword = false
 }) => {
-  const { currentUser } = useAuth();
+  const { currentUser, verifyCurrentPassword } = useAuth();
   const [password, setPassword] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [isVerifying, setIsVerifying] = useState(false);
@@ -41,7 +41,7 @@ export const ConfirmModal = ({
 
       setIsVerifying(true);
       try {
-        const isMatch = await verifyPassword(password, currentUser?.password);
+        const isMatch = await verifyCurrentPassword(password);
         if (!isMatch) {
           setErrorMsg('Password salah! Tindakan dibatalkan demi keamanan.');
           setIsVerifying(false);

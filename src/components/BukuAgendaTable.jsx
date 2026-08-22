@@ -52,7 +52,7 @@ export const BukuAgendaTable = () => {
   }, []);
 
   const surveyors = useMemo(() => {
-    return usersList?.filter(u => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab') || [];
+    return usersList?.filter(u => u.role === 'surveyor' || u.role === 'kacab') || [];
   }, [usersList]);
 
   const formatDateDMY = (dateStr) => {
@@ -187,6 +187,11 @@ export const BukuAgendaTable = () => {
   // Filter and Sort Data
   const filteredData = useMemo(() => {
     const result = suratTugas.filter((item) => {
+      // Hanya tampilkan dokumen per kapal (SPS individual), exclude gabungan multi-kapal (PDS)
+      if (item.docType === 'PDS' || item.isPds) {
+        return false;
+      }
+
       // Surveyor filter
       if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
         return false;
@@ -750,7 +755,9 @@ export const BukuAgendaTable = () => {
                       {cleanDocNumber(item.nomor) || '-'}
                     </td>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
-                      {item.namaKapal || '-'}
+                      {Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0
+                        ? item.shipsDetail.map(s => s.noAgenda && s.noAgenda !== '-' ? `${s.namaKapal} (Agenda: ${s.noAgenda})` : s.namaKapal).join(', ')
+                        : (item.namaKapal || '-')}
                     </td>
                     <td style={{ color: 'var(--text-primary)' }}>
                       {lokasi}

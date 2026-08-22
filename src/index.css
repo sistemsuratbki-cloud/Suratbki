@@ -1342,12 +1342,12 @@ body {
     display: none !important;
   }
 
-  /* Reset modal overlay for clean 1-page document print */
+  /* Reset modal overlay for clean document print */
   .modal-overlay {
     display: none !important;
   }
-  
-  .modal-overlay:has(.printable-sheet) {
+
+  .print-only-modal-overlay {
     position: static !important;
     background: transparent !important;
     padding: 0 !important;

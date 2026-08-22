@@ -1,41 +1,157 @@
 import { supabase } from '../lib/supabase';
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-hot-toast';
-import { X, Calendar, MapPin, User, FileText, CheckCircle2, Plus, Save, Anchor, Printer, Sparkles, Hash, Shield, Camera, FileCheck2, Plane, Receipt, Ticket, Trash2 } from 'lucide-react';
-import { formatDateIndo, getStatusBadgeClass, formatRupiah, cleanDocNumber } from '../utils/formatters';
+import {
+  X,
+  Calendar,
+  MapPin,
+  User,
+  FileText,
+  CheckCircle2,
+  Plus,
+  Save,
+  Anchor,
+  Printer,
+  Sparkles,
+  Hash,
+  Shield,
+  Camera,
+  FileCheck2,
+  Plane,
+  Receipt,
+  Ticket,
+  Trash2,
+  Layers,
+  Compass,
+  AlertCircle,
+  Calculator,
+  ChevronDown,
+  ChevronUp,
+  Search,
+  Check,
+  Lock,
+  Unlock,
+  Edit2,
+  AlertTriangle,
+  CheckCircle,
+  Eye
+} from 'lucide-react';
+import { formatDateIndo, getStatusBadgeClass, formatRupiah, cleanDocNumber, isDocumentLocked } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
+import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
 import { ModalPortal } from './ModalPortal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
+import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
+import { PdsModal } from './PdsModal';
 import { sanitizeFormData } from '../utils/security';
-import MultiShipInput from './MultiShipInput';
 import MultiSurveySelect from './MultiSurveySelect';
 import MultiPhotoUpload from './MultiPhotoUpload';
+import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
+import { extractShipDatabase } from '../utils/shipDatabase';
+import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
-export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = [], kwitansiList = [], laporanList = [], onSave = null }) => {
-  const { currentUser, usersList } = useAuth();
-  const { suratTugas, addSuratTugas, updateSuratTugas, updateKwitansiHonor, kwitansiHonor, adminSettings, tariffs, gradeTariffs } = useData();
+export const DayDetailModal = ({
+  isOpen,
+  onClose,
+  selectedDate,
+  tasksOnDate = [],
+  kwitansiList = [],
+  laporanList = [],
+  onSave = null
+}) => {
+  const { currentUser, usersList, role } = useAuth();
+  const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
+  const {
+    suratTugas: allSuratTugas,
+    createPdsFromSurvey,
+    updateSuratTugas,
+    updateKwitansiHonor,
+    kwitansiHonor,
+    adminSettings,
+    tariffs,
+    gradeTariffs
+  } = useData();
+
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
-  const surveyorUsers = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab');
+  const surveyorUsers = useMemo(
+    () => (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab'),
+    [usersList]
+  );
 
-  const defaultLocName = activeTariffs[0]?.tujuan || activeTariffs[0]?.name || 'PONTIANAK';
-  const defaultLocRate = activeTariffs[0]?.rate || 2500000;
+  const defaultLoc = activeTariffs.find((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota') || activeTariffs[0];
+  const defaultLocName = defaultLoc?.tujuan || defaultLoc?.name || 'WAJOK';
+  const defaultLocRate = defaultLoc ? Number(defaultLoc.rate) : 500000;
+
+  const shipDatabase = useMemo(
+    () => extractShipDatabase(allSuratTugas, laporanList),
+    [allSuratTugas, laporanList]
+  );
+
+  // Available pending SPS items across all assignments
+  const availableSpsItems = useMemo(() => {
+    return (allSuratTugas || []).filter(
+      (st) => (st.docType === 'SPS' || st.isSps || (!st.docType && st.status === 'Menunggu Survei')) && !st.pdsId && st.status !== 'Selesai'
+    );
+  }, [allSuratTugas]);
 
   const [activeTab, setActiveTab] = useState('view');
+  const [selectedSpsIds, setSelectedSpsIds] = useState([]);
+  const [shipsDetail, setShipsDetail] = useState([]);
+  const [isSpsDropboxOpen, setIsSpsDropboxOpen] = useState(false);
+  const [spsSearchTerm, setSpsSearchTerm] = useState('');
+  const spsContainerRef = useRef(null);
+
+  // Close SPS Dropbox when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (spsContainerRef.current && !spsContainerRef.current.contains(e.target)) {
+        setIsSpsDropboxOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const filteredSpsItems = useMemo(() => {
+    if (!spsSearchTerm.trim()) return availableSpsItems;
+    const term = spsSearchTerm.toLowerCase();
+    return availableSpsItems.filter(
+      (sps) =>
+        (sps.namaKapal || '').toLowerCase().includes(term) ||
+        (sps.noAgenda || sps.agenda || '').toLowerCase().includes(term) ||
+        (sps.lokasi || sps.tempatSurvey || '').toLowerCase().includes(term) ||
+        (sps.petugas || '').toLowerCase().includes(term)
+    );
+  }, [availableSpsItems, spsSearchTerm]);
+
   const [printSuratItem, setPrintSuratItem] = useState(null);
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
+  const [printPdsItem, setPrintPdsItem] = useState(null);
   const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
+  const [isBiayaPrintModalOpen, setIsBiayaPrintModalOpen] = useState(false);
+  const [printBiayaItem, setPrintBiayaItem] = useState(null);
 
+  // Attachment Preview Modal State
+  const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
   const [printLaporanItem, setPrintLaporanItem] = useState(null);
   const [isLaporanPrintModalOpen, setIsLaporanPrintModalOpen] = useState(false);
+  const [editingPdsItem, setEditingPdsItem] = useState(null);
+  const [isEditPdsModalOpen, setIsEditPdsModalOpen] = useState(false);
+
+  const [isUploadingTiket, setIsUploadingTiket] = useState(false);
+  const [isUploadingHotel, setIsUploadingHotel] = useState(false);
+  const [isUploadingVisit, setIsUploadingVisit] = useState(false);
+
+  const formattedDate = selectedDate ? formatDateIndo(selectedDate) : '';
 
   const [formData, setFormData] = useState({
     nomor: '',
     namaKapal: '',
     pemohon: '',
-    jenisSurvey: 'DINAS SURVEY KLAS',
+    jenisSurvey: '',
     perihal: 'DINAS SURVEY KLAS',
     petugas: '',
     pangkat: 'GRADE 6 A',
@@ -43,12 +159,13 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
     lokasi: defaultLocName,
     tempatSurvey: defaultLocName,
     tarifDasar: defaultLocRate,
-    agenda: '',
+    noAgenda: '',
     noOrder: 'RFQ-0000',
     tiketHotel: 0,
     tiketPesawatTaxi: 0,
-    kategoriPerjalanan: '',
-    saranaTransportasi: 'UDARA, DARAT DAN AIR',
+    kategoriTransportasi: 'Pesawat Terbang',
+    kategoriPerjalanan: 'Dalam Kota',
+    saranaTransportasi: 'DARAT DAN AIR',
     keteranganLain: 'BIAYA DITANGGUNG SEPENUHNYA OLEH PT.BIRO KLASIFIKASI INDONESIA (Persero) CAB.MADYA KLAS PONTIANAK',
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
     nup: adminSettings?.nup || '48199-KI',
@@ -61,20 +178,42 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
     tglMulai: '',
     tglSelesai: '',
     jumlahHariLibur: 0,
-    status: 'Belum Mulai',
+    status: 'Berjalan',
     catatan: '',
     isCito: false,
-    hasil: '',
     visit: '1',
+    tanpaTAT: false,
+    biayaTAT: 0,
+    tanpaUangHarian: false,
+    hariTanpaUangHarian: 0,
     tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
   });
 
+  // Separate tasks on selected date into Pending SPS vs Completed/Active PDS
+  const { pendingSpsList, pdsList } = useMemo(() => {
+    const sps = [];
+    const pds = [];
+
+    tasksOnDate.forEach((st) => {
+      const isPds = st.docType === 'PDS' || st.isPds;
+      const isSps = st.docType === 'SPS' || st.isSps || (!st.docType && st.status === 'Menunggu Survei');
+
+      if (isPds) {
+        pds.push(st);
+      } else if (isSps && !st.pdsId && st.status !== 'Selesai') {
+        sps.push(st);
+      }
+    });
+
+    return { pendingSpsList: sps, pdsList: pds };
+  }, [tasksOnDate]);
+
   useEffect(() => {
-    if (selectedDate) {
-      const formatted = selectedDate.toISOString().split('T')[0];
-      const nextNum = String(Math.floor(Math.random() * 900) + 100);
+    if (isOpen && selectedDate) {
+      const formatted = selectedDate.includes('T') ? selectedDate.split('T')[0] : selectedDate;
       const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
-      const userGrade = (surveyorUsers.find(u => u.name === defaultSurveyor))?.grade || 'GRADE 6 A';
+      const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
+      const nextNum = String(Math.floor(Math.random() * 900) + 100);
 
       setFormData((prev) => ({
         ...prev,
@@ -83,252 +222,454 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
         tglSelesai: formatted,
         petugas: defaultSurveyor,
         pangkat: userGrade,
-        kategoriPerjalanan: '',
+        kategoriPerjalanan: 'Dalam Kota',
         kategoriTransportasi: 'Pesawat Terbang',
         tiketHotel: 0,
         tiketPesawatTaxi: 0,
         jumlahHariLibur: 0,
         isCito: false,
-        visit: '1'
+        visit: '1',
+        namaKapal: '',
+        jenisSurvey: '',
+        noAgenda: '',
+        noOrder: `RFQ260${nextNum}`,
+        saranaTransportasi: 'DARAT DAN AIR'
       }));
+      setSelectedSpsIds([]);
+      setShipsDetail([]);
     }
-  }, [selectedDate, currentUser, surveyorUsers]);
+  }, [isOpen, selectedDate]);
 
-  if (!isOpen) return null;
-
-  const formattedDate = selectedDate ? formatDateIndo(selectedDate.toISOString().split('T')[0]) : '';
-
-  const handleLocationChange = (locName) => {
-    const matched = activeTariffs.find((t) => (t.name === locName || t.tujuan === locName));
-    const newRate = matched ? Number(matched.rate) : formData.tarifDasar;
+  // Handle Surveyor Change
+  const handleSurveyorChange = (val) => {
+    const user = surveyorUsers.find((u) => u.name === val);
     setFormData((prev) => ({
       ...prev,
-      lokasi: locName,
-      tempatSurvey: locName,
-      tarifDasar: newRate
+      petugas: val,
+      pangkat: user?.grade || 'GRADE 6 A'
     }));
   };
 
-  const handleFileUpload = async (fieldKey, e) => {
-    const file = e.target.files[0];
-    if (file) {
+  // Location Change
+  const handleLocationChange = (locName) => {
+    const matched = findTariffByLocation(locName, activeTariffs);
+    const newRate = matched ? Number(matched.rate) : formData.tarifDasar;
+    const newCategory = matched?.kategori || getLocationCategory(locName, activeTariffs);
+    const tat = newCategory === 'Luar Kota' && !formData.tanpaTAT ? Number(adminSettings?.tatLuarKota || 750000) : 0;
+
+    setFormData((prev) => ({
+      ...prev,
+      lokasi: locName.toUpperCase(),
+      tempatSurvey: locName.toUpperCase(),
+      tarifDasar: newRate,
+      kategoriPerjalanan: newCategory,
+      biayaTAT: tat,
+      saranaTransportasi: newCategory === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR'
+    }));
+
+    if (shipsDetail.length > 1) {
+      const count = shipsDetail.length;
+      const perShip = Math.floor(newRate / count);
+      const remainder = newRate - (perShip * count);
+      setShipsDetail(shipsDetail.map((s, idx) => ({
+        ...s,
+        biayaSurvei: idx === count - 1 ? perShip + remainder : perShip
+      })));
+    }
+  };
+
+  const handleAutoSplitTariff = () => {
+    if (shipsDetail.length === 0) return;
+    const count = shipsDetail.length;
+    const rateSK = Number(formData.tarifDasar) || 0;
+    const perShip = Math.floor(rateSK / count);
+    const remainder = rateSK - (perShip * count);
+
+    const updated = shipsDetail.map((s, idx) => ({
+      ...s,
+      biayaSurvei: idx === count - 1 ? perShip + remainder : perShip
+    }));
+    setShipsDetail(updated);
+    toast.success(`Tarif lokasi ${formatRupiah(rateSK)} berhasil dibagi rata ke ${count} kapal.`);
+  };
+
+  const targetTarifLokasi = Number(formData.tarifDasar) || 0;
+  const totalPembagianKapal = useMemo(() => {
+    if (shipsDetail.length <= 1) return targetTarifLokasi;
+    return shipsDetail.reduce((sum, s) => sum + (Number(s.biayaSurvei) || 0), 0);
+  }, [shipsDetail, targetTarifLokasi]);
+
+  const selisihPembagian = totalPembagianKapal - targetTarifLokasi;
+  const isPembagianValid = shipsDetail.length <= 1 || selisihPembagian === 0;
+
+  // Toggle SPS selection
+  const handleToggleSelectSps = (sps) => {
+    if (!sps || !sps.id) return;
+    const isSelected = selectedSpsIds.includes(sps.id);
+    let newIds = [];
+    if (isSelected) {
+      newIds = selectedSpsIds.filter((id) => id !== sps.id);
+    } else {
+      newIds = [...selectedSpsIds, sps.id];
+    }
+    setSelectedSpsIds(newIds);
+
+    const allSpsPool = allSuratTugas || [];
+    const selectedItems = allSpsPool.filter((st) => st && newIds.includes(st.id));
+    const newShipsDetail = selectedItems.map((st) => ({
+      spsId: st.id,
+      namaKapal: st.namaKapal || '',
+      noAgenda: st.noAgenda || st.agenda || '',
+      noOrder: st.noOrder || formData.noOrder || 'RFQ-0000',
+      pemohon: st.pemohon || formData.pemohon || ''
+    }));
+    setShipsDetail(newShipsDetail);
+
+    if (selectedItems.length > 0) {
+      const combinedNames = selectedItems.map((s) => s.namaKapal).filter(Boolean).join(', ');
+      const firstSps = selectedItems[0];
+      const spsLoc = firstSps?.lokasi || firstSps?.tempatSurvey || formData.lokasi || '';
+      const matchedTariff = findTariffByLocation(spsLoc, activeTariffs);
+      const cat = matchedTariff?.kategori || getLocationCategory(spsLoc, activeTariffs);
+
       setFormData((prev) => ({
         ...prev,
-        [fieldKey]: 'Mengunggah... ' + file.name
+        namaKapal: combinedNames,
+        pemohon: firstSps?.pemohon || prev.pemohon,
+        lokasi: spsLoc ? String(spsLoc).toUpperCase() : prev.lokasi,
+        tempatSurvey: spsLoc ? String(spsLoc).toUpperCase() : prev.tempatSurvey,
+        tarifDasar: matchedTariff ? Number(matchedTariff.rate) : prev.tarifDasar,
+        kategoriPerjalanan: cat,
+        saranaTransportasi: cat === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR',
+        biayaTAT: cat === 'Luar Kota' && !prev.tanpaTAT ? Number(adminSettings?.tatLuarKota || 750000) : 0,
+        tglMulai: firstSps?.tglMulai || prev.tglMulai,
+        tglSelesai: firstSps?.tglSelesai || firstSps?.tglMulai || prev.tglSelesai,
+        petugas: firstSps?.petugas || prev.petugas
       }));
-
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
-
-      try {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
-        if (error) throw error;
-        
-        const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
-        
-        setFormData((prev) => ({
-          ...prev,
-          [fieldKey]: file.name,
-          [`${fieldKey.replace('Name', 'Data')}`]: publicUrlData.publicUrl
-        }));
-      } catch (err) {
-        console.error('Supabase upload failed, falling back to local base64:', err);
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFormData((prev) => ({
-            ...prev,
-            [fieldKey]: file.name,
-            [`${fieldKey.replace('Name', 'Data')}`]: reader.result
-          }));
-        };
-        reader.readAsDataURL(file);
-      }
     }
   };
 
-  const handleRemoveFile = (fieldKey) => {
+  const handleSelectAllSps = () => {
+    const allIds = availableSpsItems.map((s) => s.id);
+    setSelectedSpsIds(allIds);
+
+    const newShipsDetail = availableSpsItems.map((st) => ({
+      spsId: st.id,
+      namaKapal: st.namaKapal || '',
+      noAgenda: st.noAgenda || st.agenda || '',
+      noOrder: st.noOrder || formData.noOrder || 'RFQ-0000',
+      pemohon: st.pemohon || formData.pemohon || ''
+    }));
+    setShipsDetail(newShipsDetail);
+
+    if (availableSpsItems.length > 0) {
+      const combinedNames = availableSpsItems.map((s) => s.namaKapal).filter(Boolean).join(', ');
+      const firstSps = availableSpsItems[0];
+      const spsLoc = firstSps?.lokasi || firstSps?.tempatSurvey || formData.lokasi || '';
+      const matchedTariff = findTariffByLocation(spsLoc, activeTariffs);
+      const cat = matchedTariff?.kategori || getLocationCategory(spsLoc, activeTariffs);
+
+      setFormData((prev) => ({
+        ...prev,
+        namaKapal: combinedNames,
+        pemohon: firstSps?.pemohon || prev.pemohon,
+        lokasi: spsLoc ? String(spsLoc).toUpperCase() : prev.lokasi,
+        tempatSurvey: spsLoc ? String(spsLoc).toUpperCase() : prev.tempatSurvey,
+        tarifDasar: matchedTariff ? Number(matchedTariff.rate) : prev.tarifDasar,
+        kategoriPerjalanan: cat,
+        saranaTransportasi: cat === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR',
+        biayaTAT: cat === 'Luar Kota' && !prev.tanpaTAT ? Number(adminSettings?.tatLuarKota || 750000) : 0,
+        tglMulai: firstSps?.tglMulai || prev.tglMulai,
+        tglSelesai: firstSps?.tglSelesai || firstSps?.tglMulai || prev.tglSelesai,
+        petugas: firstSps?.petugas || prev.petugas
+      }));
+    }
+  };
+
+  const handleClearAllSps = () => {
+    setSelectedSpsIds([]);
+    setShipsDetail([]);
     setFormData((prev) => ({
       ...prev,
-      [fieldKey]: ''
+      namaKapal: ''
     }));
   };
 
-  const handleOpenPrint = (surat) => {
-    setPrintSuratItem(surat);
-    setIsPrintModalOpen(true);
+  // Select ship directly from database (Auto-fills No Agenda, Lokasi, No Order - exclude pemohon)
+  const handleSelectShipFromDatabase = (foundShip) => {
+    if (!foundShip) return;
+
+    const shipNameUpper = String(foundShip.namaKapal || '').trim().toUpperCase();
+    if (!shipNameUpper) return;
+
+    const exists = shipsDetail.some((s) => String(s.namaKapal || '').trim().toUpperCase() === shipNameUpper);
+    let updatedDetails = [];
+
+    if (exists) {
+      updatedDetails = shipsDetail.map((s) =>
+        String(s.namaKapal || '').trim().toUpperCase() === shipNameUpper
+          ? { ...s, noAgenda: foundShip.noAgenda, noOrder: foundShip.noOrder }
+          : s
+      );
+    } else {
+      updatedDetails = [
+        ...shipsDetail,
+        {
+          namaKapal: shipNameUpper,
+          noAgenda: foundShip.noAgenda || '',
+          noOrder: foundShip.noOrder || formData.noOrder || 'RFQ-0000',
+          pemohon: formData.pemohon || '',
+          spsId: foundShip.spsId || null
+        }
+      ];
+    }
+    setShipsDetail(updatedDetails);
+
+    const combinedNames = updatedDetails.map((s) => s.namaKapal).filter(Boolean).join(', ');
+
+    // Lokasi TIDAK di-auto-fill dari database kapal karena kapal bisa pindah dok sewaktu-waktu
+    setFormData((prev) => ({
+      ...prev,
+      namaKapal: combinedNames,
+      noAgenda: foundShip.noAgenda || prev.noAgenda,
+      noOrder: foundShip.noOrder || prev.noOrder
+    }));
   };
 
-  const handleOpenPdsPrint = (surat) => {
-    setPrintSuratItem(surat);
-    setIsPdsPrintModalOpen(true);
+  const handleRemoveShipFromDetail = (namaKapal) => {
+    const updated = shipsDetail.filter((s) => s.namaKapal !== namaKapal);
+    setShipsDetail(updated);
+    setFormData((prev) => ({
+      ...prev,
+      namaKapal: updated.map((s) => s.namaKapal).join(', ')
+    }));
   };
 
-  let jumlahHari = 1;
-  if (formData.tglMulai && formData.tglSelesai) {
+  // Date & Weekend Calculation
+  const { totalDays, totalNights, autoHolidays } = useMemo(() => {
+    if (!formData.tglMulai || !formData.tglSelesai) {
+      return { totalDays: 1, totalNights: 0, autoHolidays: 0 };
+    }
     const start = new Date(formData.tglMulai);
     const end = new Date(formData.tglSelesai);
+    const timeDiff = end.getTime() - start.getTime();
+    let days = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+    if (days < 1 || isNaN(days)) days = 1;
+    const nights = Math.max(0, days - 1);
+
+    let countLibur = 0;
     if (!isNaN(start) && !isNaN(end)) {
-      const diffTime = end.getTime() - start.getTime();
-      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24)) + 1;
-      jumlahHari = diffDays > 0 ? diffDays : 1;
+      const cur = new Date(start);
+      while (cur <= end) {
+        const d = cur.getDay();
+        if (d === 0 || d === 6) countLibur++;
+        cur.setDate(cur.getDate() + 1);
+      }
     }
-  }
+    return { totalDays: days, totalNights: nights, autoHolidays: countLibur };
+  }, [formData.tglMulai, formData.tglSelesai]);
 
-  const mlm = Math.max(0, jumlahHari - 1);
-  const currentBaseRate = Number(formData.tarifDasar) || defaultLocRate;
-  const currentHotelFee = Number(formData.tiketHotel) || 0;
-  const currentFlightTaxiFee = Number(formData.tiketPesawatTaxi) || Number(formData.biayaTiket) || 0;
-  const biayaTAT = formData.kategoriPerjalanan === 'Luar Kota' && !formData.tanpaTAT ? (Number(adminSettings?.tatLuarKota) || 750000) : 0;
-  const totalBiayaTransportHotel = (currentHotelFee * mlm) + currentFlightTaxiFee;
-  const currentMatchedTariff = activeTariffs.find((t) => (t.name === formData.lokasi || t.tujuan === formData.lokasi));
+  const effectiveHolidays = formData.jumlahHariLibur !== undefined ? Number(formData.jumlahHariLibur) : autoHolidays;
 
-  // Calculate Uang Harian (Robust for both Dalam Kota and Luar Kota)
-  const surveyorObj = (surveyorUsers || []).find(u => u.name === formData.petugas) || (usersList || []).find(u => u.name === formData.petugas);
-  const effectiveGrade = formData.pangkat || surveyorObj?.grade || 'GRADE 6 A';
-  const currentGradeTariff = (gradeTariffs || []).find(
-    (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === effectiveGrade.replace(/\s+/g, '').toUpperCase()
-  );
-  const uangHarianPerHari = currentGradeTariff ? Number(currentGradeTariff.uangHarian) : 300000;
-  
-  const hariLibur = Number(formData.jumlahHariLibur) || 0;
-  const tambahanLibur = hariLibur * (uangHarianPerHari * 0.5);
+  // Real-time Tariff & Cost Calculation
+  const calculations = useMemo(() => {
+    const userGrade = formData.pangkat || 'GRADE 6 A';
+    const gradeData =
+      (gradeTariffs || []).find(
+        (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === userGrade.replace(/\s+/g, '').toUpperCase()
+      ) || {};
 
-  let totalUangHarian = (uangHarianPerHari * jumlahHari) + tambahanLibur;
-  let sisaHariUangHarian = jumlahHari;
-  if (formData.tanpaUangHarian) {
-    const deduct = formData.hariTanpaUangHarian !== undefined ? Number(formData.hariTanpaUangHarian) : jumlahHari;
-    const validDeduct = Math.max(0, Math.min(deduct, jumlahHari));
-    sisaHariUangHarian = jumlahHari - validDeduct;
-    if (sisaHariUangHarian === 0) {
-      totalUangHarian = 0;
-    } else {
-      totalUangHarian = (uangHarianPerHari * sisaHariUangHarian) + tambahanLibur;
-    }
-  }
+    const isLuarKota = formData.kategoriPerjalanan === 'Luar Kota';
+    const tarifDasarLokasi = Number(formData.tarifDasar) || 0;
+    const totalTiket = Number(formData.tiketPesawatTaxi) || 0;
+    const totalHotel = Number(formData.tiketHotel) || 0;
+    const biayaTAT = !formData.tanpaTAT && isLuarKota ? Number(formData.biayaTAT || adminSettings?.tatLuarKota || 750000) : 0;
 
-  const grandTotalEstimasi = currentBaseRate + totalBiayaTransportHotel + biayaTAT + totalUangHarian;
-
-  const processSaveSurvey = () => {
-    if (!formData.namaKapal || !formData.petugas) {
-      alert('Mohon isi Nama Kapal / Objek dan Nama Class Surveyor!');
-      return null;
+    let sisaHari = totalDays;
+    if (formData.tanpaUangHarian) {
+      const deduct = formData.hariTanpaUangHarian !== undefined ? Number(formData.hariTanpaUangHarian) : totalDays;
+      sisaHari = Math.max(0, totalDays - Math.min(deduct, totalDays));
     }
 
-    let targetSurat = null;
-    let finalSuratId = formData.suratId;
+    const uangHarianPerHari = formData.tanpaUangHarian && sisaHari === 0 ? 0 : (Number(gradeData.uangHarian) || 300000);
+    const tambahanLibur = formData.tanpaUangHarian && sisaHari === 0 ? 0 : effectiveHolidays * (uangHarianPerHari * 0.5);
+    const totalUangHarian = (uangHarianPerHari * sisaHari) + tambahanLibur;
 
-    const basePayload = {
-      nomor: formData.nomor,
-      namaKapal: formData.namaKapal,
-      pemohon: formData.pemohon,
-      jenisSurvey: (formData.jenisSurvey || formData.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
-      perihal: (formData.perihal || formData.jenisSurvey || 'DINAS SURVEY KLAS').toUpperCase(),
-      petugas: formData.petugas,
-      pangkat: effectiveGrade,
-      jabatan: formData.jabatan || 'SURVEYOR',
-      lokasi: (formData.lokasi || formData.tempatSurvey || defaultLocName).toUpperCase(),
-      tempatSurvey: (formData.tempatSurvey || formData.lokasi || defaultLocName).toUpperCase(),
-      tarifDasar: currentBaseRate,
-      agenda: formData.agenda,
-      noOrder: formData.noOrder,
-      tiketHotel: currentHotelFee,
-      tiketPesawatTaxi: currentFlightTaxiFee,
-      kategoriPerjalanan: formData.kategoriPerjalanan || 'Dalam Kota',
-      saranaTransportasi: formData.saranaTransportasi,
-      keteranganLain: formData.keteranganLain,
-      kepalaCabang: formData.kepalaCabang,
-      nup: formData.nup,
-      tglMulai: formData.tglMulai,
-      tglSelesai: formData.tglSelesai,
-      biayaTiket: totalBiayaTransportHotel + biayaTAT,
-      biayaTAT: biayaTAT,
-      tanpaTAT: formData.tanpaTAT || false,
-      tanpaUangHarian: formData.tanpaUangHarian || false,
-      hariTanpaUangHarian: formData.hariTanpaUangHarian || 0,
-      uangHarian: uangHarianPerHari,
-      totalUangHarian: totalUangHarian,
-      jumlahHari: jumlahHari,
-      kategoriTransportasi: formData.kategoriTransportasi,
-      fileFotoName: formData.fileFotoName,
-      fileVisitName: formData.fileVisitName,
-      fileTiketTransportName: formData.fileTiketTransportName,
-      fileKwitansiHotelName: formData.fileKwitansiHotelName,
-      fileTiketName: formData.fileTiketTransportName,
-      jumlahEstimasi: grandTotalEstimasi,
-      tembusan: formData.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
+    const totalBiaya = isLuarKota
+      ? (tarifDasarLokasi + totalTiket + totalHotel + biayaTAT + totalUangHarian)
+      : (tarifDasarLokasi + totalHotel + totalUangHarian);
+
+    return {
+      uangHarianPerHari,
+      tambahanLibur,
+      totalUangHarian,
+      biayaTAT,
+      totalTiket,
+      totalHotel,
+      tarifDasarLokasi,
+      totalBiaya
     };
+  }, [formData, totalDays, effectiveHolidays, gradeTariffs, adminSettings]);
 
-    if (finalSuratId) {
-      const existingSurat = suratTugas.find((s) => s.id === finalSuratId);
-      if (existingSurat) {
-        const updatedSuratObj = {
-          ...existingSurat,
-          ...basePayload
-        };
+  // Upload file handlers
+  const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
-        updateSuratTugas(existingSurat.id, sanitizeFormData(updatedSuratObj));
-        targetSurat = updatedSuratObj;
+  const handleFileUpload = async (e, fieldKey) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
 
-        const linkedKwitansi = kwitansiHonor.find((k) => k.suratId === existingSurat.id);
-        if (linkedKwitansi) {
-          updateKwitansiHonor(linkedKwitansi.id, sanitizeFormData({
-            ...linkedKwitansi,
-            tarifDasar: currentBaseRate,
-            isCito: false,
-            biayaTiket: totalBiayaTransportHotel,
-            jumlah: grandTotalEstimasi,
-            catatan: `Honorarium Standar + Transport/Hotel (${formatRupiah(totalBiayaTransportHotel)})`
-          }));
-        }
-      }
-    } else {
-      const existingSurat = suratTugas.find(s => s.namaKapal?.toLowerCase() === formData.namaKapal?.toLowerCase());
-      if (existingSurat) {
-        targetSurat = existingSurat;
-        finalSuratId = existingSurat.id;
-      } else {
-        targetSurat = addSuratTugas(sanitizeFormData({
-          ...basePayload,
-          status: 'Berjalan',
-          catatan: formData.hasil || formData.agenda
-        }));
-        finalSuratId = targetSurat.id;
-      }
+    if (file.size > MAX_FILE_SIZE) {
+      toast.error(`Ukuran file "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB). Mohon gunakan file di bawah 3 MB.`);
+      e.target.value = '';
+      return;
     }
 
-    return targetSurat;
+    if (fieldKey === 'tiketTransport') setIsUploadingTiket(true);
+    if (fieldKey === 'kwitansiHotel') setIsUploadingHotel(true);
+    if (fieldKey === 'visit') setIsUploadingVisit(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${fieldKey}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+      const filePath = `documents/${fileName}`;
+
+      const { data, error } = await supabase.storage.from('surat-tugas').upload(filePath, file, { cacheControl: '3600', upsert: false });
+
+      if (error) throw error;
+
+      const { data: publicUrlData } = supabase.storage.from('surat-tugas').getPublicUrl(filePath);
+      const url = publicUrlData?.publicUrl || filePath;
+
+      if (fieldKey === 'tiketTransport') setFormData((prev) => ({ ...prev, fileTiketTransportName: url }));
+      if (fieldKey === 'kwitansiHotel') setFormData((prev) => ({ ...prev, fileKwitansiHotelName: url }));
+      if (fieldKey === 'visit') setFormData((prev) => ({ ...prev, fileVisitName: url }));
+    } catch (err) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        if (fieldKey === 'tiketTransport') setFormData((prev) => ({ ...prev, fileTiketTransportName: reader.result }));
+        if (fieldKey === 'kwitansiHotel') setFormData((prev) => ({ ...prev, fileKwitansiHotelName: reader.result }));
+        if (fieldKey === 'visit') setFormData((prev) => ({ ...prev, fileVisitName: reader.result }));
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      if (fieldKey === 'tiketTransport') setIsUploadingTiket(false);
+      if (fieldKey === 'kwitansiHotel') setIsUploadingHotel(false);
+      if (fieldKey === 'visit') setIsUploadingVisit(false);
+    }
   };
 
   const handleSaveSurvey = (e) => {
     e.preventDefault();
-    const savedSurat = processSaveSurvey();
-    if (savedSurat !== null) {
-      toast.success(`Survei kapal ${formData.namaKapal} berhasil disimpan!`);
-      if (onSave) onSave(savedSurat);
+
+    if (!formData.nomor || !formData.nomor.trim()) {
+      toast.error('Nomor Surat PDS wajib diisi!');
+      return;
+    }
+
+    if (!formData.namaKapal || !formData.namaKapal.trim()) {
+      toast.error('Nama Kapal wajib diisi!');
+      return;
+    }
+
+    const cleanJenis = (formData.jenisSurvey || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s && s.toUpperCase() !== 'DINAS SURVEY KLAS');
+
+    if (cleanJenis.length === 0) {
+      toast.error('Jenis Survey wajib dipilih (minimal 1 jenis survei)!');
+      return;
+    }
+
+    if (shipsDetail.length > 1 && !isPembagianValid) {
+      const selisih = Math.abs(selisihPembagian);
+      const statusText = selisihPembagian < 0 ? 'kurang' : 'lebih';
+      toast.error(`Gagal Terbitkan PDS! Total alokasi biaya kapal (${formatRupiah(totalPembagianKapal)}) ${statusText} ${formatRupiah(selisih)} dari tarif lokasi (${formatRupiah(targetTarifLokasi)}). Mohon sesuaikan nominal pembagian biaya agar pas.`);
+      return;
+    }
+
+    const payload = sanitizeFormData({
+      ...formData,
+      docType: 'PDS',
+      isPds: true,
+      uangHarian: calculations.uangHarianPerHari,
+      totalUangHarian: calculations.totalUangHarian,
+      jumlahEstimasi: calculations.totalBiaya,
+      estimasiBiayaTotal: calculations.totalBiaya,
+      biayaTiket: Number(formData.tiketPesawatTaxi) + Number(formData.tiketHotel),
+      linkedSpsIds: selectedSpsIds,
+      shipsDetail: shipsDetail.length > 0 ? shipsDetail : [
+        {
+          namaKapal: formData.namaKapal.toUpperCase(),
+          noAgenda: formData.noAgenda || '-',
+          noOrder: formData.noOrder || '-',
+          biayaSurvei: targetTarifLokasi
+        }
+      ]
+    });
+
+    const newPds = createPdsFromSurvey(payload, selectedSpsIds);
+    if (newPds) {
+      toast.success(`Dokumen PDS resmi berhasil diterbitkan untuk kapal ${formData.namaKapal}!`);
+      if (onSave) onSave(newPds);
       onClose();
     }
   };
 
+  const handleOpenPrint = (item) => {
+    setPrintSuratItem(item);
+    setIsPrintModalOpen(true);
+  };
+
+  const handleOpenPdsPrint = (item) => {
+    setPrintPdsItem(item);
+    setIsPdsPrintModalOpen(true);
+  };
+
+  const handleOpenBiayaPrint = (item) => {
+    setPrintBiayaItem(item);
+    setIsBiayaPrintModalOpen(true);
+  };
+
+  const handleOpenLaporanPrint = (item) => {
+    setPrintLaporanItem(item);
+    setIsLaporanPrintModalOpen(true);
+  };
+
+  const handleMarkPdsCompleted = (pds) => {
+    updateSuratTugas(pds.id, { status: 'Selesai' });
+    const relatedKwitansi = kwitansiHonor.find((k) => k.suratId === pds.id);
+    if (relatedKwitansi) {
+      updateKwitansiHonor(relatedKwitansi.id, { status: 'Lunas' });
+    }
+    toast.success(`Penugasan PDS ${pds.namaKapal} ditandai selesai.`);
+  };
+
+  if (!isOpen) return null;
+
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '840px' }} onClick={(e) => e.stopPropagation()}>
-          <div className="modal-header">
+        <div className="modal-content" style={{ maxWidth: '920px', width: '95vw', maxHeight: '92vh' }} onClick={(e) => e.stopPropagation()}>
+          {/* Header */}
+          <div className="modal-header" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
             <div className="card-title-group">
-              <Anchor size={22} style={{ color: 'var(--accent-primary)' }} />
+              <Calendar size={22} style={{ color: 'var(--accent-primary)' }} />
               <div>
-                <h3 className="modal-title">Survei Kapal BKI Tanggal {formattedDate}</h3>
-                <div className="card-subtitle">{tasksOnDate.length} Surat Tugas aktif pada tanggal ini</div>
+                <h3 className="modal-title" style={{ fontSize: '1.1rem', fontWeight: 800 }}>
+                  Survei Kapal BKI • Tanggal {formattedDate}
+                </h3>
+                <div className="card-subtitle" style={{ fontSize: '0.75rem' }}>
+                  {pendingSpsList.length} SPS Menunggu Survei • {pdsList.length} PDS Terlaksana
+                </div>
               </div>
             </div>
-            <button className="btn btn-secondary btn-icon" onClick={onClose}>
+            <button className="btn btn-secondary btn-icon" onClick={onClose} type="button">
               <X size={18} />
             </button>
           </div>
 
-          {/* Tab Selector */}
+          {/* Tab Navigation */}
           <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', background: 'var(--bg-main)' }}>
             <button
               className="btn"
@@ -336,14 +677,15 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
                 flex: 1,
                 borderRadius: 0,
                 borderBottom: activeTab === 'view' ? '3px solid var(--accent-primary)' : 'none',
-                background: activeTab === 'view' ? 'var(--accent-light)' : 'transparent',
+                background: activeTab === 'view' ? 'var(--bg-card)' : 'transparent',
                 color: activeTab === 'view' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: 700
+                fontWeight: 700,
+                padding: '0.65rem 1rem'
               }}
               onClick={() => setActiveTab('view')}
             >
               <Calendar size={16} />
-              <span>Lihat Tugas ({tasksOnDate.length})</span>
+              <span>Daftar Tugas & Kapal ({tasksOnDate.length})</span>
             </button>
             <button
               className="btn"
@@ -351,223 +693,960 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
                 flex: 1,
                 borderRadius: 0,
                 borderBottom: activeTab === 'input' ? '3px solid var(--accent-primary)' : 'none',
-                background: activeTab === 'input' ? 'var(--accent-light)' : 'transparent',
+                background: activeTab === 'input' ? 'var(--bg-card)' : 'transparent',
                 color: activeTab === 'input' ? 'var(--accent-primary)' : 'var(--text-secondary)',
-                fontWeight: 700
+                fontWeight: 700,
+                padding: '0.65rem 1rem'
               }}
               onClick={() => setActiveTab('input')}
             >
               <Plus size={16} />
-              <span>Form Pengisian Survei Kapal</span>
+              <span>+ Input Perjalanan Dinas (PDS)</span>
             </button>
           </div>
 
-          <div className="modal-body" style={{ maxHeight: 'calc(90vh - 140px)', overflowY: 'auto' }}>
+          {/* Modal Body */}
+          <div className="modal-body" style={{ maxHeight: 'calc(92vh - 140px)', overflowY: 'auto', padding: '1.25rem' }}>
             {activeTab === 'view' ? (
-              tasksOnDate.length === 0 ? (
-                <div className="table-empty" style={{ padding: '2.5rem 1rem' }}>
-                  <Anchor size={42} style={{ opacity: 0.3, marginBottom: '0.5rem', color: 'var(--accent-primary)' }} />
-                  <p style={{ fontWeight: 700, color: 'var(--text-primary)' }}>Tidak ada jadwal survei kapal pada tanggal ini.</p>
-                  <p style={{ fontSize: '0.825rem', color: 'var(--text-muted)' }}>Klik tab di atas untuk mengisi survei kapal baru.</p>
-                  <button className="btn btn-primary btn-sm" style={{ marginTop: '1rem' }} onClick={() => setActiveTab('input')}>
-                    <Plus size={15} />
-                    <span>Isi Survei Kapal Baru</span>
-                  </button>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                  {tasksOnDate.map((st) => (
-                    <div
-                      key={st.id}
-                      style={{
-                        background: 'var(--bg-card-solid)',
-                        border: '1px solid var(--border-color-strong)',
-                        borderRadius: 'var(--radius-md)',
-                        padding: '1.25rem',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '0.75rem'
-                      }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                        <div>
-                          <div style={{ fontSize: '0.75rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                            {cleanDocNumber(st.nomor)} {st.noOrder && `• Order: ${st.noOrder}`}
-                          </div>
-                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)', marginTop: '0.15rem' }}>
-                            🚢 {st.namaKapal || 'MV Samudra Jaya'}
-                          </div>
-                          <div style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
-                            {st.jenisSurvey || st.perihal} {st.pemohon && `(Pemohon: ${st.pemohon})`}
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: '0.35rem', alignItems: 'center' }}>
-                          <button
-                            className="btn btn-primary btn-sm"
-                            style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
-                            onClick={() => handleOpenPrint(st)}
-                          >
-                            <Printer size={13} />
-                            <span>Cetak SPS</span>
-                          </button>
-                          <button
-                            className="btn btn-secondary btn-sm"
-                            style={{ padding: '0.25rem 0.65rem', fontSize: '0.75rem' }}
-                            onClick={() => handleOpenPdsPrint(st)}
-                          >
-                            <FileText size={13} />
-                            <span>Cetak PDS</span>
-                          </button>
-                          <span className={`badge ${getStatusBadgeClass(st.status)}`}>
-                            <span className="badge-dot" />
-                            {st.status}
-                          </span>
-                        </div>
-                      </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                {/* 1. SEKSI PDS RESMI YANG TELAH TERBIT */}
+                <div
+                  style={{
+                    background: 'var(--bg-card)',
+                    border: '1.5px solid var(--border-color)',
+                    borderRadius: 'var(--radius-md)',
+                    padding: '1.25rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <FileCheck2 size={18} color="#059669" />
+                      <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                        📄 Dokumen PDS Terbit & Terlaksana
+                      </h4>
+                      <span className="badge" style={{ background: 'rgba(5, 150, 105, 0.15)', color: '#059669', fontWeight: 700 }}>
+                        {pdsList.length} PDS
+                      </span>
+                    </div>
 
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.85rem' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                          <User size={14} />
-                          <span>{st.petugas}</span>
+                    <button
+                      type="button"
+                      className="btn btn-primary btn-sm"
+                      onClick={() => setActiveTab('input')}
+                      style={{ fontSize: '0.75rem', fontWeight: 700 }}
+                    >
+                      <Plus size={14} />
+                      <span>Input PDS Baru</span>
+                    </button>
+                  </div>
+
+                  {pdsList.length === 0 ? (
+                    <div style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                      Belum ada dokumen PDS yang diterbitkan pada tanggal ini. Klik <strong>"+ Input Perjalanan Dinas (PDS)"</strong> untuk membuat baru.
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                      {pdsList.map((pds) => (
+                        <div
+                          key={pds.id}
+                          style={{
+                            background: 'var(--bg-main)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '1rem',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.5rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem', flexWrap: 'wrap' }}>
+                            <div style={{ flex: '1 1 280px', minWidth: 0 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', marginBottom: '0.2rem' }}>
+                                <span style={{ fontSize: '0.74rem', color: '#059669', fontWeight: 800 }}>
+                                  PDS: {cleanDocNumber(pds.nomor || pds.id)}
+                                </span>
+
+                                {(() => {
+                                  const isLocked = isDocumentLocked(pds, 3);
+                                  if (isLocked) {
+                                    return (
+                                      <span
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.68rem',
+                                          fontWeight: 700,
+                                          background: '#fef3c7',
+                                          color: '#b45309',
+                                          border: '1px solid #fde68a',
+                                          padding: '0.1rem 0.4rem',
+                                          borderRadius: '4px'
+                                        }}
+                                        title="Terkunci otomatis: Melewati batas 3 hari pengisian"
+                                      >
+                                        <Lock size={11} /> Terkunci (3 Hari)
+                                      </span>
+                                    );
+                                  }
+                                  if (pds.isUnlockedByAdmin) {
+                                    return (
+                                      <span
+                                        style={{
+                                          display: 'inline-flex',
+                                          alignItems: 'center',
+                                          gap: '3px',
+                                          fontSize: '0.68rem',
+                                          fontWeight: 700,
+                                          background: '#ecfdf5',
+                                          color: '#047857',
+                                          border: '1px solid #a7f3d0',
+                                          padding: '0.1rem 0.4rem',
+                                          borderRadius: '4px'
+                                        }}
+                                        title="Akses edit dibuka khusus oleh Admin"
+                                      >
+                                        <Unlock size={11} /> Akses Dibuka
+                                      </span>
+                                    );
+                                  }
+                                  return null;
+                                })()}
+
+                                {pds.status === 'Selesai' ? (
+                                  <span
+                                    className="badge"
+                                    style={{
+                                      background: 'rgba(16, 185, 129, 0.15)',
+                                      color: '#059669',
+                                      fontWeight: 800,
+                                      padding: '0.15rem 0.55rem',
+                                      fontSize: '0.7rem',
+                                      borderRadius: '9999px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem'
+                                    }}
+                                  >
+                                    <CheckCircle2 size={12} />
+                                    <span>Selesai</span>
+                                  </span>
+                                ) : (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      padding: '0.15rem 0.6rem',
+                                      fontSize: '0.7rem',
+                                      fontWeight: 800,
+                                      background: '#10b981',
+                                      color: '#ffffff',
+                                      borderColor: '#10b981',
+                                      borderRadius: '9999px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      cursor: 'pointer'
+                                    }}
+                                    onClick={() => handleMarkPdsCompleted(pds)}
+                                  >
+                                    <CheckCircle2 size={12} />
+                                    <span>Tandai Selesai</span>
+                                  </button>
+                                )}
+
+                                {/* Approval Badge */}
+                                {pds.approvalStatus === 'ACC' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      background: '#dcfce7',
+                                      color: '#15803d',
+                                      border: '1px solid #86efac',
+                                      padding: '0.1rem 0.4rem',
+                                      borderRadius: '4px'
+                                    }}
+                                    title={`Disetujui oleh ${pds.approvalBy || 'Admin'}`}
+                                  >
+                                    <CheckCircle size={11} /> Disetujui
+                                  </span>
+                                )}
+                                {pds.approvalStatus === 'Revisi' && (
+                                  <span
+                                    style={{
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '3px',
+                                      fontSize: '0.68rem',
+                                      fontWeight: 700,
+                                      background: '#fef3c7',
+                                      color: '#b45309',
+                                      border: '1px solid #fde68a',
+                                      padding: '0.1rem 0.4rem',
+                                      borderRadius: '4px'
+                                    }}
+                                  >
+                                    <AlertTriangle size={11} /> Perlu Revisi
+                                  </span>
+                                )}
+                              </div>
+
+                              <div style={{ fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)', wordBreak: 'break-word' }}>
+                                🚢 {pds.namaKapal}
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                                📍 {pds.lokasi || pds.tempatSurvey} ({pds.kategoriPerjalanan || 'Dalam Kota'}) • 👤 {pds.petugas}
+                              </div>
+
+                              {/* Banner Revisi — muncul di dashboard surveyor */}
+                              {pds.approvalStatus === 'Revisi' && pds.approvalNote && (
+                                <div
+                                  style={{
+                                    marginTop: '0.5rem',
+                                    padding: '0.6rem 0.75rem',
+                                    background: 'linear-gradient(135deg, #fef3c7, #fffbeb)',
+                                    border: '1.5px solid #f59e0b',
+                                    borderRadius: '8px',
+                                    display: 'flex',
+                                    alignItems: 'flex-start',
+                                    gap: '0.5rem'
+                                  }}
+                                >
+                                  <AlertTriangle size={16} color="#d97706" style={{ marginTop: '1px', flexShrink: 0 }} />
+                                  <div>
+                                    <div style={{ fontSize: '0.78rem', fontWeight: 800, color: '#92400e', marginBottom: '0.15rem' }}>
+                                      ⚠️ Revisi dari {pds.approvalBy || 'Admin'}:
+                                    </div>
+                                    <div style={{ fontSize: '0.82rem', color: '#78350f', lineHeight: 1.4 }}>
+                                      {pds.approvalNote}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      className="btn btn-sm"
+                                      style={{
+                                        marginTop: '0.4rem',
+                                        padding: '0.2rem 0.6rem',
+                                        fontSize: '0.72rem',
+                                        fontWeight: 700,
+                                        background: '#f59e0b',
+                                        color: '#ffffff',
+                                        borderColor: '#f59e0b',
+                                        display: 'inline-flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem'
+                                      }}
+                                      onClick={() => {
+                                        setEditingPdsItem(pds);
+                                        setIsEditPdsModalOpen(true);
+                                      }}
+                                    >
+                                      <Edit2 size={12} />
+                                      <span>Edit & Perbaiki</span>
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+
+                            <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.74rem', fontWeight: 700, background: '#0284c7', color: '#ffffff', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                onClick={() => handleOpenBiayaPrint(pds)}
+                                title="Download / Cetak PDF Rincian Biaya Perjalanan Dinas"
+                              >
+                                <Calculator size={13} />
+                                <span>Rincian Biaya</span>
+                              </button>
+
+                              <button
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.74rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                onClick={() => handleOpenPdsPrint(pds)}
+                                title="Cetak Surat Tugas PDS"
+                              >
+                                <FileText size={13} />
+                                <span>Cetak PDS</span>
+                              </button>
+
+                              {/* Tombol Edit PDS dengan Pengecekan Kunci 3 Hari */}
+                              {(() => {
+                                const isLocked = isDocumentLocked(pds, 3);
+                                const canEditPds = !isLocked || pds.isUnlockedByAdmin;
+
+                                if (!canEditPds) {
+                                  return (
+                                    <button
+                                      type="button"
+                                      className="btn btn-secondary btn-sm"
+                                      onClick={() => {
+                                        setEditingPdsItem(pds);
+                                        setIsEditPdsModalOpen(true);
+                                      }}
+                                      style={{
+                                        padding: '0.25rem 0.6rem',
+                                        fontSize: '0.74rem',
+                                        fontWeight: 700,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: '0.25rem',
+                                        background: '#fffbeb',
+                                        color: '#b45309',
+                                        borderColor: '#fde68a'
+                                      }}
+                                      title="Dokumen Terkunci: Klik untuk melihat detail dokumen (Mode Hanya Lihat / Read-Only)."
+                                    >
+                                      <Lock size={13} color="#d97706" />
+                                      <span>Lihat (Terkunci)</span>
+                                    </button>
+                                  );
+                                }
+
+                                return (
+                                  <button
+                                    type="button"
+                                    className="btn btn-secondary btn-sm"
+                                    style={{
+                                      padding: '0.25rem 0.6rem',
+                                      fontSize: '0.74rem',
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem'
+                                    }}
+                                    onClick={() => {
+                                      setEditingPdsItem(pds);
+                                      setIsEditPdsModalOpen(true);
+                                    }}
+                                    title="Edit Data Dokumen PDS"
+                                  >
+                                    <Edit2 size={13} />
+                                    <span>Edit PDS</span>
+                                  </button>
+                                );
+                              })()}
+
+                              {/* Tombol Buka Kunci / Kunci untuk Admin/Kacab */}
+                              {(role === 'admin' || role === 'developer' || role === 'kacab') && (
+                                <button
+                                  type="button"
+                                  className={`btn btn-sm ${pds.isUnlockedByAdmin ? 'btn-success' : isDocumentLocked(pds, 3) ? 'btn-warning' : 'btn-secondary'}`}
+                                  style={{
+                                    padding: '0.25rem 0.6rem',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    ...(pds.isUnlockedByAdmin
+                                      ? { background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }
+                                      : isDocumentLocked(pds, 3)
+                                      ? { background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }
+                                      : {})
+                                  }}
+                                  onClick={() => {
+                                    const newStatus = !pds.isUnlockedByAdmin;
+                                    updateSuratTugas(pds.id, {
+                                      isUnlockedByAdmin: newStatus,
+                                      unlockedAt: newStatus ? new Date().toISOString() : null,
+                                      unlockedBy: newStatus ? currentUser?.name : null
+                                    });
+                                    if (newStatus) {
+                                      toast.success(`🔓 Kunci dibuka untuk ${pds.namaKapal || 'PDS'}. Surveyor dapat mengedit.`);
+                                    } else {
+                                      toast.info(`🔒 Dokumen ${pds.namaKapal || ''} dikunci kembali.`);
+                                    }
+                                  }}
+                                  title={pds.isUnlockedByAdmin ? 'Kunci Kembali Dokumen' : isDocumentLocked(pds, 3) ? 'Buka Kunci Dokumen (Admin Unlock)' : 'Buka Kunci Akses Pengeditan'}
+                                >
+                                  {pds.isUnlockedByAdmin ? <Lock size={13} /> : <Unlock size={13} />}
+                                  <span>{pds.isUnlockedByAdmin ? 'Kunci' : 'Buka Kunci'}</span>
+                                </button>
+                              )}
+                            </div>
+                          </div>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-secondary)' }}>
-                          <MapPin size={14} />
-                          <span>{st.lokasi || st.tempatSurvey}</span>
-                        </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-muted)', gridColumn: 'span 2' }}>
-                          <Calendar size={14} />
-                          <span>Periode: {formatDateIndo(st.tglMulai)} s/d {formatDateIndo(st.tglSelesai)}</span>
-                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* 2. SEKSI ANTRIAN SPS (DARI ADMIN) */}
+                {pendingSpsList.length > 0 && (
+                  <div
+                    style={{
+                      background: 'var(--bg-card)',
+                      border: '1.5px solid var(--border-color)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '1.25rem'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Layers size={18} color="var(--accent-primary)" />
+                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                          📋 Penugasan SPS dari Admin
+                        </h4>
+                        <span className="badge" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04', fontWeight: 700 }}>
+                          {pendingSpsList.length} SPS
+                        </span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )
-            ) : !formData.kategoriPerjalanan ? (
-              <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
-                <h3 style={{ fontSize: '1.15rem', color: 'var(--accent-primary)', marginBottom: '0.5rem' }}>Pilih Kategori Perjalanan</h3>
-                <p style={{ color: 'var(--text-secondary)', marginBottom: '2rem', fontSize: '0.9rem' }}>
-                  Silakan pilih kategori lokasi survei untuk menyesuaikan formulir secara otomatis.
-                </p>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', maxWidth: '400px', margin: '0 auto' }}>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', fontWeight: 700 }}
-                    onClick={() => {
-                      const firstLoc = activeTariffs.find(loc => (loc.kategori || 'Dalam Kota') === 'Dalam Kota') || activeTariffs[0];
-                      const locName = firstLoc ? (firstLoc.tujuan || firstLoc.name) : 'Pontianak';
-                      const locRate = firstLoc ? Number(firstLoc.rate) : defaultLocRate;
-                      setFormData({
-                        ...formData,
-                        kategoriPerjalanan: 'Dalam Kota',
-                        saranaTransportasi: 'DARAT DAN AIR',
-                        lokasi: locName,
-                        tempatSurvey: locName,
-                        tarifDasar: locRate
-                      });
-                    }}
-                  >
-                    🚗 DALAM KOTA
-                  </button>
-                  <button
-                    type="button"
-                    className="btn btn-primary"
-                    style={{ padding: '1rem', fontSize: '1rem', justifyContent: 'center', background: '#0ea5e9', borderColor: '#0ea5e9', fontWeight: 700 }}
-                    onClick={() => {
-                      const firstLoc = activeTariffs.find(loc => (loc.kategori || 'Luar Kota') === 'Luar Kota') || activeTariffs[0];
-                      const locName = firstLoc ? (firstLoc.tujuan || firstLoc.name) : 'Kendawangan (Via Udara)';
-                      const locRate = firstLoc ? Number(firstLoc.rate) : defaultLocRate;
-                      setFormData({
-                        ...formData,
-                        kategoriPerjalanan: 'Luar Kota',
-                        saranaTransportasi: 'UDARA, DARAT DAN AIR',
-                        lokasi: locName,
-                        tempatSurvey: locName,
-                        tarifDasar: locRate
-                      });
-                    }}
-                  >
-                    ✈️ LUAR KOTA
-                  </button>
-                </div>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
+                      {pendingSpsList.map((sps) => (
+                        <div
+                          key={sps.id}
+                          style={{
+                            background: 'var(--bg-main)',
+                            border: '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-sm)',
+                            padding: '0.75rem 1rem',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            gap: '1rem'
+                          }}
+                        >
+                          <div>
+                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                              🚢 {sps.namaKapal}
+                            </div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                              Agenda: <strong>{sps.noAgenda || sps.agenda || '-'}</strong> • 📍 {sps.lokasi || sps.tempatSurvey} • 👤 {sps.petugas}
+                            </div>
+                          </div>
+                          <button
+                            type="button"
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '0.75rem', fontWeight: 700 }}
+                            onClick={() => {
+                              handleToggleSelectSps(sps);
+                              setActiveTab('input');
+                            }}
+                          >
+                            <span>Buat PDS Kapal Ini</span>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
-              /* Input Marine Survey Form */
+              /* TAB 2: INPUT PERJALANAN DINAS SURVEYOR (PDS) */
               <form onSubmit={handleSaveSurvey}>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                {/* Banner Header Form PDS */}
+                <div
+                  style={{
+                    background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.08) 0%, rgba(5, 150, 105, 0.08) 100%)',
+                    border: '1px solid var(--accent-primary)',
+                    borderRadius: 'var(--radius-sm)',
+                    padding: '0.75rem 1rem',
+                    marginBottom: '1.25rem',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '0.75rem'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Sparkles size={18} color="var(--accent-primary)" />
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                        Input Perjalanan Dinas Surveyor (PDS)
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                        Penomoran Surat Resmi & Kalkulasi Biaya Perjalanan Dinas
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Section 1: Nomor Surat PDS & Surveyor */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Hash size={14} color="var(--accent-primary)" />
-                      <span>Nomor Surat Tugas *</span>
+                    <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
+                      Nomor Surat PDS (Resmi BKI) *
                     </label>
                     <input
                       type="text"
                       className="form-input"
+                      placeholder="A 0    /SV.XXX/PK/KI-26"
                       value={formData.nomor}
-                      onChange={(e) => setFormData({ ...formData, nomor: e.target.value })}
-                      placeholder="Contoh: A 0    /SV.201/PK/KI-26"
+                      onChange={(e) => setFormData({ ...formData, nomor: cleanDocNumber(e.target.value) })}
                       required
+                      style={{ fontWeight: 800, letterSpacing: '0.02em' }}
                     />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Shield size={14} color="var(--accent-primary)" />
-                      <span>Nama Class Surveyor *</span>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      Marine Surveyor *
                     </label>
-                    <select
-                      className="form-select"
-                      value={formData.petugas}
-                      onChange={(e) => {
-                        const selectedUser = surveyorUsers.find(u => u.name === e.target.value);
-                        if (selectedUser) {
-                          setFormData({ 
-                            ...formData, 
-                            petugas: selectedUser.name,
-                            pangkat: selectedUser.grade || 'GRADE 6 A'
-                          });
-                        } else {
-                          setFormData({ ...formData, petugas: e.target.value });
-                        }
-                      }}
-                      required
-                    >
-                      <option value="">-- Pilih Surveyor --</option>
-                      {surveyorUsers.map(u => (
-                        <option key={u.id} value={u.name}>{u.name}</option>
-                      ))}
-                    </select>
+                    {role === 'surveyor' ? (
+                      <input
+                        type="text"
+                        className="form-input"
+                        value={formData.petugas || currentUser?.name || ''}
+                        readOnly
+                        style={{
+                          background: 'var(--bg-main)',
+                          cursor: 'not-allowed',
+                          fontWeight: 700,
+                          color: 'var(--text-primary)',
+                          borderColor: 'var(--border-color)'
+                        }}
+                        title="Nama surveyor terkunci sesuai akun login surveyor"
+                      />
+                    ) : (
+                      <select
+                        className="form-select"
+                        value={formData.petugas}
+                        onChange={(e) => handleSurveyorChange(e.target.value)}
+                        required
+                      >
+                        {surveyorUsers.map((u) => (
+                          <option key={u.id} value={u.name}>
+                            {u.name} ({u.roleLabel || u.role})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      Pangkat / Grade
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.pangkat}
+                      readOnly
+                      style={{ background: 'var(--bg-main)', color: 'var(--text-secondary)' }}
+                    />
                   </div>
                 </div>
 
-                {/* KUNJUNGAN (VISIT) */}
+                {/* Section 2: Dropbox Pemilihan Kapal dari SPS yang Ditugaskan Admin */}
+                {availableSpsItems.length > 0 && (
+                  <div
+                    ref={spsContainerRef}
+                    style={{
+                      position: 'relative',
+                      background: 'var(--bg-main)',
+                      border: '1.5px solid var(--accent-primary)',
+                      borderRadius: 'var(--radius-md)',
+                      padding: '0.85rem 1rem',
+                      marginBottom: '1.25rem',
+                      boxShadow: '0 2px 8px rgba(2, 132, 199, 0.05)'
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.45rem' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <Layers size={16} />
+                        <span>Pilih Kapal dari SPS yang Ditugaskan Admin (Opsional):</span>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        {selectedSpsIds.length > 0 && (
+                          <span
+                            style={{
+                              fontSize: '0.7rem',
+                              fontWeight: 800,
+                              background: 'var(--accent-primary)',
+                              color: '#ffffff',
+                              padding: '0.15rem 0.5rem',
+                              borderRadius: '999px'
+                            }}
+                          >
+                            {selectedSpsIds.length} Terpilih
+                          </span>
+                        )}
+                        <span
+                          style={{
+                            fontSize: '0.7rem',
+                            color: 'var(--text-muted)',
+                            background: 'var(--bg-card)',
+                            padding: '0.15rem 0.45rem',
+                            borderRadius: '4px',
+                            border: '1px solid var(--border-color)'
+                          }}
+                        >
+                          {availableSpsItems.length} Tersedia
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: '0.6rem' }}>
+                      Klik dropbox di bawah untuk memilih satu atau beberapa penugasan SPS guna mengunci No. Agenda masing-masing kapal secara otomatis.
+                    </div>
+
+                    {/* Dropbox Trigger Box */}
+                    <div
+                      onClick={() => setIsSpsDropboxOpen(!isSpsDropboxOpen)}
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'space-between',
+                        background: 'var(--bg-card)',
+                        border: `1.5px solid ${isSpsDropboxOpen ? 'var(--accent-primary)' : 'var(--border-color-strong)'}`,
+                        borderRadius: 'var(--radius-sm)',
+                        padding: '0.45rem 0.75rem',
+                        cursor: 'pointer',
+                        minHeight: '38px',
+                        transition: 'all 0.15s ease',
+                        boxShadow: isSpsDropboxOpen ? '0 0 0 3px rgba(2, 132, 199, 0.15)' : 'none'
+                      }}
+                    >
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', alignItems: 'center', flex: 1 }}>
+                        {selectedSpsIds.length === 0 ? (
+                          <span style={{ fontSize: '0.82rem', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                            <Sparkles size={14} color="var(--accent-primary)" />
+                            <span>-- 📦 Klik untuk Memilih Kapal dari SPS Admin (Multi-Pilih) --</span>
+                          </span>
+                        ) : (
+                          availableSpsItems
+                            .filter((sps) => selectedSpsIds.includes(sps.id))
+                            .map((sps) => (
+                              <span
+                                key={sps.id}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleToggleSelectSps(sps);
+                                }}
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '0.35rem',
+                                  background: 'rgba(2, 132, 199, 0.12)',
+                                  color: 'var(--accent-primary)',
+                                  border: '1px solid rgba(2, 132, 199, 0.3)',
+                                  padding: '0.15rem 0.45rem',
+                                  borderRadius: '5px',
+                                  fontSize: '0.75rem',
+                                  fontWeight: 700
+                                }}
+                                title="Klik untuk membatalkan pilihan ini"
+                              >
+                                <span>🚢 {sps.namaKapal}</span>
+                                <span style={{ fontSize: '0.7rem', opacity: 0.85 }}>({sps.noAgenda || sps.agenda || '-'})</span>
+                                <X size={12} style={{ cursor: 'pointer' }} />
+                              </span>
+                            ))
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', marginLeft: '0.5rem' }}>
+                        {selectedSpsIds.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleClearAllSps();
+                            }}
+                            style={{
+                              background: 'transparent',
+                              border: 'none',
+                              color: 'var(--text-muted)',
+                              cursor: 'pointer',
+                              fontSize: '0.7rem',
+                              fontWeight: 600,
+                              padding: '0.1rem 0.3rem',
+                              borderRadius: '3px'
+                            }}
+                            title="Bersihkan semua pilihan"
+                          >
+                            Reset
+                          </button>
+                        )}
+                        {isSpsDropboxOpen ? <ChevronUp size={16} color="var(--accent-primary)" /> : <ChevronDown size={16} color="var(--text-muted)" />}
+                      </div>
+                    </div>
+
+                    {/* Dropdown Menu Overlay */}
+                    {isSpsDropboxOpen && (
+                      <div
+                        style={{
+                          marginTop: '0.5rem',
+                          background: 'var(--bg-card)',
+                          border: '1px solid var(--border-color)',
+                          borderRadius: 'var(--radius-md)',
+                          boxShadow: '0 8px 24px rgba(0, 0, 0, 0.12)',
+                          padding: '0.75rem',
+                          zIndex: 10
+                        }}
+                      >
+                        <div style={{ display: 'flex', gap: '0.45rem', marginBottom: '0.6rem', alignItems: 'center' }}>
+                          <div style={{ position: 'relative', flex: 1 }}>
+                            <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="Cari nama kapal, no. agenda, atau lokasi..."
+                              value={spsSearchTerm}
+                              onChange={(e) => setSpsSearchTerm(e.target.value)}
+                              style={{ paddingLeft: '2rem', fontSize: '0.78rem', height: '32px' }}
+                              autoFocus
+                            />
+                            {spsSearchTerm && (
+                              <button
+                                type="button"
+                                onClick={() => setSpsSearchTerm('')}
+                                style={{ position: 'absolute', right: '0.5rem', top: '50%', transform: 'translateY(-50%)', background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                              >
+                                <X size={13} />
+                              </button>
+                            )}
+                          </div>
+                          <button
+                            type="button"
+                            onClick={handleSelectAllSps}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.72rem', height: '32px', whiteSpace: 'nowrap', padding: '0 0.6rem' }}
+                          >
+                            Pilih Semua
+                          </button>
+                          <button
+                            type="button"
+                            onClick={handleClearAllSps}
+                            className="btn btn-secondary btn-sm"
+                            style={{ fontSize: '0.72rem', height: '32px', whiteSpace: 'nowrap', padding: '0 0.6rem' }}
+                          >
+                            Batal
+                          </button>
+                        </div>
+
+                        <div style={{ maxHeight: '180px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: '0.4rem', paddingRight: '0.2rem' }}>
+                          {filteredSpsItems.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)', fontSize: '0.78rem' }}>
+                              Tidak ada data SPS yang cocok dengan pencarian.
+                            </div>
+                          ) : (
+                            filteredSpsItems.map((sps) => {
+                              const isChecked = selectedSpsIds.includes(sps.id);
+                              return (
+                                <div
+                                  key={sps.id}
+                                  onClick={() => handleToggleSelectSps(sps)}
+                                  style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+                                    padding: '0.45rem 0.65rem',
+                                    borderRadius: 'var(--radius-sm)',
+                                    border: `1px solid ${isChecked ? 'var(--accent-primary)' : 'var(--border-color)'}`,
+                                    background: isChecked ? 'rgba(2, 132, 199, 0.08)' : 'var(--bg-main)',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.12s ease'
+                                  }}
+                                >
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.65rem' }}>
+                                    <input
+                                      type="checkbox"
+                                      checked={isChecked}
+                                      onChange={() => {}}
+                                      style={{ cursor: 'pointer', accentColor: 'var(--accent-primary)', width: '15px', height: '15px' }}
+                                    />
+                                    <div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, fontSize: '0.82rem', color: isChecked ? 'var(--accent-primary)' : 'var(--text-primary)' }}>
+                                        <Anchor size={13} color={isChecked ? 'var(--accent-primary)' : 'var(--text-secondary)'} />
+                                        <span>{sps.namaKapal}</span>
+                                      </div>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.12rem' }}>
+                                        <span style={{ fontWeight: 700, color: 'var(--accent-primary)', background: 'rgba(2, 132, 199, 0.1)', padding: '0.05rem 0.35rem', borderRadius: '3px' }}>
+                                          Agenda: {sps.noAgenda || sps.agenda || '-'}
+                                        </span>
+                                        <span>•</span>
+                                        <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                                          <MapPin size={11} />
+                                          {sps.lokasi}
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  {isChecked && (
+                                    <div style={{ display: 'flex', alignItems: 'center', color: 'var(--accent-primary)', fontSize: '0.72rem', fontWeight: 700, gap: '0.2rem' }}>
+                                      <Check size={14} />
+                                      <span>Terpilih</span>
+                                    </div>
+                                  )}
+                                </div>
+                              );
+                            })
+                          )}
+                        </div>
+
+                        <div style={{ marginTop: '0.5rem', paddingTop: '0.4rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                          <span>💡 Menggabungkan beberapa kapal akan mengelompokkan survei dalam 1 lembar PDS.</span>
+                          <button
+                            type="button"
+                            onClick={() => setIsSpsDropboxOpen(false)}
+                            className="btn btn-primary btn-sm"
+                            style={{ fontSize: '0.72rem', padding: '0.2rem 0.6rem' }}
+                          >
+                            Selesai
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Section 3: Daftar Kapal & No. Agenda Terhubung */}
                 <div
                   style={{
                     background: 'var(--bg-main)',
                     border: '1.5px solid var(--border-color-strong)',
                     borderRadius: 'var(--radius-md)',
-                    padding: '1.25rem',
+                    padding: '1rem 1.25rem',
                     marginBottom: '1.25rem'
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.75rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    🗓️ KUNJUNGAN (VISIT)
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: '0.6rem', cursor: 'pointer', fontWeight: 600, fontSize: '0.95rem' }}>
-                      <input
-                        type="checkbox"
-                        checked={formData.visit === '1'}
-                        onChange={(e) => setFormData({ ...formData, visit: e.target.checked ? '1' : '2' })}
-                        style={{ width: '1.2rem', height: '1.2rem', cursor: 'pointer', accentColor: 'var(--accent-primary)' }}
-                      />
-                      <span>Visit 1 (Kunjungan Pertama)</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                    <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                      <Anchor size={16} />
+                      <span>Daftar Kapal & No. Agenda Perjalanan Dinas:</span>
                     </label>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {shipsDetail.length > 0 ? `${shipsDetail.length} kapal terhubung` : 'Database Kapal Aktif'}
+                    </span>
                   </div>
+
+                  {/* Dropdown Pemilihan Cepat dari Database */}
+                  <div style={{ marginBottom: '0.75rem', background: 'var(--bg-card)', padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: '0.35rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Sparkles size={14} color="var(--accent-primary)" />
+                      <span>Pilih dari Database Riwayat Kapal (Otomatis Isi No. Agenda & Lokasi):</span>
+                    </div>
+                    <ShipDatabaseSearchSelect
+                      shipDatabase={shipDatabase}
+                      onSelect={(foundShip) => handleSelectShipFromDatabase(foundShip)}
+                      placeholder="-- 🚢 Ketik nama kapal / no. agenda untuk mencari dari database --"
+                    />
+                  </div>
+
+                  {/* Table of Selected Ships from Database / SPS */}
+                  {shipsDetail.length > 0 ? (
+                    <div>
+                      <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse', marginBottom: '0.6rem' }}>
+                        <thead>
+                          <tr style={{ background: 'var(--bg-card)', textAlign: 'left', color: 'var(--text-secondary)' }}>
+                            <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>No</th>
+                            <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>Nama Kapal</th>
+                            <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>No. Agenda</th>
+                            <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>No. Order</th>
+                            {shipsDetail.length > 1 && (
+                              <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', width: '170px' }}>
+                                Alokasi Biaya Survei (Rp) *
+                              </th>
+                            )}
+                            <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', textAlign: 'right' }}>Aksi</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {shipsDetail.map((sh, idx) => (
+                            <tr key={`${sh.namaKapal}-${idx}`} style={{ borderBottom: '1px solid var(--border-color)' }}>
+                              <td style={{ padding: '6px 8px', fontWeight: 600 }}>{idx + 1}</td>
+                              <td style={{ padding: '6px 8px', fontWeight: 800, color: 'var(--text-primary)' }}>🚢 {sh.namaKapal}</td>
+                              <td style={{ padding: '6px 8px' }}>
+                                <span style={{ background: 'rgba(2, 132, 199, 0.1)', color: 'var(--accent-primary)', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
+                                  {sh.noAgenda || '-'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{sh.noOrder || formData.noOrder}</td>
+                              {shipsDetail.length > 1 && (
+                                <td style={{ padding: '6px 8px' }}>
+                                  <input
+                                    type="number"
+                                    min="0"
+                                    className="form-input"
+                                    style={{ padding: '0.15rem 0.4rem', fontSize: '0.8rem', height: '28px', fontWeight: 800, color: '#0284c7' }}
+                                    value={sh.biayaSurvei !== undefined ? sh.biayaSurvei : ''}
+                                    placeholder="0"
+                                    onChange={(e) => {
+                                      const val = Number(e.target.value) || 0;
+                                      setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, biayaSurvei: val } : s)));
+                                    }}
+                                  />
+                                </td>
+                              )}
+                              <td style={{ padding: '6px 8px', textAlign: 'right' }}>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRemoveShipFromDetail(sh.namaKapal)}
+                                  className="btn btn-secondary btn-icon"
+                                  style={{ padding: '2px', height: '24px', width: '24px', color: 'var(--danger-color)' }}
+                                  title="Hapus kapal ini dari penugasan PDS"
+                                >
+                                  <Trash2 size={13} />
+                                </button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+
+                      {/* Multi-Ship Split Calculation Banner */}
+                      {shipsDetail.length > 1 && (
+                        <div style={{ background: 'var(--bg-card)', padding: '0.75rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginTop: '0.5rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '0.45rem' }}>
+                            <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                              Tarif Lokasi SK ({formData.lokasi}): <span style={{ color: '#0284c7', fontWeight: 800 }}>{formatRupiah(targetTarifLokasi)}</span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                                Total Dialokasikan: <span style={{ color: isPembagianValid ? '#059669' : '#dc2626', fontWeight: 800 }}>{formatRupiah(totalPembagianKapal)}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={handleAutoSplitTariff}
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.2rem 0.55rem', fontSize: '0.72rem', fontWeight: 700, background: '#0284c7', color: '#ffffff', borderColor: '#0284c7' }}
+                                title="Bagi rata tarif lokasi ke semua kapal"
+                              >
+                                ⚡ Bagi Rata Otomatis
+                              </button>
+                            </div>
+                          </div>
+
+                          {isPembagianValid ? (
+                            <div style={{ fontSize: '0.78rem', color: '#047857', background: '#ecfdf5', padding: '0.4rem 0.75rem', borderRadius: '4px', border: '1px solid #a7f3d0', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+                              <Check size={14} />
+                              <span>Total pembagian biaya survei telah SESUAI dengan tarif lokasi ({formatRupiah(targetTarifLokasi)}).</span>
+                            </div>
+                          ) : selisihPembagian < 0 ? (
+                            <div style={{ fontSize: '0.78rem', color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '4px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+                              <AlertCircle size={14} />
+                              <span>⚠️ Total alokasi masih KURANG {formatRupiah(Math.abs(selisihPembagian))} dari tarif lokasi. Dokumen PDS tidak dapat diterbitkan sebelum nominal pas.</span>
+                            </div>
+                          ) : (
+                            <div style={{ fontSize: '0.78rem', color: '#b91c1c', background: '#fef2f2', padding: '0.4rem 0.75rem', borderRadius: '4px', border: '1px solid #fecaca', display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}>
+                              <AlertCircle size={14} />
+                              <span>⚠️ Total alokasi MELEBIHI {formatRupiah(selisihPembagian)} dari tarif lokasi. Dokumen PDS tidak dapat diterbitkan sebelum nominal pas.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ background: 'var(--bg-card)', padding: '0.85rem 1rem', borderRadius: 'var(--radius-sm)', border: '1px dashed var(--border-color)', textAlign: 'center' }}>
+                      <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                        🚢 Pilih kapal dari <strong>Dropdown Database Kapal</strong> di atas atau melalui <strong>Dropbox SPS Admin</strong>.
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>
+                        * Pendaftaran/input kapal baru hanya dilakukan melalui form <strong>SPS Admin</strong>.
+                      </div>
+                    </div>
+                  )}
                 </div>
 
-                {/* 11 RINCIAN PENUGASAN SURVEI KAPAL */}
+                {/* Section 4: Objek Survei, Jenis Survei, Lokasi & Tanggal */}
                 <div
                   style={{
                     background: 'var(--bg-main)',
@@ -578,54 +1657,27 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
                   }}
                 >
                   <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    📋 11 RINCIAN PENUGASAN SURVEI KAPAL
+                    📋 RINCIAN SURVEI, LOKASI & TANGGAL
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700 }}>
-                        1. NAMA KAPAL / OBJEK *
-                      </label>
-                      <MultiShipInput
-                        value={formData.namaKapal}
-                        onChange={(val) => setFormData({ ...formData, namaKapal: val })}
-                        placeholder="Contoh: KAPUAS BAHARI XXII / TB. SAMUDRA 01"
-                        required
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700 }}>
-                        2. PEMOHON *
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={formData.pemohon}
-                        onChange={(e) => setFormData({ ...formData, pemohon: e.target.value })}
-                        placeholder="Contoh: PT. PELAYARAN KAPUAS BAHARI"
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  {/* 3. JENIS SURVEY & 4. TEMPAT SURVEY */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700 }}>
-                        3. JENIS SURVEY *
+                        Jenis Survey *
                       </label>
                       <MultiSurveySelect
                         value={formData.jenisSurvey}
-                        onChange={(val) => setFormData({ ...formData, jenisSurvey: val, perihal: val })}
-                        required
+                        onChange={(val) => setFormData({ ...formData, jenisSurvey: val })}
+                        placeholder="-- PILIH JENIS SURVEY (BISA LEBIH DARI 1) --"
                       />
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <MapPin size={14} color="var(--accent-primary)" />
-                        <span>4. TEMPAT SURVEY *</span>
+                      <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontWeight: 700 }}>Tempat Survey & Tarif SK *</span>
+                        <span className={`badge ${formData.kategoriPerjalanan === 'Luar Kota' ? 'badge-primary' : 'badge-success'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
+                          {formData.kategoriPerjalanan || 'Dalam Kota'}
+                        </span>
                       </label>
                       <select
                         className="form-select"
@@ -633,29 +1685,46 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
                         onChange={(e) => handleLocationChange(e.target.value)}
                         required
                       >
-                        {activeTariffs
-                          .filter(loc => (loc.kategori || 'Luar Kota') === formData.kategoriPerjalanan)
-                          .map((loc) => (
-                            <option key={loc.id} value={loc.tujuan || loc.name}>
-                              {loc.tujuan || loc.name} {loc.rincian ? `(${loc.rincian})` : ''}
-                            </option>
-                          ))}
+                        <optgroup label="📍 DALAM KOTA (PONTIANAK & SEKITARNYA)">
+                          {activeTariffs
+                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota')
+                            .map((t, idx) => (
+                              <option key={`dk-${idx}`} value={t.tujuan || t.name}>
+                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
+                              </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="✈️ LUAR KOTA">
+                          {activeTariffs
+                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Luar Kota')
+                            .map((t, idx) => (
+                              <option key={`lk-${idx}`} value={t.tujuan || t.name}>
+                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
+                              </option>
+                            ))}
+                        </optgroup>
                       </select>
                     </div>
                   </div>
 
-                  {/* 5. TANGGAL MULAI, 6. TANGGAL AKHIR & HARI LIBUR */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.2fr 0.8fr', gap: '1rem', marginBottom: '1rem', alignItems: 'flex-start' }}>
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Calendar size={14} color="var(--accent-primary)" />
-                        <span>5. TANGGAL MULAI *</span>
+                        <span>Tgl Berangkat *</span>
                       </label>
                       <input
                         type="date"
                         className="form-input"
                         value={formData.tglMulai}
-                        onChange={(e) => setFormData({ ...formData, tglMulai: e.target.value })}
+                        onChange={(e) => {
+                          const val = e.target.value;
+                          setFormData({
+                            ...formData,
+                            tglMulai: val,
+                            tglSelesai: formData.tglSelesai && formData.tglSelesai < val ? val : formData.tglSelesai || val
+                          });
+                        }}
                         required
                       />
                     </div>
@@ -663,312 +1732,486 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
                     <div className="form-group" style={{ margin: 0 }}>
                       <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <Calendar size={14} color="var(--accent-primary)" />
-                        <span>6. TANGGAL AKHIR *</span>
+                        <span>Tgl Kembali *</span>
                       </label>
                       <input
                         type="date"
                         className="form-input"
                         value={formData.tglSelesai}
+                        min={formData.tglMulai}
                         onChange={(e) => setFormData({ ...formData, tglSelesai: e.target.value })}
                         required
                       />
                     </div>
 
                     <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Calendar size={14} color="var(--accent-primary)" />
-                        <span>HARI LIBUR (Jml)</span>
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem' }}>
+                        Hari Libur (Jml)
                       </label>
                       <input
                         type="number"
                         min="0"
-                        max={jumlahHari}
+                        max={totalDays}
                         className="form-input"
-                        value={formData.jumlahHariLibur !== undefined ? formData.jumlahHariLibur : ''}
-                        onChange={(e) => setFormData({ ...formData, jumlahHariLibur: e.target.value === '' ? '' : Number(e.target.value) })}
+                        style={{ fontWeight: 700 }}
                         placeholder="0"
+                        value={formData.jumlahHariLibur}
+                        onChange={(e) => setFormData({ ...formData, jumlahHariLibur: Math.max(0, parseInt(e.target.value, 10) || 0) })}
                       />
                     </div>
                   </div>
 
-                  {/* 7. AGENDA & 8. NO.ORDER */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 0.8fr', gap: '1rem', marginBottom: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <FileText size={14} color="var(--accent-primary)" />
-                        <span>7. NO AGENDA</span>
-                      </label>
+                  {/* Option Tanpa Uang Harian (Pindahan & Rapi) */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', cursor: 'pointer', margin: 0 }}>
                       <input
-                        type="text"
-                        className="form-input"
-                        value={formData.agenda}
-                        onChange={(e) => setFormData({ ...formData, agenda: e.target.value })}
-                        placeholder="Contoh: 001/AG/BKI-PTK/2026"
+                        type="checkbox"
+                        checked={formData.tanpaUangHarian}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setFormData({
+                            ...formData,
+                            tanpaUangHarian: checked,
+                            hariTanpaUangHarian: checked ? Math.max(1, Number(formData.hariTanpaUangHarian) || 1) : 0
+                          });
+                        }}
+                        style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
                       />
-                    </div>
+                      <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                        Tanpa Uang Harian (Akomodasi / Konsumsi Penuh Ditanggung Klien)
+                      </span>
+                    </label>
 
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700 }}>
-                        8. NO.ORDER
-                      </label>
-                      <input
-                        type="text"
-                        className="form-input"
-                        value={formData.noOrder}
-                        onChange={(e) => setFormData({ ...formData, noOrder: e.target.value })}
-                        placeholder="Contoh: RFQ-0000"
-                      />
-                    </div>
+                    {formData.tanpaUangHarian && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        <span>Potong:</span>
+                        <input
+                          type="number"
+                          min="1"
+                          max={totalDays}
+                          className="form-input"
+                          style={{ width: '55px', height: '28px', padding: '0.1rem 0.35rem', fontSize: '0.8rem', textAlign: 'center', fontWeight: 700 }}
+                          value={formData.hariTanpaUangHarian || 1}
+                          onChange={(e) => setFormData({ ...formData, hariTanpaUangHarian: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                        />
+                        <span>Hari</span>
+                      </div>
+                    )}
                   </div>
 
-                  {/* 9. TIKET PESAWAT & 10. HOTEL */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Ticket size={14} color="var(--accent-primary)" />
-                        <span>9. BIAYA TIKET PESAWAT / TAXI (Rp)</span>
-                      </label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={formData.tiketPesawatTaxi}
-                        onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </div>
-
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Ticket size={14} color="var(--accent-primary)" />
-                        <span>10. BIAYA HOTEL PER MALAM (Rp)</span>
-                      </label>
-                      <input
-                        type="number"
-                        className="form-input"
-                        value={formData.tiketHotel}
-                        onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  {/* Opsi Tanpa TAT & Tanpa Uang Harian */}
-                  <div style={{ display: 'flex', gap: '1.5rem', marginTop: '1rem', flexWrap: 'wrap', padding: '0.6rem 0.25rem 0', borderTop: '1px solid var(--border-color)' }}>
-                    {formData.kategoriPerjalanan === 'Luar Kota' && (
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
+                  {/* Option Tanpa TAT (Hanya tampil untuk Luar Kota) */}
+                  {formData.kategoriPerjalanan === 'Luar Kota' && (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', marginTop: '0.6rem' }}>
+                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', cursor: 'pointer', margin: 0 }}>
                         <input
                           type="checkbox"
                           checked={formData.tanpaTAT || false}
                           onChange={(e) => setFormData({ ...formData, tanpaTAT: e.target.checked })}
-                          style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
+                          style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)', cursor: 'pointer' }}
                         />
-                        <span>Tanpa Biaya TAT</span>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
+                          Tanpa Biaya Transport Asal Tujuan (TAT Luar Kota)
+                        </span>
                       </label>
-                    )}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
-                      <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-secondary)' }}>
-                        <input
-                          type="checkbox"
-                          checked={formData.tanpaUangHarian || false}
-                          onChange={(e) => setFormData({ ...formData, tanpaUangHarian: e.target.checked, hariTanpaUangHarian: e.target.checked ? jumlahHari : 0 })}
-                          style={{ width: '16px', height: '16px', accentColor: 'var(--accent-primary)' }}
-                        />
-                        <span>Tanpa Uang Harian</span>
-                      </label>
-                      {formData.tanpaUangHarian && (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: '0.5rem' }}>
-                          <input
-                            type="number"
-                            min="1"
-                            max={jumlahHari}
-                            value={formData.hariTanpaUangHarian !== undefined ? formData.hariTanpaUangHarian : jumlahHari}
-                            onChange={(e) => setFormData({ ...formData, hariTanpaUangHarian: Number(e.target.value) })}
-                            style={{ width: '60px', padding: '0.2rem 0.4rem', fontSize: '0.8rem', border: '1px solid var(--border-color)', borderRadius: '4px' }}
-                          />
-                          <span style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>hari (Sisa dibayar: {sisaHariUangHarian} hr)</span>
-                        </div>
+                      {!formData.tanpaTAT && (
+                        <span style={{ fontSize: '0.78rem', color: '#d97706', fontWeight: 700 }}>
+                          {formatRupiah(adminSettings?.tatLuarKota || 750000)}
+                        </span>
                       )}
                     </div>
+                  )}
+                </div>
+
+                {/* Section 5: Biaya Tiket Transportasi & Hotel */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                  {/* Tiket Transportasi */}
+                  <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Plane size={15} color="var(--accent-primary)" />
+                      <span>Biaya Tiket Pesawat / Transport (Rp)</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      placeholder="0"
+                      value={formData.tiketPesawatTaxi || ''}
+                      onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
+                      style={{ fontWeight: 700, marginBottom: '0.5rem' }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                      Bukti Tiket / Boarding Pass (Maks. 3 MB):
+                    </div>
+                    {isAdmin ? (
+                      formData.fileTiketTransportName ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Check size={13} color="#059669" /> Bukti tiket terlampir
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Bukti Tiket Transportasi / Boarding Pass',
+                              fileData: formData.fileTiketTransportName,
+                              fileName: 'Bukti_Tiket_Transportasi'
+                            })}
+                          >
+                            <Eye size={12} />
+                            <span>Cek Lampiran</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Belum ada lampiran dari surveyor
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          className="form-input"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleFileUpload(e, 'tiketTransport')}
+                          style={{ fontSize: '0.75rem' }}
+                        />
+                        {formData.fileTiketTransportName && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ Bukti tiket terlampir</span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                              onClick={() => setPreviewAttachment({
+                                isOpen: true,
+                                title: 'Bukti Tiket Transportasi / Boarding Pass',
+                                fileData: formData.fileTiketTransportName,
+                                fileName: 'Bukti_Tiket_Transportasi'
+                              })}
+                            >
+                              <Eye size={11} /> Cek
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
+
+                  {/* Hotel / Penginapan */}
+                  <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Receipt size={15} color="var(--accent-primary)" />
+                      <span>Biaya Hotel / Penginapan (Rp) /malam</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      className="form-input"
+                      placeholder="0"
+                      value={formData.tiketHotel || ''}
+                      onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
+                      style={{ fontWeight: 700, marginBottom: '0.5rem' }}
+                    />
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
+                      Unggah Kwitansi Hotel / Penginapan (Maks. 3 MB):
+                    </div>
+                    {isAdmin ? (
+                      formData.fileKwitansiHotelName ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Check size={13} color="#059669" /> Kwitansi hotel terlampir
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Bukti Kwitansi Hotel / Penginapan',
+                              fileData: formData.fileKwitansiHotelName,
+                              fileName: 'Kwitansi_Hotel'
+                            })}
+                          >
+                            <Eye size={12} />
+                            <span>Cek Lampiran</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Belum ada lampiran dari surveyor
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          className="form-input"
+                          accept="image/*,.pdf"
+                          onChange={(e) => handleFileUpload(e, 'kwitansiHotel')}
+                          style={{ fontSize: '0.75rem' }}
+                        />
+                        {formData.fileKwitansiHotelName && (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
+                            <span style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ Kwitansi hotel terlampir</span>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                              onClick={() => setPreviewAttachment({
+                                isOpen: true,
+                                title: 'Bukti Kwitansi Hotel / Penginapan',
+                                fileData: formData.fileKwitansiHotelName,
+                                fileName: 'Kwitansi_Hotel'
+                              })}
+                            >
+                              <Eye size={11} /> Cek
+                            </button>
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 </div>
 
-                {/* ESTIMASI KALKULASI CARD */}
+                {/* Section 5: Kalkulasi Otomatis Biaya Lokasi & Honorarium */}
                 <div
                   style={{
-                    background: 'linear-gradient(135deg, rgba(0, 102, 204, 0.05) 0%, rgba(14, 165, 233, 0.08) 100%)',
-                    border: '1.5px solid var(--accent-primary)',
-                    borderRadius: 'var(--radius-md)',
-                    padding: '1.25rem',
-                    marginBottom: '1.25rem'
+                    background: 'linear-gradient(135deg, rgba(240, 249, 255, 0.95) 0%, rgba(238, 242, 255, 0.8) 100%)',
+                    border: '1.5px solid #bfdbfe',
+                    borderRadius: '16px',
+                    padding: '1.25rem 1.5rem',
+                    marginBottom: '1.5rem',
+                    boxShadow: '0 4px 16px rgba(2, 132, 199, 0.06)'
                   }}
                 >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem', borderBottom: '1px solid rgba(0, 102, 204, 0.15)', paddingBottom: '0.5rem' }}>
-                    <span style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Sparkles size={16} /> Kalkulasi Otomatis Biaya Lokasi & Honorarium
-                    </span>
-                    <span className="badge badge-success" style={{ fontSize: '0.75rem' }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.25rem', paddingBottom: '0.6rem', borderBottom: '1px solid rgba(2, 132, 199, 0.15)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 800, fontSize: '0.95rem', color: '#1e3a8a' }}>
+                      <Sparkles size={16} color="#0284c7" />
+                      <span>Kalkulasi Otomatis Biaya Lokasi & Honorarium</span>
+                    </div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#64748b' }}>
                       Sistem Pintar BKI
-                    </span>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', fontSize: '0.85rem' }}>
+                  {/* Grid Body (2 columns) */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem 2rem', marginBottom: '1.25rem' }}>
+                    {/* Row 1 */}
                     <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Kategori & Lokasi:</span>
-                      <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
-                        {formData.kategoriPerjalanan} - {formData.lokasi}
-                      </strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Lama Perjalanan Dinas:</span>
-                      <strong style={{ display: 'block', color: 'var(--text-primary)' }}>
-                        {jumlahHari} Hari ({mlm} Malam)
-                      </strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Honorarium Surveyor:</span>
-                      <strong style={{ display: 'block', color: '#0284c7' }}>
-                        {formatRupiah(currentBaseRate)}
-                      </strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Biaya Tiket Pesawat / Transport:</span>
-                      <strong style={{ display: 'block', color: '#059669' }}>
-                        {formatRupiah(currentFlightTaxiFee)}
-                      </strong>
-                    </div>
-                    <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Biaya Hotel ({mlm} Malam):</span>
-                      <strong style={{ display: 'block', color: '#059669' }}>
-                        {formatRupiah(currentHotelFee * mlm)}
-                      </strong>
-                    </div>
-                    {formData.kategoriPerjalanan === 'Luar Kota' && (
-                      <div>
-                        <span style={{ color: 'var(--text-secondary)' }}>Transport Asal Tujuan (TAT):</span>
-                        <strong style={{ display: 'block', color: '#d97706' }}>
-                          {formatRupiah(biayaTAT)}
-                        </strong>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>Kategori & Lokasi:</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                        {formData.kategoriPerjalanan || 'Dalam Kota'} - {formData.lokasi || 'WAJOK'}
                       </div>
-                    )}
+                    </div>
                     <div>
-                      <span style={{ color: 'var(--text-secondary)' }}>Uang Harian ({sisaHariUangHarian} Hari + Tambahan):</span>
-                      <strong style={{ display: 'block', color: '#059669' }}>
-                        {formatRupiah(totalUangHarian)}
-                        {hariLibur > 0 && <small style={{ color: '#ef4444', display: 'block', fontSize: '0.72rem' }}>Termasuk +50% Libur ({hariLibur} hr)</small>}
-                      </strong>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>Lama Perjalanan Dinas:</div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#0f172a' }}>
+                        {totalDays} Hari ({totalNights} Malam)
+                      </div>
+                    </div>
+
+                    {/* Row 2 */}
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>Honorarium Surveyor:</div>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#0284c7' }}>
+                        {formatRupiah(calculations.tarifDasarLokasi || 0)}
+                      </div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>Biaya Tiket Pesawat / Transport:</div>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#059669' }}>
+                        {formatRupiah(calculations.totalTiket || 0)}
+                      </div>
+                    </div>
+
+                    {/* Row 3: Biaya Hotel & TAT (TAT hanya muncul jika Luar Kota) */}
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>Biaya Hotel ({totalNights} Malam):</div>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#059669' }}>
+                        {formatRupiah(calculations.totalHotel || 0)}
+                      </div>
+                    </div>
+                    {formData.kategoriPerjalanan === 'Luar Kota' ? (
+                      <div>
+                        <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>Transport Asal Tujuan (TAT):</div>
+                        <div style={{ fontWeight: 800, fontSize: '1.05rem', color: formData.tanpaTAT ? '#94a3b8' : '#d97706' }}>
+                          {formData.tanpaTAT ? 'Rp 0 (Tanpa TAT)' : formatRupiah(calculations.biayaTAT || 0)}
+                        </div>
+                      </div>
+                    ) : (
+                      <div />
+                    )}
+
+                    {/* Row 4 */}
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>
+                        Uang Harian ({totalDays} Hari{effectiveHolidays > 0 ? ` + ${effectiveHolidays} Libur` : ''}):
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#9333ea' }}>
+                        {formatRupiah(calculations.totalUangHarian || 0)}
+                      </div>
                     </div>
                   </div>
 
-                  <div style={{ marginTop: '1rem', paddingTop: '0.75rem', borderTop: '1px dashed rgba(0, 102, 204, 0.25)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>Grand Total Biaya Estimasi:</span>
-                    <span style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--accent-primary)' }}>
-                      {formatRupiah(grandTotalEstimasi)}
-                    </span>
+                  {/* Dotted Divider & Total */}
+                  <div
+                    style={{
+                      borderTop: '1.5px dashed #93c5fd',
+                      paddingTop: '1rem',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center'
+                    }}
+                  >
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0f172a' }}>
+                      Total Estimasi Biaya (Surat Tugas):
+                    </div>
+                    <div style={{ fontWeight: 900, fontSize: '1.45rem', color: '#1e3a8a' }}>
+                      {formatRupiah(calculations.totalBiaya)}
+                    </div>
                   </div>
                 </div>
 
-                {/* 4 BERKAS LAMPIRAN DOKUMEN */}
+                {/* Section 6: Upload Dokumen / Foto Bukti */}
                 <div
                   style={{
                     background: 'var(--bg-main)',
                     border: '1.5px solid var(--border-color-strong)',
                     borderRadius: 'var(--radius-md)',
                     padding: '1.25rem',
-                    marginBottom: '1.5rem'
+                    marginBottom: '1.25rem'
                   }}
                 >
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '0.5rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                    📎 4 BERKAS LAMPIRAN DOKUMEN (SURVEI KAPAL)
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <Camera size={16} />
+                    <span>{isAdmin ? 'BUKTI PERJALANAN DINAS DARI SURVEYOR' : 'UPLOAD BUKTI PERJALANAN DINAS (OPSIONAL)'}</span>
                   </div>
 
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                    {/* 1. Multi Photo Upload */}
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <MultiPhotoUpload
-                        fotoList={formData.fotoList || []}
-                        onChange={(newList) => setFormData({ ...formData, fotoList: newList })}
-                      />
-                    </div>
-
-                    {/* 2. Berita Acara (Visit 1) */}
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <FileCheck2 size={15} color="var(--accent-primary)" />
-                        <span>2. Berita Acara / Laporan Paraf (Visit 1)</span>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                        <Plane size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                        Bukti Tiket Transportasi (Pesawat/Taxi/BBM)
                       </label>
-                      <input
-                        type="file"
-                        className="form-input"
-                        accept=".pdf,image/*,.doc,.docx"
-                        onChange={(e) => handleFileUpload('fileVisitName', e)}
-                      />
-                      {formData.fileVisitName && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem' }}>
-                          <span>✓ {formData.fileVisitName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                      {isAdmin ? (
+                        formData.fileTiketTransportName ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                            <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <Check size={13} color="#059669" /> File tiket terlampir
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                              onClick={() => {
+                                const file = formData.fileTiketTransportName;
+                                if (file && (file.startsWith('http') || file.startsWith('data:'))) {
+                                  window.open(file, '_blank');
+                                } else {
+                                  toast.info('File tiket terlampir oleh surveyor.');
+                                }
+                              }}
+                            >
+                              <Eye size={12} />
+                              <span>Cek</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                            Belum ada lampiran tiket dari surveyor
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileUpload(e, 'tiketTransport')}
+                            className="form-input"
+                            style={{ fontSize: '0.75rem', padding: '0.3rem' }}
+                          />
+                          {formData.fileTiketTransportName && (
+                            <div style={{ fontSize: '0.7rem', color: '#059669', marginTop: '0.2rem' }}>✓ File tiket terlampir</div>
+                          )}
+                        </>
                       )}
                     </div>
 
-                    {/* 3. Tiket Transport */}
-                    <div className="form-group" style={{ margin: 0 }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Plane size={15} color="var(--accent-primary)" />
-                        <span>3. Berkas Tiket Pesawat / Transportasi</span>
+                    <div>
+                      <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                        <Receipt size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                        Bukti Kwitansi Hotel / Penginapan
                       </label>
-                      <input
-                        type="file"
-                        className="form-input"
-                        accept=".pdf,image/*"
-                        onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
-                      />
-                      {formData.fileTiketTransportName && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem' }}>
-                          <span>✓ {formData.fileTiketTransportName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
+                      {isAdmin ? (
+                        formData.fileKwitansiHotelName ? (
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                            <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <Check size={13} color="#059669" /> File kwitansi terlampir
+                            </span>
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                              onClick={() => {
+                                const file = formData.fileKwitansiHotelName;
+                                if (file && (file.startsWith('http') || file.startsWith('data:'))) {
+                                  window.open(file, '_blank');
+                                } else {
+                                  toast.info('File kwitansi terlampir oleh surveyor.');
+                                }
+                              }}
+                            >
+                              <Eye size={12} />
+                              <span>Cek</span>
+                            </button>
+                          </div>
+                        ) : (
+                          <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                            Belum ada lampiran kwitansi dari surveyor
+                          </div>
+                        )
+                      ) : (
+                        <>
+                          <input
+                            type="file"
+                            accept="image/*,.pdf"
+                            onChange={(e) => handleFileUpload(e, 'kwitansiHotel')}
+                            className="form-input"
+                            style={{ fontSize: '0.75rem', padding: '0.3rem' }}
+                          />
+                          {formData.fileKwitansiHotelName && (
+                            <div style={{ fontSize: '0.7rem', color: '#059669', marginTop: '0.2rem' }}>✓ File kwitansi terlampir</div>
+                          )}
+                        </>
                       )}
                     </div>
+                  </div>
 
-                    {/* 4. Kwitansi Hotel */}
-                    <div className="form-group" style={{ margin: 0, gridColumn: 'span 2' }}>
-                      <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Receipt size={15} color="var(--accent-primary)" />
-                        <span>4. Kwitansi Penginapan / Hotel</span>
-                      </label>
-                      <input
-                        type="file"
-                        className="form-input"
-                        accept=".pdf,image/*"
-                        onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
-                      />
-                      {formData.fileKwitansiHotelName && (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', color: '#059669', marginTop: '0.25rem' }}>
-                          <span>✓ {formData.fileKwitansiHotelName}</span>
-                          <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}>
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      )}
-                    </div>
+                  <div>
+                    <label className="form-label" style={{ fontSize: '0.75rem', fontWeight: 700 }}>
+                      <Camera size={13} style={{ display: 'inline', marginRight: '4px' }} />
+                      Foto-Foto Pelaksanaan Survei Lapangan
+                    </label>
+                    <MultiPhotoUpload
+                      fotoList={formData.fotoList || []}
+                      onChange={(list) => setFormData({ ...formData, fotoList: list })}
+                      disabled={isAdmin}
+                    />
                   </div>
                 </div>
 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1.25rem' }}>
-                  <button type="button" className="btn btn-secondary" onClick={onClose}>
+                {/* Footer Buttons */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
+                  <button type="button" className="btn btn-secondary" onClick={() => setActiveTab('view')}>
                     Batal
                   </button>
-
-                  <div style={{ display: 'flex', gap: '0.5rem' }}>
-                    <button type="submit" className="btn btn-primary">
-                      <Save size={16} />
-                      <span>Simpan Survei Kapal</span>
-                    </button>
-                  </div>
+                  <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                    <Save size={16} />
+                    <span>Terbitkan Dokumen PDS</span>
+                  </button>
                 </div>
               </form>
             )}
@@ -976,23 +2219,32 @@ export const DayDetailModal = ({ isOpen, onClose, selectedDate, tasksOnDate = []
         </div>
       </div>
 
-      <SuratTugasPrintModal
-        isOpen={isPrintModalOpen}
-        onClose={() => setIsPrintModalOpen(false)}
-        suratTugas={printSuratItem}
-      />
+      {/* Embedded Print Modals */}
+      <SuratTugasPrintModal isOpen={isPrintModalOpen} onClose={() => setIsPrintModalOpen(false)} suratTugas={printSuratItem} />
+      <SuratTugasPdsPrintModal isOpen={isPdsPrintModalOpen} onClose={() => setIsPdsPrintModalOpen(false)} suratTugas={printPdsItem} />
+      <BiayaPdsPrintModal isOpen={isBiayaPrintModalOpen} onClose={() => setIsBiayaPrintModalOpen(false)} suratTugas={printBiayaItem} />
+      <LaporanPrintModal isOpen={isLaporanPrintModalOpen} onClose={() => setIsLaporanPrintModalOpen(false)} laporan={printLaporanItem} />
 
-      <SuratTugasPdsPrintModal
-        isOpen={isPdsPrintModalOpen}
-        onClose={() => setIsPdsPrintModalOpen(false)}
-        suratTugas={printSuratItem}
-      />
+      {/* Embedded PDS Edit Modal */}
+      {isEditPdsModalOpen && (
+        <PdsModal
+          isOpen={isEditPdsModalOpen}
+          onClose={() => {
+            setIsEditPdsModalOpen(false);
+            setEditingPdsItem(null);
+          }}
+          editItem={editingPdsItem}
+          onPrint={handleOpenPdsPrint}
+        />
+      )}
 
-      <LaporanPrintModal
-        isOpen={isLaporanPrintModalOpen}
-        onClose={() => setIsLaporanPrintModalOpen(false)}
-        laporan={printLaporanItem}
-        suratTugas={suratTugas}
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={previewAttachment.isOpen}
+        onClose={() => setPreviewAttachment({ isOpen: false, title: '', fileData: null, fileName: '' })}
+        title={previewAttachment.title}
+        fileData={previewAttachment.fileData}
+        fileName={previewAttachment.fileName}
       />
     </ModalPortal>
   );

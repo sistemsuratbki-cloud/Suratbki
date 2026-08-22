@@ -399,3 +399,38 @@ export const INITIAL_GRADE_TARIFFS = [
   { id: 'grd-2', grade: 'GRADE 6 A', uangHarian: 300000 },
   { id: 'grd-3', grade: 'GRADE 5 C', uangHarian: 275000 }
 ];
+
+export const findTariffByLocation = (locName, tariffList = INITIAL_LOCATION_TARIFFS) => {
+  if (!locName) return null;
+  const clean = String(locName).trim().toUpperCase();
+  return (tariffList || []).find((t) => {
+    const tName = (t.name || '').trim().toUpperCase();
+    const tTujuan = (t.tujuan || '').trim().toUpperCase();
+    return tName === clean || tTujuan === clean || clean.includes(tName) || (tName && clean.includes(tName));
+  }) || null;
+};
+
+export const getLocationCategory = (locName, tariffList = INITIAL_LOCATION_TARIFFS) => {
+  const matched = findTariffByLocation(locName, tariffList);
+  if (matched && matched.kategori) {
+    return matched.kategori;
+  }
+  // Default heuristic for Pontianak harbor areas
+  const clean = String(locName || '').toUpperCase();
+  if (
+    clean.includes('WAJOK') ||
+    clean.includes('BATU LAYANG') ||
+    clean.includes('SIANTAN') ||
+    clean.includes('SUI RENGAS') ||
+    clean.includes('ARANG LIMBUNG') ||
+    clean.includes('DESA KAPOR') ||
+    clean.includes('SUI RAYA') ||
+    clean.includes('JUNGKAT') ||
+    clean.includes('KUMPAI') ||
+    clean.includes('MUARA JUNGKAT')
+  ) {
+    return 'Dalam Kota';
+  }
+  return 'Luar Kota';
+};
+

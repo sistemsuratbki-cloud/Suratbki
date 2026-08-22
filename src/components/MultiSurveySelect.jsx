@@ -21,23 +21,26 @@ export default function MultiSurveySelect({
   value = '',
   onChange,
   placeholder = '-- PILIH JENIS SURVEY (BISA LEBIH DARI 1) --',
-  required = false
+  required = false,
+  disabled = false
 }) {
   const [isOpen, setIsOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [customInput, setCustomInput] = useState('');
   const containerRef = useRef(null);
 
-  // Parse value to array of selected surveys
+  // Parse value to array of selected surveys (excluding fixed header DINAS SURVEY KLAS)
   const selectedSurveys = useMemo(() => {
-    if (Array.isArray(value)) return value.filter(Boolean);
-    if (typeof value === 'string' && value.trim()) {
-      return value
+    let list = [];
+    if (Array.isArray(value)) {
+      list = value.filter(Boolean);
+    } else if (typeof value === 'string' && value.trim()) {
+      list = value
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean);
     }
-    return [];
+    return list.filter((s) => s.toUpperCase() !== 'DINAS SURVEY KLAS');
   }, [value]);
 
   // Combine default types + any custom types already in value
@@ -66,6 +69,7 @@ export default function MultiSurveySelect({
   }, []);
 
   const updateSelection = (newList) => {
+    if (disabled) return;
     const joined = newList.map((s) => s.trim().toUpperCase()).filter(Boolean).join(', ');
     if (onChange) {
       onChange(joined);
@@ -73,6 +77,7 @@ export default function MultiSurveySelect({
   };
 
   const handleToggleOption = (type) => {
+    if (disabled) return;
     const upperType = type.trim().toUpperCase();
     const exists = selectedSurveys.some((s) => s.toUpperCase() === upperType);
     let updated;
@@ -85,22 +90,26 @@ export default function MultiSurveySelect({
   };
 
   const handleRemoveOption = (typeToRemove, e) => {
+    if (disabled) return;
     e?.stopPropagation();
     const updated = selectedSurveys.filter((s) => s.toUpperCase() !== typeToRemove.toUpperCase());
     updateSelection(updated);
   };
 
   const handleSelectAll = (e) => {
+    if (disabled) return;
     e?.stopPropagation();
     updateSelection(DEFAULT_SURVEY_TYPES);
   };
 
   const handleClearAll = (e) => {
+    if (disabled) return;
     e?.stopPropagation();
     updateSelection([]);
   };
 
   const handleAddCustom = (e) => {
+    if (disabled) return;
     e?.preventDefault();
     if (!customInput.trim()) return;
     const clean = customInput.trim().toUpperCase();
@@ -114,11 +123,13 @@ export default function MultiSurveySelect({
     <div ref={containerRef} style={{ position: 'relative', width: '100%' }}>
       {/* Trigger Box */}
       <div
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          if (!disabled) setIsOpen(!isOpen);
+        }}
         style={{
           minHeight: '44px',
           padding: '0.4rem 0.6rem',
-          background: 'var(--bg-card-solid)',
+          background: disabled ? 'var(--bg-main)' : 'var(--bg-card-solid)',
           border: isOpen ? '1.5px solid var(--accent-primary)' : '1.5px solid var(--border-color-strong)',
           borderRadius: 'var(--radius-md)',
           display: 'flex',
@@ -126,7 +137,8 @@ export default function MultiSurveySelect({
           alignItems: 'center',
           justifyContent: 'space-between',
           gap: '0.4rem',
-          cursor: 'pointer',
+          cursor: disabled ? 'not-allowed' : 'pointer',
+          opacity: disabled ? 0.8 : 1,
           transition: 'all 0.2s ease',
           boxShadow: 'var(--shadow-sm)'
         }}
@@ -157,41 +169,45 @@ export default function MultiSurveySelect({
               >
                 <Tag size={12} style={{ flexShrink: 0 }} />
                 <span>{survey}</span>
-                <button
-                  type="button"
-                  onClick={(e) => handleRemoveOption(survey, e)}
-                  style={{
-                    background: 'transparent',
-                    border: 'none',
-                    cursor: 'pointer',
-                    padding: '0 2px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    color: 'inherit',
-                    borderRadius: '50%',
-                    opacity: 0.85
-                  }}
-                  onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
-                  onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.85')}
-                  title="Hapus jenis survei ini"
-                >
-                  <X size={12} />
-                </button>
+                {!disabled && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleRemoveOption(survey, e)}
+                    style={{
+                      background: 'transparent',
+                      border: 'none',
+                      cursor: 'pointer',
+                      padding: '0 2px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      color: 'inherit',
+                      borderRadius: '50%',
+                      opacity: 0.85
+                    }}
+                    onMouseEnter={(e) => (e.currentTarget.style.opacity = '1')}
+                    onMouseLeave={(e) => (e.currentTarget.style.opacity = '0.85')}
+                    title="Hapus jenis survei ini"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
               </span>
             ))
           )}
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-secondary)' }}>
-          <ChevronDown
-            size={16}
-            style={{
-              transition: 'transform 0.2s ease',
-              transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
-            }}
-          />
-        </div>
+        {!disabled && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', color: 'var(--text-secondary)' }}>
+            <ChevronDown
+              size={16}
+              style={{
+                transition: 'transform 0.2s ease',
+                transform: isOpen ? 'rotate(180deg)' : 'rotate(0deg)'
+              }}
+            />
+          </div>
+        )}
       </div>
 
       {/* Helper Info */}
@@ -208,7 +224,7 @@ export default function MultiSurveySelect({
         <span>
           📋 {selectedSurveys.length > 0 ? `${selectedSurveys.length} jenis survei dipilih` : 'Klik dropdown untuk mencentang jenis survei'}
         </span>
-        {selectedSurveys.length > 0 && (
+        {!disabled && selectedSurveys.length > 0 && (
           <button
             type="button"
             onClick={handleClearAll}
@@ -228,7 +244,7 @@ export default function MultiSurveySelect({
       </div>
 
       {/* Dropdown Popover */}
-      {isOpen && (
+      {!disabled && isOpen && (
         <div
           style={{
             position: 'absolute',

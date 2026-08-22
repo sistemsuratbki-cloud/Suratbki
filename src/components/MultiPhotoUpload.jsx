@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Camera, X, Plus, Image as ImageIcon, Eye, Trash2, Upload, FileText, CheckCircle2 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 
 export default function MultiPhotoUpload({
@@ -8,12 +9,15 @@ export default function MultiPhotoUpload({
   fotoList = [],
   onChange,
   label = '1. Upload Foto (Dokumentasi/Kapal)',
-  maxFiles = 20
+  maxFiles = 20,
+  disabled = false
 }) {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState('');
   const [previewImage, setPreviewImage] = useState(null); // { name, data }
   const fileInputRef = useRef(null);
+
+  const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
 
   // Normalize initial files list from props
   const currentPhotos = useMemo(() => {
@@ -46,7 +50,7 @@ export default function MultiPhotoUpload({
   }, [fileNames, fileData, fotoList]);
 
   const notifyChange = (newPhotos) => {
-    if (!onChange) return;
+    if (disabled || !onChange) return;
     const names = newPhotos.map(p => p.name).filter(Boolean).join(', ');
     const primaryData = newPhotos.length > 0 ? (newPhotos[0].data || '') : '';
     const allData = newPhotos.map(p => p.data || '').join('|||');
@@ -58,83 +62,118 @@ export default function MultiPhotoUpload({
     });
   };
 
-  const handleFiles = async (files) => {
-    if (!files || files.length === 0) return;
-    const fileArray = Array.from(files);
-    
+  const handleFiles = async (fileList) => {
+    if (disabled) return;
+    if (!fileList || fileList.length === 0) return;
+    const rawFiles = Array.from(fileList);
+
+    // Filter files by 3MB max size
+    const validFiles = [];
+    for (const file of rawFiles) {
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`File "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB) dan dilewati.`);
+      } else {
+        validFiles.push(file);
+      }
+    }
+
+    if (validFiles.length === 0) {
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      return;
+    }
+
+    const files = validFiles;
     setIsUploading(true);
-    setUploadProgress(`Mengunggah ${fileArray.length} berkas...`);
+    setUploadProgress(`0/${files.length}`);
 
-    const uploadedResults = [];
+    const newUploaded = [];
 
-    for (let i = 0; i < fileArray.length; i++) {
-      const file = fileArray[i];
-      setUploadProgress(`Mengunggah foto ${i + 1} dari ${fileArray.length}: ${file.name}...`);
-      
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setUploadProgress(`${i + 1}/${files.length}`);
 
-      let fileUrl = '';
       try {
         if (!supabase) throw new Error('Supabase not configured');
-        const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
+        const fileExt = file.name.split('.').pop();
+        const fileName = `foto_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
+        const filePath = `documents/${fileName}`;
+
+        const { data, error } = await supabase.storage
+          .from('surat-tugas')
+          .upload(filePath, file, { cacheControl: '3600', upsert: false });
+
         if (error) throw error;
-        const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
-        fileUrl = publicUrlData.publicUrl;
+
+        const { data: publicUrlData } = supabase.storage
+          .from('surat-tugas')
+          .getPublicUrl(filePath);
+
+        const url = publicUrlData?.publicUrl || filePath;
+        newUploaded.push({ name: file.name, data: url });
       } catch (err) {
-        // Fallback to local Base64
-        fileUrl = await new Promise((resolve) => {
+        // Fallback to base64
+        await new Promise((resolve) => {
           const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
+          reader.onloadend = () => {
+            newUploaded.push({ name: file.name, data: reader.result });
+            resolve();
+          };
           reader.readAsDataURL(file);
         });
       }
-
-      uploadedResults.push({
-        name: file.name,
-        data: fileUrl,
-        size: file.size
-      });
     }
 
-    const updatedList = [...currentPhotos, ...uploadedResults];
-    notifyChange(updatedList);
+    const updated = [...currentPhotos, ...newUploaded].slice(0, maxFiles);
+    notifyChange(updated);
     setIsUploading(false);
     setUploadProgress('');
-
-    // Reset input
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
   const handleRemovePhoto = (indexToRemove, e) => {
+    if (disabled) return;
     e?.stopPropagation();
     const updated = currentPhotos.filter((_, idx) => idx !== indexToRemove);
     notifyChange(updated);
   };
 
   const handleClearAll = (e) => {
+    if (disabled) return;
     e?.stopPropagation();
     notifyChange([]);
   };
 
   return (
-    <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+    <div style={{ width: '100%' }}>
       {/* Header Label */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-        <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', margin: 0 }}>
-          <Camera size={16} color="#0284c7" />
+      <div
+        style={{
+          display: 'flex',
+          justifyContent: 'space-between',
+          alignItems: 'center',
+          marginBottom: '0.4rem'
+        }}
+      >
+        <label className="form-label" style={{ fontWeight: 700, margin: 0, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+          <Camera size={15} color="var(--accent-primary)" />
           <span>{label}</span>
           {currentPhotos.length > 0 && (
-            <span style={{ fontSize: '0.75rem', fontWeight: 800, background: 'rgba(2, 132, 199, 0.15)', color: '#0284c7', padding: '0.1rem 0.45rem', borderRadius: 'var(--radius-full)' }}>
-              {currentPhotos.length} Foto
+            <span
+              style={{
+                fontSize: '0.72rem',
+                fontWeight: 700,
+                background: 'rgba(2, 132, 199, 0.12)',
+                color: 'var(--accent-primary)',
+                padding: '0.1rem 0.4rem',
+                borderRadius: '10px'
+              }}
+            >
+              {currentPhotos.length} file
             </span>
           )}
         </label>
 
-        {currentPhotos.length > 1 && (
+        {!disabled && currentPhotos.length > 0 && (
           <button
             type="button"
             onClick={handleClearAll}
@@ -143,9 +182,11 @@ export default function MultiPhotoUpload({
               border: 'none',
               color: 'var(--status-danger-text)',
               fontSize: '0.72rem',
-              fontWeight: 700,
               cursor: 'pointer',
-              textDecoration: 'underline'
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.2rem'
             }}
           >
             Hapus Semua ({currentPhotos.length})
@@ -154,46 +195,54 @@ export default function MultiPhotoUpload({
       </div>
 
       {/* Upload Trigger Dropzone / Area */}
-      <div
-        onClick={() => fileInputRef.current?.click()}
-        style={{
-          border: '1.5px dashed var(--border-color-strong)',
-          borderRadius: 'var(--radius-sm)',
-          padding: '0.65rem 0.8rem',
-          textAlign: 'center',
-          cursor: isUploading ? 'not-allowed' : 'pointer',
-          background: 'var(--bg-main)',
-          transition: 'all 0.2s ease',
-          marginBottom: currentPhotos.length > 0 ? '0.6rem' : '0'
-        }}
-        onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0284c7')}
-        onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color-strong)')}
-      >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept="image/*,.pdf"
-          multiple
-          onChange={(e) => handleFiles(e.target.files)}
-          disabled={isUploading}
-          style={{ display: 'none' }}
-        />
+      {!disabled && (
+        <div
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: '1.5px dashed var(--border-color-strong)',
+            borderRadius: 'var(--radius-sm)',
+            padding: '0.65rem 0.8rem',
+            textAlign: 'center',
+            cursor: isUploading ? 'not-allowed' : 'pointer',
+            background: 'var(--bg-main)',
+            transition: 'all 0.2s ease',
+            marginBottom: currentPhotos.length > 0 ? '0.6rem' : '0'
+          }}
+          onMouseEnter={(e) => (e.currentTarget.style.borderColor = '#0284c7')}
+          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color-strong)')}
+        >
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*,.pdf"
+            multiple
+            onChange={(e) => handleFiles(e.target.files)}
+            disabled={isUploading}
+            style={{ display: 'none' }}
+          />
 
-        {isUploading ? (
-          <div style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
-            <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(2, 132, 199, 0.3)', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-            <span>{uploadProgress || 'Mengunggah foto...'}</span>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-            <Upload size={16} color="#0284c7" />
-            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-              {currentPhotos.length === 0 ? 'Pilih atau Tarik Beberapa Foto (Multi-Upload)' : '+ Tambah Foto Lainnya...'}
-            </span>
-            <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(Bisa pilih &gt; 1 foto)</span>
-          </div>
-        )}
-      </div>
+          {isUploading ? (
+            <div style={{ fontSize: '0.8rem', color: '#0284c7', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.4rem' }}>
+              <div className="spinner" style={{ width: '14px', height: '14px', border: '2px solid rgba(2, 132, 199, 0.3)', borderTopColor: '#0284c7', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+              <span>{uploadProgress || 'Mengunggah foto...'}</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', color: 'var(--text-secondary)' }}>
+              <Upload size={16} color="#0284c7" />
+              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                {currentPhotos.length === 0 ? 'Pilih atau Tarik Beberapa Foto (Multi-Upload)' : '+ Tambah Foto Lainnya...'}
+              </span>
+              <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)' }}>(Bisa pilih &gt; 1 foto)</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {disabled && currentPhotos.length === 0 && (
+        <div style={{ padding: '0.5rem', background: 'var(--bg-main)', borderRadius: 'var(--radius-sm)', fontSize: '0.78rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+          Tidak ada foto/lampiran dokumentasi diunggah.
+        </div>
+      )}
 
       {/* Grid Thumbnail Preview */}
       {currentPhotos.length > 0 && (
@@ -218,12 +267,7 @@ export default function MultiPhotoUpload({
                   position: 'relative',
                   borderRadius: 'var(--radius-sm)',
                   border: '1px solid var(--border-color)',
-                  background: 'var(--bg-card)',
-                  padding: '0.4rem',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '0.3rem',
+                  background: 'var(--bg-card-solid)',
                   overflow: 'hidden',
                   transition: 'transform 0.15s ease, box-shadow 0.15s ease'
                 }}

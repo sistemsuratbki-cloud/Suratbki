@@ -10,7 +10,6 @@ import {
   MapPin,
   FileText,
   ArrowUpDown,
-  CheckCircle2,
   Phone,
   FileCheck,
   FileSpreadsheet,
@@ -19,9 +18,10 @@ import {
 import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, cleanDocNumber, getStatusBadgeClass } from '../utils/formatters';
+import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
-import { SuratTugasModal } from './SuratTugasModal';
+import { SuratTugasPrintModal } from './SuratTugasPrintModal';
+import { SpsModal } from './SpsModal';
 
 export const LaporanParafTable = () => {
   const { suratTugas } = useData();
@@ -46,11 +46,19 @@ export const LaporanParafTable = () => {
   // Modals
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
+  const [isSpsPrintModalOpen, setIsSpsPrintModalOpen] = useState(false);
+  const [selectedSpsPrintItem, setSelectedSpsPrintItem] = useState(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
   const canManage = role === 'admin' || role === 'developer' || role === 'kacab';
+  const canPrintSps = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan' || role === 'finance';
+
+  const handlePrintSps = (item) => {
+    setSelectedSpsPrintItem(item);
+    setIsSpsPrintModalOpen(true);
+  };
 
   const monthNames = [
     { value: '01', label: 'Januari' },
@@ -74,7 +82,7 @@ export const LaporanParafTable = () => {
   }, []);
 
   const surveyors = useMemo(() => {
-    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab') || [];
+    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'kacab') || [];
     return list;
   }, [usersList]);
 
@@ -159,6 +167,11 @@ export const LaporanParafTable = () => {
   const filteredData = useMemo(() => {
     // 1. Filter
     const result = suratTugas.filter((item) => {
+      // Hanya tampilkan dokumen per kapal (SPS individual), exclude gabungan multi-kapal (PDS)
+      if (item.docType === 'PDS' || item.isPds) {
+        return false;
+      }
+
       // Must be Visit 1 (Visit Pertama)
       const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
       if (!isVisit1) return false;
@@ -344,7 +357,7 @@ export const LaporanParafTable = () => {
         (item.namaKapal || '-').toUpperCase(),
         item.petugas || '-',
         surveyorPhone,
-        (item.jenisSurvey || item.perihal || 'SURVEY KLAS').toUpperCase(),
+        (item.jenisSurvey || item.perihal || '-').toUpperCase(),
         formatDateIndo(item.tglMulai),
         (item.tempatSurvey || item.lokasi || '-').toUpperCase(),
         item.noOrder || '-'
@@ -841,12 +854,13 @@ export const LaporanParafTable = () => {
               </th>
               <th>LOKASI</th>
               <th style={{ textAlign: 'center' }}>RFQ</th>
+              {canPrintSps && <th style={{ textAlign: 'center', width: '120px' }}>CETAK SPS</th>}
             </tr>
           </thead>
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                <td colSpan={canPrintSps ? 9 : 8} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <div className="table-empty-icon" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📑</div>
                   <p style={{ fontWeight: 700 }}>Tidak ada data laporan permohonan paraf untuk periode ini.</p>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -869,7 +883,7 @@ export const LaporanParafTable = () => {
                 const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || item.noHp || '-';
                 const tglFormatted = formatDateIndo(item.tglMulai || item.tglSelesai);
                 const lokasi = (item.tempatSurvey || item.lokasi || item.tujuan || 'PONTIANAK').toUpperCase();
-                const jenis = (item.jenisSurvey || item.perihal || 'ANTARA, TAHUNAN, PEMBAHARUAN').toUpperCase();
+                const jenis = (item.jenisSurvey || item.perihal || '-').toUpperCase();
                 const rfq = item.noOrder || item.agenda || '-';
 
                 return (
@@ -904,6 +918,28 @@ export const LaporanParafTable = () => {
                     <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--accent-primary)', fontSize: '0.85rem' }}>
                       {rfq}
                     </td>
+                    {canPrintSps && (
+                      <td style={{ textAlign: 'center' }}>
+                        <button
+                          type="button"
+                          className="btn btn-primary btn-sm"
+                          style={{
+                            padding: '0.2rem 0.55rem',
+                            fontSize: '0.74rem',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            whiteSpace: 'nowrap'
+                          }}
+                          onClick={() => handlePrintSps(item)}
+                          title="Download / Cetak Dokumen SPS"
+                        >
+                          <Printer size={13} />
+                          <span>Cetak SPS</span>
+                        </button>
+                      </td>
+                    )}
                   </tr>
                 );
               })
@@ -921,13 +957,20 @@ export const LaporanParafTable = () => {
         currentPeriod={currentPeriodLabel}
       />
 
-      {canManage && (
-        <SuratTugasModal
-          isOpen={isEditModalOpen}
-          onClose={() => setIsEditModalOpen(false)}
-          editItem={editingItem}
-        />
-      )}
+      <SuratTugasPrintModal
+        isOpen={isSpsPrintModalOpen}
+        onClose={() => {
+          setIsSpsPrintModalOpen(false);
+          setSelectedSpsPrintItem(null);
+        }}
+        suratTugas={selectedSpsPrintItem}
+      />
+
+      <SpsModal
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        editItem={editingItem}
+      />
     </div>
   );
 };

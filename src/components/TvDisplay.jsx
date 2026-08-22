@@ -24,9 +24,11 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Filter active surveys (not finished and currently happening today)
+  // Filter active surveys (only confirmed PDS, not finished and currently happening today)
   const activeSurveys = suratTugas.filter((st) => {
     if (st.status === 'Selesai' || st.status === 'Batal') return false;
+    const isPds = st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps && st.docType !== 'SPS');
+    if (!isPds) return false;
     if (!st.tglMulai || !st.tglSelesai) return false;
     
     // Normalize dates for comparison (ignoring time)

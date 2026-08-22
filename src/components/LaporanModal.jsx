@@ -23,9 +23,9 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     namaKapal: '',
     lokasi: defaultLoc,
     nilai: defaultRate,
-    namaSurvey: 'DINAS SURVEY KLAS',
+    namaSurvey: '',
     noAgenda: '',
-    noCda: '',
+    noCda: '5100010',
     noSo: '',
     noWbs: '',
     petugas: '',
@@ -51,14 +51,14 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         namaKapal: editItem.namaKapal || '',
         lokasi: editItem.lokasi || editItem.lokasiSurvey || defaultLoc,
         nilai: editItem.nilai || editItem.tarifDasar || defaultRate,
-        namaSurvey: editItem.namaSurvey || editItem.jenisSurvey || 'DINAS SURVEY KLAS',
+        namaSurvey: editItem.namaSurvey || editItem.jenisSurvey || '',
         noAgenda: cleanDocNumber(editItem.noAgenda || editItem.nomor || ''),
-        noCda: editItem.noCda || '',
+        noCda: editItem.noCda || '5100010',
         noSo: editItem.noSo || editItem.noOrder || '',
         noWbs: editItem.noWbs || '',
         petugas: editItem.petugas || '',
 
-        hasil: editItem.hasil || '',
+        hasil: editItem.hasil || editItem.catatan || '',
         status: editItem.status || 'Draf',
         fileFotoName: editItem.fileFotoName || '',
         fileFotoData: editItem.fileFotoData || '',
@@ -75,14 +75,14 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
       const todayDate = new Date().toISOString().split('T')[0];
 
       setFormData({
-        suratId: defaultSurat ? defaultSurat.id : '',
+        suratId: defaultSurat?.id || '',
         tglLapor: defaultSurat?.tglMulai || todayDate,
         namaKapal: defaultSurat?.namaKapal || '',
         lokasi: defaultSurat?.lokasi || defaultLoc,
         nilai: defaultSurat?.jumlahEstimasi || defaultSurat?.tarifDasar || defaultRate,
-        namaSurvey: defaultSurat?.jenisSurvey || defaultSurat?.perihal || 'DINAS SURVEY KLAS',
+        namaSurvey: defaultSurat?.jenisSurvey || '',
         noAgenda: cleanDocNumber(defaultSurat?.nomor) || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
-        noCda: `CDA-${new Date().getFullYear()}/${Date.now().toString().slice(-4)}`,
+        noCda: defaultSurat?.noCda || '5100010',
         noSo: defaultSurat?.noOrder || `SO-${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`,
         noWbs: `WBS.BKI.PTK.${new Date().getFullYear()}.${Date.now().toString().slice(-3)}`,
         petugas: defaultSurat?.petugas || currentUser?.name || 'ALFIAN BONE PUTRA',
@@ -140,6 +140,13 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   const handleFileUpload = async (fieldKey, e) => {
     const file = e.target.files[0];
     if (file) {
+      const MAX_FILE_SIZE = 3 * 1024 * 1024; // 3MB
+      if (file.size > MAX_FILE_SIZE) {
+        toast.error(`Ukuran file "${file.name}" melebihi batas maksimum 3 MB (${(file.size / (1024 * 1024)).toFixed(2)} MB).`);
+        e.target.value = '';
+        return;
+      }
+
       setFormData((prev) => ({
         ...prev,
         [fieldKey]: 'Mengunggah... ' + file.name
@@ -187,7 +194,17 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
 
   const processSave = () => {
     if (!formData.namaKapal || !formData.petugas) {
-      alert('Mohon lengkapi Nama Kapal dan Nama Marine Surveyor!');
+      toast.error('Mohon lengkapi Nama Kapal dan Nama Marine Surveyor!');
+      return null;
+    }
+
+    const cleanJenis = (formData.namaSurvey || formData.jenisSurvey || '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter((s) => s && s.toUpperCase() !== 'DINAS SURVEY KLAS');
+
+    if (cleanJenis.length === 0) {
+      toast.error('Jenis Survey wajib dipilih (minimal 1 jenis survei)!');
       return null;
     }
 
@@ -378,7 +395,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       className="form-input"
                       value={formData.noCda}
                       onChange={(e) => setFormData({ ...formData, noCda: e.target.value })}
-                      placeholder="CDA-2026/08/01"
+                      placeholder="5100010"
                     />
                   </div>
 

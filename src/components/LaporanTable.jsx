@@ -28,7 +28,7 @@ import {
 import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
+import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah, cleanDocNumber, extractAgendaNumber } from '../utils/formatters';
 import { LaporanModal } from './LaporanModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -94,7 +94,7 @@ export const LaporanTable = () => {
   }, []);
 
   const surveyors = useMemo(() => {
-    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab') || [];
+    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'kacab') || [];
     return list;
   }, [usersList]);
 
@@ -312,8 +312,9 @@ export const LaporanTable = () => {
       const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
       const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
       const namaSurvey = (item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS')).toUpperCase();
-      const noAgenda = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
-      const noCda = item.noCda || '-';
+      const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
+      const noAgenda = extractAgendaNumber(noAgendaRaw);
+      const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
       const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
       const noWbs = item.noWbs || '-';
 
@@ -1166,8 +1167,9 @@ export const LaporanTable = () => {
                 const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
                 const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
                 const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
-                const noAgenda = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
-                const noCda = item.noCda || '-';
+                const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
+                const noAgenda = extractAgendaNumber(noAgendaRaw);
+                const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
                 const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
                 const noWbs = item.noWbs || '-';
 

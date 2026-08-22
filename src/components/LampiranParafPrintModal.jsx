@@ -36,7 +36,7 @@ export const LampiranParafPrintModal = ({
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay print-only-modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
           style={{ maxWidth: '1050px', width: '95vw', background: '#ffffff', color: '#000000' }}
@@ -56,11 +56,7 @@ export const LampiranParafPrintModal = ({
               </div>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-                <Printer size={15} />
-                <span>Cetak / Download PDF</span>
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={onClose}>
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup">
                 <X size={16} />
               </button>
             </div>
@@ -128,7 +124,7 @@ export const LampiranParafPrintModal = ({
                       const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || item.noHp || '-';
                       const tglFormatted = formatDateIndo(item.tglMulai || item.tglSelesai);
                       const lokasi = (item.tempatSurvey || item.lokasi || item.tujuan || 'PONTIANAK').toUpperCase();
-                      const jenis = (item.jenisSurvey || item.perihal || 'DINAS SURVEY KLAS').toUpperCase();
+                      const jenis = (item.jenisSurvey || item.perihal || '-').toUpperCase();
                       const rfq = item.noOrder || item.agenda || '-';
                       const isLast = (idx === itemsList.length - 1) && emptyRowsCount === 0;
 

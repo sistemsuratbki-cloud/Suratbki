@@ -15,6 +15,8 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
   const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas');
 
+  const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS').length;
+  const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
   const parafCount = filteredSurat.filter((item) => item.visit === '1' || item.visit === 1 || item.visit === true).length;
   const unpaidCount = filteredKwitansi.filter((item) => item.status === 'Belum Dibayar').length;
   const draftCount = filteredLaporan.filter((item) => item.status === 'Draf').length;
@@ -22,6 +24,22 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
   const toggleMenu = (id) => {
     setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }));
   };
+
+  const suratSubItems = [
+    {
+      id: 'surat_sps',
+      label: 'SPS',
+      badge: spsCount
+    }
+  ];
+
+  if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
+    suratSubItems.push({
+      id: 'surat_pds',
+      label: 'PDS',
+      badge: pdsCount
+    });
+  }
 
   const menuItems = [
     {
@@ -32,23 +50,16 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     },
     {
       id: 'surat',
-      label: role === 'surveyor' ? 'Tugas Saya' : 'Surat Tugas BKI',
+      label: 'Surat Tugas BKI',
       icon: FileCheck,
       badge: null,
-      subItems: [
-        {
-          id: 'surat_sps',
-          label: 'SPS',
-          badge: filteredSurat.length
-        },
-        {
-          id: 'surat_pds',
-          label: 'PDS',
-          badge: filteredSurat.length
-        }
-      ]
-    },
-    {
+      subItems: suratSubItems
+    }
+  ];
+
+  // Restricted Access for Laporan: Admin, Developer, Kacab, and Finance (Keuangan)
+  if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
+    menuItems.push({
       id: 'laporan',
       label: 'Laporan BKI',
       icon: BarChart2,
@@ -72,8 +83,8 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
           badgeColor: '#059669'
         }
       ]
-    }
-  ];
+    });
+  }
 
   // Restricted Access: Admin, Kacab, and Finance (Keuangan)
   if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {

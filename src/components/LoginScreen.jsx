@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { BKILogo } from './BKILogo';
 import { IDSurveyLogo } from './IDSurveyLogo';
+import { DanantaraLogo } from './DanantaraLogo';
 import { checkLoginLock } from '../utils/security';
 
 export const LoginScreen = () => {
@@ -141,12 +142,14 @@ export const LoginScreen = () => {
           zIndex: 2
         }}
       >
-        {/* Left Side: BKI & IDSurvey Branding */}
+        {/* Left Side: Danantara, BKI & IDSurvey Branding */}
         <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', marginBottom: '1.5rem' }}>
-            <BKILogo size={52} />
-            <div style={{ height: '36px', width: '1.5px', background: 'var(--border-color)' }} />
-            <IDSurveyLogo height={38} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
+            <BKILogo size={46} />
+            <div style={{ height: '32px', width: '1.5px', background: 'var(--border-color)' }} />
+            <IDSurveyLogo height={34} />
+            <div style={{ height: '32px', width: '1.5px', background: 'var(--border-color)' }} />
+            <DanantaraLogo height={32} />
           </div>
 
           <div style={{ marginBottom: '1.25rem' }}>
@@ -154,7 +157,7 @@ export const LoginScreen = () => {
               Sistem Informasi Surat Tugas & Survei Kapal
             </h1>
             <div style={{ fontSize: '0.95rem', color: 'var(--accent-primary)', fontWeight: 700, marginTop: '0.35rem' }}>
-              PT Biro Klasifikasi Indonesia (Persero) — Cabang Pontianak
+              PT Biro Klasifikasi Indonesia (Persero) — Cabang Madya Kelas Pontianak
             </div>
           </div>
 

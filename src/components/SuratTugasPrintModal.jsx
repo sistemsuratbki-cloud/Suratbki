@@ -32,7 +32,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
 
   const tglSurveyFormatted = formatDateIndo(suratTugas.tglMulai);
   const lokasiSurvey = (suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase();
-  const jenisSurvey = (suratTugas.jenisSurvey || suratTugas.perihal || 'DOKING, LOADLINE').toUpperCase();
+  const jenisSurvey = (suratTugas.jenisSurvey || suratTugas.perihal || '-').toUpperCase();
   const pemohon = suratTugas.pemohon || 'PT. MITRA SAMUDRA NUSANTARA';
   const namaKapal = suratTugas.namaKapal || 'BAHARI 279';
   const noOrder = suratTugas.noOrder || 'RFQ2608005';
@@ -66,10 +66,10 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay print-only-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
         <div
           className="modal-content"
-          style={{ maxWidth: '780px', background: '#ffffff', color: '#000000' }}
+          style={{ maxWidth: '780px', maxHeight: '90vh', background: '#ffffff', color: '#000000' }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header Toolbar */}
@@ -85,6 +85,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
                 </div>
               </div>
             </div>
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               {/* Toggle Versi TTD */}
               <button
@@ -96,11 +97,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
                 {withSignature ? '✍️ Versi: DENGAN TTD' : '📄 Versi: TANPA TTD (Manual)'}
               </button>
 
-              <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-                <Printer size={15} />
-                <span>Cetak / PDF</span>
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={onClose}>
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup">
                 <X size={16} />
               </button>
             </div>

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { X, Printer, Calculator } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, formatRupiah, cleanDocNumber } from '../utils/formatters';
+import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 
 export const BiayaPdsPrintModal = ({
@@ -102,7 +102,9 @@ export const BiayaPdsPrintModal = ({
   const tglMulaiStr = formatDateIndo(suratTugas.tglMulai).toUpperCase();
   const tglSelesaiStr = formatDateIndo(suratTugas.tglSelesai).toUpperCase();
   const lokasiStr = (suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase();
-  const kapalStr = (suratTugas.namaKapal || '-').toUpperCase();
+  const kapalStr = Array.isArray(suratTugas.shipsDetail) && suratTugas.shipsDetail.length > 0
+    ? suratTugas.shipsDetail.map(s => s.noAgenda && s.noAgenda !== '-' ? `${s.namaKapal} (AGENDA: ${s.noAgenda})` : s.namaKapal).join(', ').toUpperCase()
+    : (suratTugas.namaKapal || '-').toUpperCase();
   const petugasStr = (suratTugas.petugas || '-').toUpperCase();
 
   const handlePrint = () => {
@@ -121,10 +123,10 @@ export const BiayaPdsPrintModal = ({
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay print-only-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
         <div
           className="modal-content"
-          style={{ maxWidth: '1150px', width: '98vw', background: '#ffffff', color: '#000000' }}
+          style={{ maxWidth: '1150px', width: '98vw', maxHeight: '92vh', background: '#ffffff', color: '#000000' }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header Toolbar */}
@@ -151,11 +153,7 @@ export const BiayaPdsPrintModal = ({
                 {withSignature ? '✍️ Versi: DENGAN TTD' : '📄 Versi: TANPA TTD (Manual)'}
               </button>
 
-              <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-                <Printer size={15} />
-                <span>Cetak / Download PDF</span>
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={onClose}>
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup">
                 <X size={16} />
               </button>
             </div>
@@ -229,7 +227,7 @@ export const BiayaPdsPrintModal = ({
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '7%' }}>
                       JUMLAH<br />TERIMA
                     </th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '6%' }}>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '12%' }}>
                       TANDA<br />TERIMA
                     </th>
                   </tr>
@@ -353,19 +351,9 @@ export const BiayaPdsPrintModal = ({
 
                   {/* Total Row */}
                   <tr style={{ fontWeight: 'bold', background: '#f8fafc' }}>
-                    <td colSpan={12} style={{ border: '1px solid black', padding: '6px', textAlign: 'center' }}>
-                      Jumlah
+                    <td colSpan={18} style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left', fontStyle: 'italic' }}>
+                      Terbilang: {terbilang(jumlah).replace(/\b\w/g, l => l.toUpperCase())} Rupiah
                     </td>
-                    <td colSpan={3} style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'right' }}>
-                      Rp.
-                    </td>
-                    <td style={{ border: '1px solid black', padding: '6px 2px', textAlign: 'right' }}>
-                      -
-                    </td>
-                    <td style={{ border: '1px solid black', padding: '6px 2px', textAlign: 'right', fontWeight: 'bold' }}>
-                      {fmtNum(jumlah)}
-                    </td>
-                    <td style={{ border: '1px solid black', padding: '6px' }}></td>
                   </tr>
                 </tbody>
               </table>

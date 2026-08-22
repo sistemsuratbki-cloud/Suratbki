@@ -17,14 +17,21 @@ import {
   RotateCcw,
   Clock,
   CheckCircle2,
-  ChevronDown,
   FileCheck,
-  Calculator
+  Calculator,
+  Lock,
+  Unlock,
+  CheckCircle,
+  MessageSquare,
+  AlertTriangle
 } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, getStatusBadgeClass, cleanDocNumber } from '../utils/formatters';
-import { SuratTugasModal } from './SuratTugasModal';
+import { formatDateIndo, getStatusBadgeClass, cleanDocNumber, formatRupiah, isDocumentLocked } from '../utils/formatters';
+import { filterDataByRole } from '../utils/filterData';
+import { SpsModal } from './SpsModal';
+import { PdsModal } from './PdsModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
@@ -33,8 +40,8 @@ import { ConfirmModal } from './ConfirmModal';
 import { exportBiayaPerjalananDinas } from '../utils/exportExcelBiaya';
 
 export const SuratTugasTable = ({ filterType = 'SPS' }) => {
-  const { suratTugas, deleteSuratTugas, gradeTariffs, tariffs } = useData();
-  const { role, usersList } = useAuth();
+  const { suratTugas, deleteSuratTugas, updateSuratTugas, gradeTariffs, tariffs } = useData();
+  const { role, usersList, currentUser } = useAuth();
 
   // Search & Basic Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -54,7 +61,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [sortBy, setSortBy] = useState('tgl_desc'); // tgl_desc, tgl_asc, duration_desc, duration_asc, kapal_asc, kapal_desc, petugas_asc, nomor_asc
 
   // Modals
-  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isSpsModalOpen, setIsSpsModalOpen] = useState(false);
+  const [isPdsModalOpen, setIsPdsModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
 
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
@@ -67,8 +75,65 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
-  const canManage = role === 'admin' || role === 'developer' || role === 'kacab';
+  // ACC / Revisi Modal State
+  const [isRevisiModalOpen, setIsRevisiModalOpen] = useState(false);
+  const [revisiItem, setRevisiItem] = useState(null);
+  const [revisiNote, setRevisiNote] = useState('');
+
+  const canCreateSps = role === 'admin' || role === 'developer' || role === 'kacab';
+  const canCreatePds = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor';
+  const canEdit = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor';
+  const isAdminOrKacab = role === 'admin' || role === 'developer' || role === 'kacab';
+
+  const handleToggleUnlock = (item) => {
+    const isUnlocked = !item.isUnlockedByAdmin;
+    updateSuratTugas(item.id, {
+      isUnlockedByAdmin: isUnlocked,
+      unlockedAt: isUnlocked ? new Date().toISOString() : null,
+      unlockedBy: isUnlocked ? currentUser?.name : null
+    });
+    if (isUnlocked) {
+      toast.success(`🔓 Kunci dibuka untuk ${item.namaKapal || 'dokumen ini'}. Surveyor dapat mengedit kembali.`);
+    } else {
+      toast.info(`🔒 Dokumen ${item.namaKapal || ''} berhasil dikunci kembali.`);
+    }
+  };
   const canDelete = role === 'admin' || role === 'developer';
+
+  // ACC / Revisi Handlers
+  const handleAccPds = (item) => {
+    updateSuratTugas(item.id, {
+      approvalStatus: 'ACC',
+      approvalNote: '',
+      approvalBy: currentUser?.name || 'Admin',
+      approvalAt: new Date().toISOString()
+    });
+    toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC / disetujui.`);
+  };
+
+  const handleOpenRevisi = (item) => {
+    setRevisiItem(item);
+    setRevisiNote('');
+    setIsRevisiModalOpen(true);
+  };
+
+  const handleSubmitRevisi = () => {
+    if (!revisiItem) return;
+    if (!revisiNote.trim()) {
+      toast.error('Keterangan revisi wajib diisi.');
+      return;
+    }
+    updateSuratTugas(revisiItem.id, {
+      approvalStatus: 'Revisi',
+      approvalNote: revisiNote.trim(),
+      approvalBy: currentUser?.name || 'Admin',
+      approvalAt: new Date().toISOString()
+    });
+    toast.success(`🔄 Revisi diminta untuk PDS ${revisiItem.namaKapal || ''}. Notifikasi akan muncul di dashboard surveyor.`);
+    setIsRevisiModalOpen(false);
+    setRevisiItem(null);
+    setRevisiNote('');
+  };
 
   const monthNames = [
     { value: '01', label: 'Januari' },
@@ -92,7 +157,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   }, []);
 
   const surveyors = useMemo(() => {
-    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'admin' || u.role === 'developer' || u.role === 'kacab') || [];
+    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'kacab') || [];
     return list;
   }, [usersList]);
 
@@ -159,8 +224,20 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
   // Filter & Sort Data
   const filteredAndSortedData = useMemo(() => {
+    // Role based visibility
+    const roleFiltered = filterDataByRole(suratTugas, currentUser, role, 'petugas');
+
     // 1. Filter
-    const result = suratTugas.filter((item) => {
+    const result = roleFiltered.filter((item) => {
+      // Filter Type: SPS vs PDS
+      if (filterType === 'SPS') {
+        const isPdsOnly = item.docType === 'PDS';
+        if (isPdsOnly) return false;
+      } else if (filterType === 'PDS') {
+        const isPds = item.docType === 'PDS' || item.isPds || (item.status !== 'Menunggu Survei' && !item.isSps);
+        if (!isPds) return false;
+      }
+
       // Search
       const searchLower = searchTerm.toLowerCase();
       const matchesSearch =
@@ -178,7 +255,11 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
       if (!matchesSearch) return false;
 
       // Status Filter
-      if (statusFilter !== 'Semua' && item.status !== statusFilter) {
+      if (statusFilter === 'Perlu Revisi') {
+        if (item.approvalStatus !== 'Revisi') return false;
+      } else if (statusFilter === 'ACC') {
+        if (item.approvalStatus !== 'ACC') return false;
+      } else if (statusFilter !== 'Semua' && item.status !== statusFilter) {
         return false;
       }
 
@@ -258,7 +339,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     });
 
     return result;
-  }, [suratTugas, searchTerm, statusFilter, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, sortBy]);
+  }, [suratTugas, currentUser, role, filterType, searchTerm, statusFilter, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, sortBy]);
 
   // Statistics calculation
   const totalHariKegiatan = useMemo(() => {
@@ -267,12 +348,20 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
   const handleOpenAdd = () => {
     setEditingItem(null);
-    setIsModalOpen(true);
+    if (filterType === 'PDS') {
+      setIsPdsModalOpen(true);
+    } else {
+      setIsSpsModalOpen(true);
+    }
   };
 
   const handleOpenEdit = (item) => {
     setEditingItem(item);
-    setIsModalOpen(true);
+    if (item.docType === 'PDS' || item.isPds || filterType === 'PDS') {
+      setIsPdsModalOpen(true);
+    } else {
+      setIsSpsModalOpen(true);
+    }
   };
 
   const handleOpenPrint = (item) => {
@@ -312,11 +401,13 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   };
 
   return (
-    <div className="card-section" style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+    <div className="card">
       {/* Header */}
-      <div className="card-header" style={{ flexWrap: 'wrap', gap: '1rem' }}>
+      <div className="card-header">
         <div className="card-title-group">
-          <FileText size={22} color="var(--accent-primary)" />
+          <div className="card-icon">
+            <FileText size={22} />
+          </div>
           <div>
             <h2 className="card-title">
               Daftar {filterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'}
@@ -341,11 +432,21 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             </button>
           )}
 
-          {canManage && (
-            <button className="btn btn-primary" onClick={handleOpenAdd}>
-              <Plus size={16} />
-              <span>Buat {filterType === 'PDS' ? 'PDS' : 'SPS'} Baru</span>
-            </button>
+          {/* Tombol Buat Baru: Hanya Admin/Kacab/Dev untuk SPS, Surveyor/Admin/Kacab/Dev untuk PDS */}
+          {filterType === 'PDS' ? (
+            canCreatePds && (
+              <button className="btn btn-primary" onClick={handleOpenAdd}>
+                <Plus size={16} />
+                <span>Buat PDS Baru</span>
+              </button>
+            )
+          ) : (
+            canCreateSps && (
+              <button className="btn btn-primary" onClick={handleOpenAdd}>
+                <Plus size={16} />
+                <span>Buat SPS Baru</span>
+              </button>
+            )
           )}
         </div>
       </div>
@@ -370,7 +471,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             <input
               type="text"
               className="form-input"
-              placeholder="Cari surat, kapal, surveyor, lokasi..."
+              placeholder="Cari agenda, kapal, surveyor, lokasi..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem 0.25rem 2rem', height: '32px' }}
@@ -406,6 +507,12 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
               <option value="Belum Mulai">⚪ Belum Mulai</option>
               <option value="Berjalan">🔵 Berjalan</option>
               <option value="Selesai">🟢 Selesai</option>
+              {filterType === 'PDS' && (
+                <>
+                  <option value="ACC">✅ ACC (Disetujui)</option>
+                  <option value="Perlu Revisi">🔄 Perlu Revisi</option>
+                </>
+              )}
             </select>
           </div>
 
@@ -433,8 +540,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
               <option value="kapal_desc">🚢 Nama Kapal (Z - A)</option>
               <option value="petugas_asc">👤 Surveyor (A - Z)</option>
               <option value="petugas_desc">👤 Surveyor (Z - A)</option>
-              <option value="nomor_asc">📄 Nomor Surat (A - Z)</option>
-              <option value="nomor_desc">📄 Nomor Surat (Z - A)</option>
+              {filterType === 'PDS' && <option value="nomor_asc">📄 Nomor Surat (A - Z)</option>}
+              {filterType === 'PDS' && <option value="nomor_desc">📄 Nomor Surat (Z - A)</option>}
             </select>
           </div>
         </div>
@@ -451,11 +558,11 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             borderTop: '1px solid var(--border-color)'
           }}
         >
-          {/* Month & Year Controls */}
-          <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
+          {/* Quick Month & Year Dropdowns */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
             <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
               <Calendar size={13} color="var(--accent-primary)" />
-              <span>Bulan:</span>
+              <span>Periode:</span>
             </span>
 
             <select
@@ -655,32 +762,46 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         <table className="data-table">
           <thead>
             <tr>
-              <th onClick={() => setSortBy(sortBy === 'nomor_asc' ? 'nomor_desc' : 'nomor_asc')} style={{ cursor: 'pointer' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Nomor Surat</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
-                </div>
-              </th>
+              {filterType === 'PDS' ? (
+                <th onClick={() => setSortBy(sortBy === 'nomor_asc' ? 'nomor_desc' : 'nomor_asc')} style={{ cursor: 'pointer' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                    <span>Nomor Surat PDS</span>
+                    <ArrowUpDown size={12} color="var(--text-muted)" />
+                  </div>
+                </th>
+              ) : (
+                <th style={{ width: '130px' }}>
+                  <span>No. Agenda</span>
+                </th>
+              )}
+
               <th onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Nama Kapal / Pemohon</span>
+                  <span>{filterType === 'PDS' ? 'Daftar Kapal & Agenda Terkait' : 'Nama Kapal / Pemohon'}</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
-              <th>Perihal / Agenda</th>
+
+              {filterType === 'SPS' && <th>Perihal / Agenda / Order</th>}
+
               <th onClick={() => setSortBy(sortBy === 'petugas_asc' ? 'petugas_desc' : 'petugas_asc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
                   <span>Petugas Surveyor</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
+
               <th>Lokasi Survey</th>
+
               <th onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>Periode Pelaksanaan (Multi-Hari)</span>
+                  <span>Periode Pelaksanaan</span>
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
+
+              {filterType === 'PDS' && <th>Total Biaya</th>}
+
               <th>Status</th>
               <th style={{ textAlign: 'right' }}>Aksi</th>
             </tr>
@@ -688,7 +809,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
           <tbody>
             {filteredAndSortedData.length === 0 ? (
               <tr>
-                <td colSpan="8" className="table-empty">
+                <td colSpan={filterType === 'PDS' ? 8 : 8} className="table-empty">
                   <div className="table-empty-icon">📄</div>
                   <p>Tidak ada {filterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'} yang sesuai dengan filter.</p>
                   {hasActiveFilters && (
@@ -706,43 +827,84 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             ) : (
               filteredAndSortedData.map((item) => {
                 const daysCount = calculateDays(item.tglMulai, item.tglSelesai);
+                const hasShipsDetail = Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0;
+
                 return (
                   <tr key={item.id}>
+                    {/* Column 1: No Surat PDS or No Agenda SPS */}
+                    {filterType === 'PDS' ? (
+                      <td>
+                        <span style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
+                          {cleanDocNumber(item.nomor)}
+                        </span>
+                      </td>
+                    ) : (
+                      <td>
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            color: 'var(--accent-primary)',
+                            background: 'rgba(2, 132, 199, 0.1)',
+                            padding: '0.2rem 0.5rem',
+                            borderRadius: '4px',
+                            display: 'inline-block'
+                          }}
+                        >
+                          {item.noAgenda || item.agenda || '-'}
+                        </span>
+                      </td>
+                    )}
+
+                    {/* Column 2: Nama Kapal & Detail */}
                     <td>
-                      <span style={{ fontWeight: 700, color: 'var(--accent-primary)' }}>
-                        {cleanDocNumber(item.nomor)}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                        <Anchor size={15} color="var(--accent-primary)" />
-                        <span>{item.namaKapal || 'MV Samudra Jaya'}</span>
-                      </div>
-                      {item.pemohon && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          Pemohon: {item.pemohon}
+                      {filterType === 'PDS' && hasShipsDetail ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem' }}>
+                          {item.shipsDetail.map((sh, sIdx) => (
+                            <div key={sh.spsId || sIdx} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+                              <Anchor size={13} color="var(--accent-primary)" />
+                              <strong style={{ color: 'var(--text-primary)' }}>{sh.namaKapal}</strong>
+                              <span style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', background: 'var(--bg-main)', padding: '0.1rem 0.35rem', borderRadius: '3px' }}>
+                                Agenda: {sh.noAgenda || '-'}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                            <Anchor size={15} color="var(--accent-primary)" />
+                            <span>{item.namaKapal || 'KAPAL SURVEY'}</span>
+                          </div>
+                          {item.pemohon && (
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
+                              Pemohon: {item.pemohon}
+                            </div>
+                          )}
                         </div>
                       )}
                     </td>
-                    <td style={{ maxWidth: '260px' }}>
-                      <div style={{ fontWeight: 600 }}>{item.jenisSurvey || item.perihal}</div>
-                      {item.agenda && (
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.15rem' }}>
-                          Agenda: {item.agenda}
-                        </div>
-                      )}
-                      {item.noOrder && (
-                        <div style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600, marginTop: '0.1rem' }}>
-                          No.Order: {item.noOrder}
-                        </div>
-                      )}
-                    </td>
+
+                    {/* Column 3: SPS Details (Perihal/Agenda/Order) */}
+                    {filterType === 'SPS' && (
+                      <td style={{ maxWidth: '240px' }}>
+                        <div style={{ fontWeight: 600 }}>{item.jenisSurvey || item.perihal}</div>
+                        {item.noOrder && (
+                          <div style={{ fontSize: '0.72rem', color: 'var(--accent-primary)', fontWeight: 600, marginTop: '0.1rem' }}>
+                            Order: {item.noOrder}
+                          </div>
+                        )}
+                      </td>
+                    )}
+
+                    {/* Column 4: Petugas Surveyor */}
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <User size={14} color="var(--text-secondary)" />
-                        <span>{item.petugas}</span>
+                        <span style={{ fontWeight: 600 }}>{item.petugas}</span>
                       </div>
                     </td>
+
+                    {/* Column 5: Lokasi Survey */}
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                         <MapPin size={14} color="var(--text-secondary)" />
@@ -755,6 +917,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                         </span>
                       </div>
                     </td>
+
+                    {/* Column 6: Periode */}
                     <td>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
@@ -777,14 +941,148 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                         </div>
                       </div>
                     </td>
+
+                    {/* Column 7: PDS Total Biaya */}
+                    {filterType === 'PDS' && (
+                      <td>
+                        <span style={{ fontWeight: 800, color: '#059669', fontSize: '0.85rem' }}>
+                          {formatRupiah(item.jumlahEstimasi || (Number(item.tarifDasar || 0) + Number(item.biayaTiket || 0)))}
+                        </span>
+                      </td>
+                    )}
+
+                    {/* Column 8: Status & Lock Badge & Approval Badge */}
                     <td>
-                      <span className={`badge ${getStatusBadgeClass(item.status)}`}>
-                        <span className="badge-dot" />
-                        {item.status}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', alignItems: 'flex-start' }}>
+                        <span className={`badge ${getStatusBadgeClass(item.status)}`}>
+                          <span className="badge-dot" />
+                          {item.status}
+                        </span>
+
+                        {/* Approval Badge */}
+                        {item.approvalStatus === 'ACC' && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              background: '#dcfce7',
+                              color: '#15803d',
+                              border: '1px solid #86efac',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px'
+                            }}
+                            title={`Disetujui oleh ${item.approvalBy || 'Admin'}`}
+                          >
+                            <CheckCircle size={11} /> ACC
+                          </span>
+                        )}
+                        {item.approvalStatus === 'Revisi' && (
+                          <span
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '3px',
+                              fontSize: '0.68rem',
+                              fontWeight: 700,
+                              background: '#fef3c7',
+                              color: '#b45309',
+                              border: '1px solid #fde68a',
+                              padding: '0.1rem 0.4rem',
+                              borderRadius: '4px',
+                              maxWidth: '160px'
+                            }}
+                            title={`Revisi oleh ${item.approvalBy || 'Admin'}: ${item.approvalNote || ''}`}
+                          >
+                            <AlertTriangle size={11} /> Perlu Revisi
+                          </span>
+                        )}
+
+                        {(() => {
+                          const isLocked = isDocumentLocked(item, 3);
+                          if (isLocked) {
+                            return (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  background: '#fef3c7',
+                                  color: '#b45309',
+                                  border: '1px solid #fde68a',
+                                  padding: '0.1rem 0.4rem',
+                                  borderRadius: '4px'
+                                }}
+                                title="Terkunci otomatis: Sudah melewati batas 3 hari pengisian"
+                              >
+                                <Lock size={11} /> Terkunci (3 Hari)
+                              </span>
+                            );
+                          }
+                          if (item.isUnlockedByAdmin) {
+                            return (
+                              <span
+                                style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: '3px',
+                                  fontSize: '0.68rem',
+                                  fontWeight: 700,
+                                  background: '#ecfdf5',
+                                  color: '#047857',
+                                  border: '1px solid #a7f3d0',
+                                  padding: '0.1rem 0.4rem',
+                                  borderRadius: '4px'
+                                }}
+                                title="Akses edit dibuka khusus oleh Admin"
+                              >
+                                <Unlock size={11} /> Akses Dibuka
+                              </span>
+                            );
+                          }
+                          return null;
+                        })()}
+                      </div>
                     </td>
+
+                    {/* Column 9: Aksi */}
                     <td style={{ textAlign: 'right' }}>
-                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem' }}>
+                      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.4rem', flexWrap: 'wrap' }}>
+                        {/* ACC / Revisi Buttons (Admin/Kacab only, PDS only) */}
+                        {filterType === 'PDS' && isAdminOrKacab && (
+                          <>
+                            <button
+                              className="btn btn-icon btn-sm"
+                              onClick={() => handleAccPds(item)}
+                              title={item.approvalStatus === 'ACC' ? 'Sudah di-ACC' : 'ACC / Setujui PDS ini'}
+                              style={{
+                                background: item.approvalStatus === 'ACC' ? '#dcfce7' : '#f0fdf4',
+                                color: '#15803d',
+                                borderColor: item.approvalStatus === 'ACC' ? '#86efac' : '#bbf7d0',
+                                opacity: item.approvalStatus === 'ACC' ? 0.7 : 1
+                              }}
+                            >
+                              <CheckCircle size={15} />
+                            </button>
+                            <button
+                              className="btn btn-icon btn-sm"
+                              onClick={() => handleOpenRevisi(item)}
+                              title="Minta Revisi PDS"
+                              style={{
+                                background: item.approvalStatus === 'Revisi' ? '#fef3c7' : '#fffbeb',
+                                color: '#b45309',
+                                borderColor: item.approvalStatus === 'Revisi' ? '#fde68a' : '#fef08a'
+                              }}
+                            >
+                              <MessageSquare size={15} />
+                            </button>
+                          </>
+                        )}
+
                         {filterType !== 'PDS' && (
                           <button
                             className="btn btn-primary btn-icon btn-sm"
@@ -814,14 +1112,43 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           </>
                         )}
 
-                        {canManage && (
+                        {/* Admin Unlock / Lock Button */}
+                        {isAdminOrKacab && (
                           <button
-                            className="btn btn-secondary btn-icon btn-sm"
-                            onClick={() => handleOpenEdit(item)}
-                            title="Ubah Data"
+                            className={`btn ${item.isUnlockedByAdmin ? 'btn-success' : isDocumentLocked(item, 3) ? 'btn-warning' : 'btn-secondary'} btn-icon btn-sm`}
+                            onClick={() => handleToggleUnlock(item)}
+                            title={item.isUnlockedByAdmin ? 'Kunci Kembali Dokumen' : isDocumentLocked(item, 3) ? 'Buka Kunci Dokumen (Admin Unlock)' : 'Buka Kunci Akses Pengeditan'}
+                            style={
+                              item.isUnlockedByAdmin
+                                ? { background: '#ecfdf5', color: '#059669', borderColor: '#a7f3d0' }
+                                : isDocumentLocked(item, 3)
+                                ? { background: '#fef3c7', color: '#b45309', borderColor: '#fde68a' }
+                                : {}
+                            }
                           >
-                            <Edit2 size={15} />
+                            {item.isUnlockedByAdmin ? <Unlock size={15} /> : <Lock size={15} />}
                           </button>
+                        )}
+
+                        {canEdit && (
+                          isDocumentLocked(item, 3) ? (
+                            <button
+                              className="btn btn-secondary btn-icon btn-sm"
+                              onClick={() => handleOpenEdit(item)}
+                              style={{ background: '#fffbeb', color: '#b45309', borderColor: '#fde68a' }}
+                              title="Dokumen Terkunci: Klik untuk melihat detail dokumen (Mode Hanya Lihat / Read-Only)."
+                            >
+                              <Lock size={15} color="#d97706" />
+                            </button>
+                          ) : (
+                            <button
+                              className="btn btn-secondary btn-icon btn-sm"
+                              onClick={() => handleOpenEdit(item)}
+                              title="Ubah Data"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                          )
                         )}
                         {canDelete && (
                           <button
@@ -842,14 +1169,17 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         </table>
       </div>
 
-      {canManage && (
-        <SuratTugasModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          editItem={editingItem}
-          onPrint={(item) => handleOpenPrint(item)}
-        />
-      )}
+      <SpsModal
+        isOpen={isSpsModalOpen}
+        onClose={() => setIsSpsModalOpen(false)}
+        editItem={editingItem}
+      />
+      <PdsModal
+        isOpen={isPdsModalOpen}
+        onClose={() => setIsPdsModalOpen(false)}
+        editItem={editingItem}
+        onPrint={(item) => handleOpenPdsPrint(item)}
+      />
 
       <SuratTugasPrintModal
         isOpen={isPrintModalOpen}
@@ -879,15 +1209,89 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         isOpen={isConfirmOpen}
         onClose={() => setIsConfirmOpen(false)}
         onConfirm={handleConfirmDelete}
-        title="Konfirmasi Hapus Surat Tugas"
+        title="Konfirmasi Hapus Data"
         message={
           itemToDelete
-            ? `Apakah Anda yakin ingin menghapus Surat Tugas ${itemToDelete.nomor} untuk kapal ${itemToDelete.namaKapal}? Kwitansi & Laporan terkait juga akan dihapus.`
+            ? `Apakah Anda yakin ingin menghapus data untuk kapal ${itemToDelete.namaKapal}? Kwitansi & Laporan terkait juga akan dihapus.`
             : ''
         }
-        confirmText="Ya, Hapus Surat Tugas"
+        confirmText="Ya, Hapus"
         type="danger"
       />
+
+      {/* Revisi Modal */}
+      {isRevisiModalOpen && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '1rem'
+          }}
+          onClick={() => setIsRevisiModalOpen(false)}
+        >
+          <div
+            style={{
+              background: 'var(--bg-card)',
+              borderRadius: 'var(--radius-lg, 12px)',
+              padding: '1.5rem',
+              width: '100%',
+              maxWidth: '480px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+              <AlertTriangle size={20} color="#b45309" />
+              <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                Minta Revisi PDS
+              </h3>
+            </div>
+
+            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+              Kapal: <strong>{revisiItem?.namaKapal || '-'}</strong><br />
+              Surveyor: <strong>{revisiItem?.petugas || '-'}</strong>
+            </div>
+
+            <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+              Keterangan Revisi <span style={{ color: '#ef4444' }}>*</span>
+            </label>
+            <textarea
+              className="form-input"
+              rows={3}
+              placeholder="Contoh: Lokasi survei salah, mohon diperbaiki..."
+              value={revisiNote}
+              onChange={(e) => setRevisiNote(e.target.value)}
+              style={{ width: '100%', fontSize: '0.85rem', resize: 'vertical', marginBottom: '1rem' }}
+              autoFocus
+            />
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+              <button
+                className="btn btn-secondary btn-sm"
+                onClick={() => setIsRevisiModalOpen(false)}
+                style={{ fontSize: '0.82rem' }}
+              >
+                Batal
+              </button>
+              <button
+                className="btn btn-sm"
+                onClick={handleSubmitRevisi}
+                style={{ fontSize: '0.82rem', background: '#f59e0b', color: '#ffffff', borderColor: '#f59e0b', fontWeight: 700 }}
+              >
+                🔄 Kirim Revisi
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

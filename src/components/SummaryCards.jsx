@@ -1,5 +1,5 @@
 import React from 'react';
-import { ClipboardList, Receipt, BarChart2, TrendingUp, AlertTriangle, Check } from 'lucide-react';
+import { ClipboardList, BarChart2, TrendingUp, Check } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
@@ -10,15 +10,14 @@ export const SummaryCards = ({ surveyorFilter }) => {
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas')
     .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
-  const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima')
-    .filter(item => !surveyorFilter || item.penerima === surveyorFilter);
   const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas')
     .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
 
-
   const totalSurat = filteredSurat.length;
-  const pendingKwitansi = filteredKwitansi.filter((k) => k.status === 'Belum Dibayar').length;
-  const surveiSelesai = filteredLaporan.filter((l) => l.status === 'Disetujui').length;
+  // Sinkronkan hitungan Survei Selesai berdasarkan status Selesai atau dokumen PDS yang telah terbit
+  const surveiSelesai = filteredSurat.filter(
+    (item) => item.status === 'Selesai' || item.docType === 'PDS' || item.isPds
+  ).length;
 
   return (
     <div className="summary-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.15rem' }}>
@@ -31,7 +30,7 @@ export const SummaryCards = ({ surveyorFilter }) => {
           <div className="kpi-v2-value">{totalSurat}</div>
           <div className="kpi-v2-subtext" style={{ color: '#10b981' }}>
             <TrendingUp size={13} />
-            <span>{role === 'surveyor' ? 'Penugasan Anda' : '+12% dari bulan lalu'}</span>
+            <span>{role === 'surveyor' ? 'Penugasan Anda' : 'Total Penugasan'}</span>
           </div>
         </div>
         <div className="kpi-v2-icon-box" style={{ background: '#1e3a8a', color: '#ffffff' }}>
@@ -39,15 +38,14 @@ export const SummaryCards = ({ surveyorFilter }) => {
         </div>
       </div>
 
-
-      {/* Card 3: SURVEI SELESAI */}
+      {/* Card 2: SURVEI SELESAI */}
       <div className="kpi-card-v2">
         <div className="kpi-v2-info">
           <div className="kpi-v2-title">SURVEI SELESAI</div>
           <div className="kpi-v2-value">{surveiSelesai}</div>
-          <div className="kpi-v2-subtext" style={{ color: 'var(--text-secondary)' }}>
+          <div className="kpi-v2-subtext" style={{ color: '#10b981' }}>
             <Check size={13} />
-            <span>Telah Disetujui</span>
+            <span>{role === 'surveyor' ? 'Terlaksana / Selesai' : 'Telah Terlaksana'}</span>
           </div>
         </div>
         <div className="kpi-v2-icon-box" style={{ background: '#065f46', color: '#ffffff' }}>

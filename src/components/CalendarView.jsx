@@ -11,8 +11,13 @@ export const CalendarView = ({ surveyorFilter }) => {
   const { currentUser, role } = useAuth();
 
   // Filter tasks & reports specifically for logged-in surveyor
+  // Exclude pending SPS that has not been filled as PDS yet
+  const isPdsItem = (st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps && st.docType !== 'SPS');
+
   const filteredSuratTugas = filterDataByRole(suratTugas, currentUser, role, 'petugas')
-    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
+    .filter(item => !surveyorFilter || item.petugas === surveyorFilter)
+    .filter(item => isPdsItem(item));
+
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima')
     .filter(item => !surveyorFilter || item.penerima === surveyorFilter);
   const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas')
@@ -106,7 +111,10 @@ export const CalendarView = ({ surveyorFilter }) => {
 
   // Active items for a date based on filtered list
   const getEventsForDate = (dateStr) => {
-    const stList = filteredSuratTugas.filter((st) => dateStr >= st.tglMulai && dateStr <= st.tglSelesai);
+    const stList = filteredSuratTugas.filter((st) => {
+      const isDateMatch = dateStr >= st.tglMulai && dateStr <= st.tglSelesai;
+      return isDateMatch;
+    });
     const kwList = filteredKwitansi.filter((k) => k.tglBayar === dateStr || (k.status === 'Belum Dibayar' && stList.some((s) => s.id === k.suratId)));
     const lapList = filteredLaporan.filter((l) => l.tglLapor === dateStr);
 
@@ -207,13 +215,17 @@ export const CalendarView = ({ surveyorFilter }) => {
                     <div
                       key={st.id}
                       className="calendar-chip chip-blue"
-                      title={`🚢 Kapal: ${st.namaKapal || 'MV Samudra Jaya'}\n📍 Lokasi: ${st.lokasi}\n📅 Berangkat: ${formatDateIndo(st.tglMulai)} s/d Selesai: ${formatDateIndo(st.tglSelesai)}\n👤 Surveyor: ${st.petugas}`}
+                      style={{
+                        borderLeft: '3px solid var(--accent-primary)'
+                      }}
+                      title={`🚢 PDS - Kapal: ${st.namaKapal || 'KAPAL SURVEY'}\n📍 Lokasi: ${st.lokasi}\n📅 Periode: ${formatDateIndo(st.tglMulai)} s/d ${formatDateIndo(st.tglSelesai)}\n👤 Surveyor: ${st.petugas}`}
                     >
-                      <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        🚢 {st.namaKapal || 'MV Samudra Jaya'}
+                      <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <span>🚢</span>
+                        <span>{st.namaKapal || 'KAPAL SURVEY'}</span>
                       </div>
                       <div style={{ fontSize: '0.6rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                        📍 {portShort}
+                        📍 {portShort} (PDS)
                       </div>
                       <div style={{ fontSize: '0.575rem', opacity: 0.85, fontWeight: 700, marginTop: '1px' }}>
                         📅 {startDateStr} s/d {endDateStr}
@@ -231,14 +243,10 @@ export const CalendarView = ({ surveyorFilter }) => {
       </div>
 
       {/* Legend Footer */}
-      <div className="calendar-legend-footer">
-        <div className="legend-item">
+      <div className="calendar-legend-footer" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
           <span className="legend-dot dot-blue" />
-          <span>
-            {role === 'surveyor'
-              ? `Surat Tugas Aktif (${currentUser?.name})`
-              : 'Surat Tugas Survei Aktif (Nama Kapal, Lokasi, Tgl Berangkat & Selesai)'}
-          </span>
+          <span>🚢 Perjalanan Dinas Surveyor (PDS Aktif & Terbit)</span>
         </div>
       </div>
 
@@ -253,3 +261,4 @@ export const CalendarView = ({ surveyorFilter }) => {
     </div>
   );
 };
+

@@ -1,6 +1,6 @@
 import React from 'react';
 import { X, Printer, Anchor, FileSpreadsheet } from 'lucide-react';
-import { formatDateIndo, formatRupiah } from '../utils/formatters';
+import { formatDateIndo, formatRupiah, extractAgendaNumber } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
 import { IDSurveyLogo } from './IDSurveyLogo';
@@ -25,8 +25,9 @@ export const LaporanPrintModal = ({
       document.title = `Rekapan Laporan Survei - ${currentPeriod}`;
     } else if (laporan) {
       // Get date from surat tugas if available
-      const st = suratTugas.find(s => s.id === laporan.suratTugasId);
-      const dateObj = new Date(st ? st.tglMulai : laporan.tanggalBuat);
+      const st = (suratTugas || []).find(s => s.id === laporan.suratId || s.id === laporan.suratTugasId);
+      const dateVal = st?.tglMulai || laporan.tglLapor || laporan.tanggal || laporan.tanggalBuat;
+      const dateObj = new Date(dateVal);
       const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
       const surveyor = laporan.petugas || 'Surveyor';
       document.title = `${dateStr} - ${surveyor} - Laporan Survei`;
@@ -41,7 +42,7 @@ export const LaporanPrintModal = ({
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay print-only-modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
           style={{
@@ -61,11 +62,7 @@ export const LaporanPrintModal = ({
               </h3>
             </div>
             <div style={{ display: 'flex', gap: '0.5rem' }}>
-              <button className="btn btn-primary btn-sm" onClick={handlePrint}>
-                <Printer size={15} />
-                Cetak / Download PDF
-              </button>
-              <button className="btn btn-secondary btn-sm" onClick={onClose}>
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup">
                 <X size={16} />
               </button>
             </div>
@@ -137,8 +134,9 @@ export const LaporanPrintModal = ({
                         const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
                         const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
                         const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
-                        const noAgenda = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
-                        const noCda = item.noCda || '-';
+                        const noAgendaRaw = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
+                        const noAgenda = extractAgendaNumber(noAgendaRaw);
+                        const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
                         const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
                         const noWbs = item.noWbs || '-';
 
@@ -195,7 +193,7 @@ export const LaporanPrintModal = ({
                           PT BIRO KLASIFIKASI INDONESIA (PERSERO)
                         </div>
                         <div style={{ fontSize: '0.8rem', fontWeight: 800, color: '#0f172a' }}>
-                          CABANG PONTIANAK — KALIMANTAN BARAT
+                          CABANG MADYA KELAS PONTIANAK — KALIMANTAN BARAT
                         </div>
                       </div>
                       <BKILogo height={40} style={{ flexShrink: 0 }} />
@@ -243,12 +241,12 @@ export const LaporanPrintModal = ({
                       <tr>
                         <td style={{ fontWeight: 700 }}>NO AGENDA</td>
                         <td>:</td>
-                        <td>{laporan.noAgenda || laporan.nomor || '-'}</td>
+                        <td>{extractAgendaNumber(laporan.noAgenda || laporan.nomor || '-')}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>NO CDA</td>
                         <td>:</td>
-                        <td>{laporan.noCda || '-'}</td>
+                        <td>{(!laporan.noCda || laporan.noCda === '-' || laporan.noCda.startsWith('CDA-')) ? '5100010' : laporan.noCda}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>NO.SO</td>
@@ -270,6 +268,17 @@ export const LaporanPrintModal = ({
                 </div>
               )
             )}
+          </div>
+
+          {/* Modal Footer */}
+          <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', padding: '0.75rem 1.5rem' }}>
+            <button className="btn btn-secondary" onClick={onClose}>
+              Tutup
+            </button>
+            <button className="btn btn-primary" onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+              <Printer size={16} />
+              <span>Cetak / Download PDF</span>
+            </button>
           </div>
         </div>
       </div>
