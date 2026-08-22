@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
-import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles } from 'lucide-react';
+import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles, Eye, Check } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { isEditWindowExpired, formatRupiah, cleanDocNumber } from '../utils/formatters';
@@ -9,13 +9,17 @@ import { sanitizeFormData } from '../utils/security';
 import MultiShipInput from './MultiShipInput';
 import MultiSurveySelect from './MultiSurveySelect';
 import MultiPhotoUpload from './MultiPhotoUpload';
+import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
 export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTugas = null }) => {
   const { suratTugas, addLaporanSurvei, updateLaporanSurvei, updateSuratTugas, tariffs } = useData();
   const { role, currentUser } = useAuth();
+  const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
   const defaultLoc = activeTariffs[0]?.name || activeTariffs[0]?.tujuan || 'Kendawangan (Via Udara)';
   const defaultRate = activeTariffs[0]?.rate || 3000000;
+
+  const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
 
   const [formData, setFormData] = useState({
     suratId: '',
@@ -475,6 +479,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     fileNames={formData.fileFotoName}
                     fileData={formData.fileFotoData}
                     fotoList={formData.fotoList}
+                    disabled={isAdmin}
                     onChange={({ fileFotoName, fileFotoData, fotoList }) =>
                       setFormData((prev) => ({
                         ...prev,
@@ -486,69 +491,207 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     label="1. Upload Foto"
                   />
 
+                  {/* 2. Upload Visit */}
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
                       <FileCheck2 size={16} color="#059669" />
-                      <span>2. Upload Visit</span>
+                      <span>2. Upload Visit (Maks. 3 MB)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="form-input"
-                      onChange={(e) => handleFileUpload('fileVisitName', e)}
-                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                    />
-                    {formData.fileVisitName && (
-                      <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                        <span>📄 {formData.fileVisitName}</span>
-                        <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                          <X size={13} />
-                        </button>
-                      </div>
+                    {isAdmin ? (
+                      formData.fileVisitName || formData.fileVisitData ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Check size={13} color="#059669" /> Form visit terlampir
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Formulir Kunjungan Lapangan (Visit Form)',
+                              fileData: formData.fileVisitData || formData.fileVisitName,
+                              fileName: formData.fileVisitName || 'Formulir_Kunjungan_Lapangan'
+                            })}
+                          >
+                            <Eye size={12} />
+                            <span>Cek Lampiran</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Belum ada lampiran dari surveyor
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="form-input"
+                          onChange={(e) => handleFileUpload('fileVisitName', e)}
+                          style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                        />
+                        {formData.fileVisitName && (
+                          <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {formData.fileVisitName}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                                onClick={() => setPreviewAttachment({
+                                  isOpen: true,
+                                  title: 'Formulir Kunjungan Lapangan (Visit Form)',
+                                  fileData: formData.fileVisitData || formData.fileVisitName,
+                                  fileName: formData.fileVisitName || 'Formulir_Kunjungan_Lapangan'
+                                })}
+                              >
+                                <Eye size={11} /> Cek
+                              </button>
+                              <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                                <X size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
+                  {/* 3. Upload Tiket Transport */}
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
                       <Plane size={16} color="#7c3aed" />
-                      <span>3. Upload Tiket Transport</span>
+                      <span>3. Upload Tiket Transport (Maks. 3 MB)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="form-input"
-                      onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
-                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                    />
-                    {formData.fileTiketTransportName && (
-                      <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(124, 58, 237, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                        <span>✈️ {formData.fileTiketTransportName}</span>
-                        <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                          <X size={13} />
-                        </button>
-                      </div>
+                    {isAdmin ? (
+                      formData.fileTiketTransportName || formData.fileTiketTransportData ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Check size={13} color="#059669" /> Tiket transport terlampir
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Bukti Tiket Transportasi',
+                              fileData: formData.fileTiketTransportData || formData.fileTiketTransportName,
+                              fileName: formData.fileTiketTransportName || 'Bukti_Tiket_Transportasi'
+                            })}
+                          >
+                            <Eye size={12} />
+                            <span>Cek Lampiran</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Belum ada lampiran dari surveyor
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="form-input"
+                          onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
+                          style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                        />
+                        {formData.fileTiketTransportName && (
+                          <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(124, 58, 237, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✈️ {formData.fileTiketTransportName}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                                onClick={() => setPreviewAttachment({
+                                  isOpen: true,
+                                  title: 'Bukti Tiket Transportasi',
+                                  fileData: formData.fileTiketTransportData || formData.fileTiketTransportName,
+                                  fileName: formData.fileTiketTransportName || 'Bukti_Tiket_Transportasi'
+                                })}
+                              >
+                                <Eye size={11} /> Cek
+                              </button>
+                              <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                                <X size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
 
+                  {/* 4. Kwitansi Hotel */}
                   <div style={{ background: 'var(--bg-card-solid)', padding: '0.85rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
                     <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.4rem', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
                       <Receipt size={16} color="#d97706" />
-                      <span>4. Kwitansi Hotel</span>
+                      <span>4. Kwitansi Hotel (Maks. 3 MB)</span>
                     </label>
-                    <input
-                      type="file"
-                      accept="image/*,.pdf"
-                      className="form-input"
-                      onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
-                      style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                    />
-                    {formData.fileKwitansiHotelName && (
-                      <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(217, 119, 6, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                        <span>🏨 {formData.fileKwitansiHotelName}</span>
-                        <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                          <X size={13} />
-                        </button>
-                      </div>
+                    {isAdmin ? (
+                      formData.fileKwitansiHotelName || formData.fileKwitansiHotelData ? (
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
+                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <Check size={13} color="#059669" /> Kwitansi hotel terlampir
+                          </span>
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Bukti Kwitansi Hotel / Penginapan',
+                              fileData: formData.fileKwitansiHotelData || formData.fileKwitansiHotelName,
+                              fileName: formData.fileKwitansiHotelName || 'Kwitansi_Hotel'
+                            })}
+                          >
+                            <Eye size={12} />
+                            <span>Cek Lampiran</span>
+                          </button>
+                        </div>
+                      ) : (
+                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
+                          Belum ada lampiran dari surveyor
+                        </div>
+                      )
+                    ) : (
+                      <>
+                        <input
+                          type="file"
+                          accept="image/*,.pdf"
+                          className="form-input"
+                          onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
+                          style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                        />
+                        {formData.fileKwitansiHotelName && (
+                          <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(217, 119, 6, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏨 {formData.fileKwitansiHotelName}</span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                                onClick={() => setPreviewAttachment({
+                                  isOpen: true,
+                                  title: 'Bukti Kwitansi Hotel / Penginapan',
+                                  fileData: formData.fileKwitansiHotelData || formData.fileKwitansiHotelName,
+                                  fileName: formData.fileKwitansiHotelName || 'Kwitansi_Hotel'
+                                })}
+                              >
+                                <Eye size={11} /> Cek
+                              </button>
+                              <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                                <X size={13} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
                   </div>
                 </div>
@@ -581,6 +724,15 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
           </div>
         </div>
       </div>
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={previewAttachment.isOpen}
+        onClose={() => setPreviewAttachment({ isOpen: false, title: '', fileData: null, fileName: '' })}
+        title={previewAttachment.title}
+        fileData={previewAttachment.fileData}
+        fileName={previewAttachment.fileName}
+      />
     </ModalPortal>
   );
 };

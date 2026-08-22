@@ -23,7 +23,10 @@ import {
   Eye,
   X,
   ArrowUpDown,
-  RotateCcw
+  RotateCcw,
+  FileCheck2,
+  Plane,
+  Receipt
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
@@ -32,6 +35,7 @@ import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah,
 import { LaporanModal } from './LaporanModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { ConfirmModal } from './ConfirmModal';
+import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
 export const LaporanTable = () => {
   const { laporanSurvei, suratTugas, updateLaporanSurvei, deleteLaporanSurvei, requestEditApproval, approveEditRequest } = useData();
@@ -67,6 +71,7 @@ export const LaporanTable = () => {
   const [showExportMenu, setShowExportMenu] = useState(false);
   const [viewPhotosItem, setViewPhotosItem] = useState(null);
   const [previewFullImage, setPreviewFullImage] = useState(null);
+  const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
 
   const canAddLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab';
   const canEditLaporan = role === 'admin' || role === 'developer' || role === 'surveyor' || role === 'kacab';
@@ -1280,16 +1285,55 @@ export const LaporanTable = () => {
                           );
                         })()}
 
-                        {item.fileVisitData && (
-                          <a
-                            href={item.fileVisitData}
-                            download={item.fileVisitName || 'visit'}
+                        {(item.fileVisitData || item.fileVisitName) && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Formulir Kunjungan Lapangan (Visit Form)',
+                              fileData: item.fileVisitData || item.fileVisitName,
+                              fileName: item.fileVisitName || 'Form_Visit'
+                            })}
                             className="btn btn-secondary btn-icon btn-sm"
-                            title={`Unduh Visit: ${item.fileVisitName}`}
+                            title={`Lihat Form Visit: ${item.fileVisitName || 'Terlampir'}`}
                             style={{ borderColor: '#059669', color: '#059669' }}
                           >
-                            <FileText size={14} />
-                          </a>
+                            <FileCheck2 size={14} />
+                          </button>
+                        )}
+
+                        {(item.fileTiketTransportData || item.fileTiketTransportName) && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Bukti Tiket Transportasi',
+                              fileData: item.fileTiketTransportData || item.fileTiketTransportName,
+                              fileName: item.fileTiketTransportName || 'Tiket_Transport'
+                            })}
+                            className="btn btn-secondary btn-icon btn-sm"
+                            title={`Lihat Tiket: ${item.fileTiketTransportName || 'Terlampir'}`}
+                            style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
+                          >
+                            <Plane size={14} />
+                          </button>
+                        )}
+
+                        {(item.fileKwitansiHotelData || item.fileKwitansiHotelName) && (
+                          <button
+                            type="button"
+                            onClick={() => setPreviewAttachment({
+                              isOpen: true,
+                              title: 'Bukti Kwitansi Hotel / Penginapan',
+                              fileData: item.fileKwitansiHotelData || item.fileKwitansiHotelName,
+                              fileName: item.fileKwitansiHotelName || 'Kwitansi_Hotel'
+                            })}
+                            className="btn btn-secondary btn-icon btn-sm"
+                            title={`Lihat Kwitansi Hotel: ${item.fileKwitansiHotelName || 'Terlampir'}`}
+                            style={{ borderColor: '#d97706', color: '#d97706' }}
+                          >
+                            <Receipt size={14} />
+                          </button>
                         )}
                       </div>
                     </td>
@@ -1518,6 +1562,15 @@ export const LaporanTable = () => {
         type="danger"
         onConfirm={handleConfirmDelete}
         onClose={() => setIsConfirmOpen(false)}
+      />
+
+      {/* Attachment Preview Modal */}
+      <AttachmentPreviewModal
+        isOpen={previewAttachment.isOpen}
+        onClose={() => setPreviewAttachment({ isOpen: false, title: '', fileData: null, fileName: '' })}
+        title={previewAttachment.title}
+        fileData={previewAttachment.fileData}
+        fileName={previewAttachment.fileName}
       />
     </div>
   );
