@@ -52,15 +52,15 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       icon: LayoutDashboard,
       badge: null
     });
-  }
 
-  menuItems.push({
-    id: 'surat',
-    label: 'Surat Tugas BKI',
-    icon: FileCheck,
-    badge: null,
-    subItems: suratSubItems
-  });
+    menuItems.push({
+      id: 'surat',
+      label: 'Surat Tugas BKI',
+      icon: FileCheck,
+      badge: null,
+      subItems: suratSubItems
+    });
+  }
 
   // Restricted Access for Laporan: Admin, Developer, Kacab, and Finance (Keuangan)
   if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {

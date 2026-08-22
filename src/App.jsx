@@ -28,7 +28,7 @@ function AppContent() {
     try {
       const savedUser = localStorage.getItem('st_auth_user');
       const userRole = savedUser ? JSON.parse(savedUser).role : null;
-      return (userRole === 'finance' || userRole === 'keuangan') ? 'surat_sps' : 'calendar';
+      return (userRole === 'finance' || userRole === 'keuangan') ? 'laporan_pds' : 'calendar';
     } catch {
       return 'calendar';
     }
@@ -44,8 +44,8 @@ function AppContent() {
   }, [theme]);
 
   useEffect(() => {
-    if (isFinance && (activeTab === 'calendar' || activeTab === 'surat_pds' || activeTab === 'surat')) {
-      setActiveTab('surat_sps');
+    if (isFinance && (activeTab === 'calendar' || activeTab.startsWith('surat'))) {
+      setActiveTab('laporan_pds');
     }
   }, [isFinance, activeTab]);
 
@@ -55,7 +55,7 @@ function AppContent() {
 
   // Force TV Display mode for monitor role
   if (role === 'monitor' || activeTab === 'tv-display') {
-    return <TvDisplay onClose={role === 'monitor' ? logout : () => setActiveTab('calendar')} isMonitorRole={role === 'monitor'} />;
+    return <TvDisplay onClose={role === 'monitor' ? logout : () => setActiveTab(isFinance ? 'laporan_pds' : 'calendar')} isMonitorRole={role === 'monitor'} />;
   }
 
   return (
@@ -107,7 +107,7 @@ function AppContent() {
             </>
           )}
 
-          {(activeTab === 'surat_sps' || (isFinance && (activeTab === 'surat_pds' || activeTab === 'calendar' || activeTab === 'surat'))) && <SuratTugasTable filterType="SPS" />}
+          {activeTab === 'surat_sps' && !isFinance && <SuratTugasTable filterType="SPS" />}
           {activeTab === 'surat_pds' && !isFinance && <SuratTugasTable filterType="PDS" />}
           {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}
           {activeTab === 'laporan_paraf' && <LaporanParafTable />}
