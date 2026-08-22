@@ -83,8 +83,8 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         namaSurvey: defaultSurat?.jenisSurvey || '',
         noAgenda: cleanDocNumber(defaultSurat?.nomor) || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
         noCda: defaultSurat?.noCda || '5100010',
-        noSo: defaultSurat?.noOrder || `SO-${new Date().getFullYear()}/${Date.now().toString().slice(-5)}`,
-        noWbs: `WBS.BKI.PTK.${new Date().getFullYear()}.${Date.now().toString().slice(-3)}`,
+        noSo: defaultSurat?.noSo || (defaultSurat?.noOrder && /^\d{10}$/.test(defaultSurat.noOrder) ? defaultSurat.noOrder : '') || '3000255955',
+        noWbs: defaultSurat?.noWbs || '00578-PK-Z4-0426',
         petugas: defaultSurat?.petugas || currentUser?.name || 'ALFIAN BONE PUTRA',
 
         hasil: defaultSurat?.catatan || '',
@@ -408,7 +408,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       className="form-input"
                       value={formData.noSo}
                       onChange={(e) => setFormData({ ...formData, noSo: e.target.value })}
-                      placeholder="SO-2026/08/001"
+                      placeholder="Contoh: 3000255955"
                     />
                   </div>
 
@@ -421,7 +421,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       className="form-input"
                       value={formData.noWbs}
                       onChange={(e) => setFormData({ ...formData, noWbs: e.target.value })}
-                      placeholder="WBS.BKI.PTK.2026.01"
+                      placeholder="Contoh: 00578-PK-Z4-0426"
                     />
                   </div>
                 </div>
