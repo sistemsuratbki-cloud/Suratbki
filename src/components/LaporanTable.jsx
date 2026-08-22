@@ -316,7 +316,7 @@ export const LaporanTable = () => {
       const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();
       const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
       const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
-      const namaSurvey = (item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS')).toUpperCase();
+      const namaSurveyor = (item.petugas || (linkedSurat ? linkedSurat.petugas : '-')).toUpperCase();
       const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
       const noAgenda = extractAgendaNumber(noAgendaRaw);
       const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
@@ -329,7 +329,8 @@ export const LaporanTable = () => {
         namaKapal: vesselName,
         lokasi,
         nilai: nilaiNum,
-        namaSurvey,
+        namaSurvey: namaSurveyor,
+        namaSurveyor,
         noAgenda,
         noCda,
         noSo,
@@ -356,7 +357,7 @@ export const LaporanTable = () => {
       { width: 26 },  // C: NAMA KAPAL
       { width: 22 },  // D: LOKASI SURVEY
       { width: 20 },  // E: NILAI
-      { width: 28 },  // F: NAMA SURVEY
+      { width: 28 },  // F: NAMA SURVEYOR
       { width: 26 },  // G: NO AGENDA
       { width: 18 },  // H: NO CDA
       { width: 20 },  // I: NO.SO
@@ -407,7 +408,7 @@ export const LaporanTable = () => {
       'NAMA KAPAL',
       'LOKASI SURVEY',
       'NILAI (Rp)',
-      'NAMA SURVEY',
+      'NAMA SURVEYOR',
       'NO AGENDA',
       'NO CDA',
       'NO.SO',
@@ -566,7 +567,7 @@ export const LaporanTable = () => {
             <th colspan="10" style="text-align: center;">PT. BIRO KLASIFIKASI INDONESIA (PERSERO) CABANG PONTIANAK - ${currentMonthLabel}</th>
           </tr>
           <tr style="background-color: #1B3A5C; color: #FFFFFF; font-weight: bold;">
-            <th>NO.</th><th>TANGGAL</th><th>NAMA KAPAL</th><th>LOKASI SURVEY</th><th>NILAI</th><th>NAMA SURVEY</th><th>NO AGENDA</th><th>NO CDA</th><th>NO.SO</th><th>NO.WBS</th>
+            <th>NO.</th><th>TANGGAL</th><th>NAMA KAPAL</th><th>LOKASI SURVEY</th><th>NILAI</th><th>NAMA SURVEYOR</th><th>NO AGENDA</th><th>NO CDA</th><th>NO.SO</th><th>NO.WBS</th>
           </tr>
     `;
 
@@ -612,7 +613,7 @@ export const LaporanTable = () => {
   const handleExportCSV = () => {
     setShowExportMenu(false);
     const rows = getPreparedRows();
-    const headers = ['No', 'Tanggal', 'Nama Kapal', 'Lokasi Survey', 'Nilai (Rp)', 'Nama Survey', 'No Agenda', 'No CDA', 'No SO', 'No WBS'];
+    const headers = ['No', 'Tanggal', 'Nama Kapal', 'Lokasi Survey', 'Nilai (Rp)', 'Nama Surveyor', 'No Agenda', 'No CDA', 'No SO', 'No WBS'];
     const csvRows = [headers.join(',')];
 
     rows.forEach((r) => {
@@ -1126,7 +1127,7 @@ export const LaporanTable = () => {
                   <ArrowUpDown size={12} color="var(--text-muted)" />
                 </div>
               </th>
-              <th style={{ minWidth: '160px', textAlign: 'left' }}>NAMA SURVEY</th>
+              <th style={{ minWidth: '160px', textAlign: 'left' }}>NAMA SURVEYOR</th>
               <th
                 onClick={() => setSortBy(sortBy === 'agenda_asc' ? 'agenda_desc' : 'agenda_asc')}
                 style={{ minWidth: '140px', textAlign: 'left', cursor: 'pointer' }}
@@ -1190,11 +1191,6 @@ export const LaporanTable = () => {
                       <div style={{ fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
                         {vesselName}
                       </div>
-                      {item.petugas && (
-                        <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.1rem' }}>
-                          Surveyor: {item.petugas}
-                        </div>
-                      )}
                     </td>
                     <td>
                       <span style={{ fontWeight: 600 }}>{lokasi}</span>
@@ -1203,7 +1199,9 @@ export const LaporanTable = () => {
                       {formatRupiah(nilaiNum)}
                     </td>
                     <td>
-                      <div style={{ fontWeight: 600, textTransform: 'uppercase' }}>{namaSurvey}</div>
+                      <div style={{ fontWeight: 600, textTransform: 'uppercase' }}>
+                        {item.petugas || (linkedSurat ? linkedSurat.petugas : '-')}
+                      </div>
                     </td>
                     <td>
                       <span style={{ fontSize: '0.775rem', fontWeight: 600, color: 'var(--text-secondary)' }}>{noAgenda}</span>

@@ -112,7 +112,7 @@ export const LaporanPrintModal = ({
                       <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '150px' }}>NAMA KAPAL</th>
                       <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '120px' }}>LOKASI SURVEY</th>
                       <th style={{ border: '1px solid #000000', padding: '6px 6px', width: '95px' }}>NILAI</th>
-                      <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '140px' }}>NAMA SURVEY</th>
+                      <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '140px' }}>NAMA SURVEYOR</th>
                       <th style={{ border: '1px solid #000000', padding: '6px 6px', width: '120px' }}>NO AGENDA</th>
                       <th style={{ border: '1px solid #000000', padding: '6px 6px', width: '90px' }}>NO CDA</th>
                       <th style={{ border: '1px solid #000000', padding: '6px 6px', width: '95px' }}>NO.SO</th>
@@ -133,7 +133,7 @@ export const LaporanPrintModal = ({
                         const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
                         const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
                         const nilaiNum = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? linkedSurat.jumlahEstimasi : 0);
-                        const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
+                        const namaSurveyor = item.petugas || (linkedSurat ? linkedSurat.petugas : '-');
                         const noAgendaRaw = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
                         const noAgenda = extractAgendaNumber(noAgendaRaw);
                         const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
@@ -147,7 +147,7 @@ export const LaporanPrintModal = ({
                             <td style={{ border: '1px solid #000000', padding: '5px 8px', fontWeight: 700, textTransform: 'uppercase' }}>{vesselName}</td>
                             <td style={{ border: '1px solid #000000', padding: '5px 8px' }}>{lokasi}</td>
                             <td style={{ border: '1px solid #000000', padding: '5px 6px', textAlign: 'right', fontWeight: 700, whiteSpace: 'nowrap' }}>{formatRupiah(nilaiNum)}</td>
-                            <td style={{ border: '1px solid #000000', padding: '5px 8px', textTransform: 'uppercase' }}>{namaSurvey}</td>
+                            <td style={{ border: '1px solid #000000', padding: '5px 8px', textTransform: 'uppercase' }}>{namaSurveyor}</td>
                             <td style={{ border: '1px solid #000000', padding: '5px 6px', fontSize: '8pt' }}>{noAgenda}</td>
                             <td style={{ border: '1px solid #000000', padding: '5px 6px', fontSize: '8pt' }}>{noCda}</td>
                             <td style={{ border: '1px solid #000000', padding: '5px 6px', fontSize: '8pt', fontWeight: 600 }}>{noSo}</td>
@@ -234,9 +234,9 @@ export const LaporanPrintModal = ({
                         <td style={{ fontWeight: 800, color: '#003366' }}>{formatRupiah(laporan.nilai || laporan.tarifDasar)}</td>
                       </tr>
                       <tr>
-                        <td style={{ fontWeight: 700 }}>NAMA SURVEY</td>
+                        <td style={{ fontWeight: 700 }}>NAMA SURVEYOR</td>
                         <td>:</td>
-                        <td style={{ textTransform: 'uppercase' }}>{laporan.namaSurvey || laporan.jenisSurvey}</td>
+                        <td style={{ textTransform: 'uppercase' }}>{laporan.petugas || laporan.namaSurveyor || '-'}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>NO AGENDA</td>
