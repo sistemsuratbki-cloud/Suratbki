@@ -18,12 +18,21 @@ import { TvDisplay } from './components/TvDisplay';
 
 function AppContent() {
   const { isAuthenticated, role, logout, usersList } = useAuth();
+  const isFinance = role === 'finance' || role === 'keuangan';
 
   const [theme, setTheme] = useState(() => {
     return localStorage.getItem('st_theme') || 'light';
   });
 
-  const [activeTab, setActiveTab] = useState('calendar');
+  const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('st_auth_user');
+      const userRole = savedUser ? JSON.parse(savedUser).role : null;
+      return (userRole === 'finance' || userRole === 'keuangan') ? 'surat_sps' : 'calendar';
+    } catch {
+      return 'calendar';
+    }
+  });
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [dashboardSurveyorFilter, setDashboardSurveyorFilter] = useState('');
 
@@ -33,6 +42,12 @@ function AppContent() {
     document.documentElement.setAttribute('data-theme', theme);
     localStorage.setItem('st_theme', theme);
   }, [theme]);
+
+  useEffect(() => {
+    if (isFinance && (activeTab === 'calendar' || activeTab === 'surat_pds' || activeTab === 'surat')) {
+      setActiveTab('surat_sps');
+    }
+  }, [isFinance, activeTab]);
 
   if (!isAuthenticated) {
     return <LoginScreen />;
@@ -67,7 +82,7 @@ function AppContent() {
         />
 
         <main className="main-content-v2">
-          {activeTab === 'calendar' && (
+          {activeTab === 'calendar' && !isFinance && (
             <>
               {(role === 'admin' || role === 'developer') && (
                 <div style={{ marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
@@ -92,8 +107,8 @@ function AppContent() {
             </>
           )}
 
-          {activeTab === 'surat_sps' && <SuratTugasTable filterType="SPS" />}
-          {activeTab === 'surat_pds' && <SuratTugasTable filterType="PDS" />}
+          {(activeTab === 'surat_sps' || (isFinance && (activeTab === 'surat_pds' || activeTab === 'calendar' || activeTab === 'surat'))) && <SuratTugasTable filterType="SPS" />}
+          {activeTab === 'surat_pds' && !isFinance && <SuratTugasTable filterType="PDS" />}
           {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}
           {activeTab === 'laporan_paraf' && <LaporanParafTable />}
           {activeTab === 'buku_agenda' && <BukuAgendaTable />}

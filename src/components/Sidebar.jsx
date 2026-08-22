@@ -25,6 +25,8 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     setExpandedMenus(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const isFinance = role === 'finance' || role === 'keuangan';
+
   const suratSubItems = [
     {
       id: 'surat_sps',
@@ -33,7 +35,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     }
   ];
 
-  if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
+  if (!isFinance && (role === 'admin' || role === 'developer' || role === 'kacab')) {
     suratSubItems.push({
       id: 'surat_pds',
       label: 'PDS',
@@ -41,21 +43,24 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     });
   }
 
-  const menuItems = [
-    {
+  const menuItems = [];
+
+  if (!isFinance) {
+    menuItems.push({
       id: 'calendar',
       label: 'Dashboard',
       icon: LayoutDashboard,
       badge: null
-    },
-    {
-      id: 'surat',
-      label: 'Surat Tugas BKI',
-      icon: FileCheck,
-      badge: null,
-      subItems: suratSubItems
-    }
-  ];
+    });
+  }
+
+  menuItems.push({
+    id: 'surat',
+    label: 'Surat Tugas BKI',
+    icon: FileCheck,
+    badge: null,
+    subItems: suratSubItems
+  });
 
   // Restricted Access for Laporan: Admin, Developer, Kacab, and Finance (Keuangan)
   if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {

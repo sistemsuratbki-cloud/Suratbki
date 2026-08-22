@@ -42,6 +42,8 @@ import { exportBiayaPerjalananDinas } from '../utils/exportExcelBiaya';
 export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const { suratTugas, deleteSuratTugas, updateSuratTugas, gradeTariffs, tariffs } = useData();
   const { role, usersList, currentUser } = useAuth();
+  const isFinance = role === 'finance' || role === 'keuangan';
+  const effectiveFilterType = isFinance ? 'SPS' : filterType;
 
   // Search & Basic Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -80,9 +82,9 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [revisiItem, setRevisiItem] = useState(null);
   const [revisiNote, setRevisiNote] = useState('');
 
-  const canCreateSps = role === 'admin' || role === 'developer' || role === 'kacab';
-  const canCreatePds = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor';
-  const canEdit = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor';
+  const canCreateSps = (role === 'admin' || role === 'developer' || role === 'kacab') && !isFinance;
+  const canCreatePds = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
+  const canEdit = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
   const isAdminOrKacab = role === 'admin' || role === 'developer' || role === 'kacab';
 
   const handleToggleUnlock = (item) => {
@@ -230,10 +232,10 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     // 1. Filter
     const result = roleFiltered.filter((item) => {
       // Filter Type: SPS vs PDS
-      if (filterType === 'SPS') {
+      if (effectiveFilterType === 'SPS') {
         const isPdsOnly = item.docType === 'PDS';
         if (isPdsOnly) return false;
-      } else if (filterType === 'PDS') {
+      } else if (effectiveFilterType === 'PDS') {
         const isPds = item.docType === 'PDS' || item.isPds || (item.status !== 'Menunggu Survei' && !item.isSps);
         if (!isPds) return false;
       }
@@ -410,7 +412,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
           </div>
           <div>
             <h2 className="card-title">
-              Daftar {filterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'}
+              Daftar {effectiveFilterType === 'PDS' ? 'Perjalanan Dinas Surveyor (PDS)' : 'Surat Penunjukan Survey (SPS)'}
             </h2>
             <div className="card-subtitle">
               Kelola penugasan marine surveyor, sortir multi-hari & multi-bulan operasional
@@ -433,7 +435,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
           )}
 
           {/* Tombol Buat Baru: Hanya Admin/Kacab/Dev untuk SPS, Surveyor/Admin/Kacab/Dev untuk PDS */}
-          {filterType === 'PDS' ? (
+          {effectiveFilterType === 'PDS' ? (
             canCreatePds && (
               <button className="btn btn-primary" onClick={handleOpenAdd}>
                 <Plus size={16} />
@@ -507,7 +509,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
               <option value="Belum Mulai">⚪ Belum Mulai</option>
               <option value="Berjalan">🔵 Berjalan</option>
               <option value="Selesai">🟢 Selesai</option>
-              {filterType === 'PDS' && (
+              {effectiveFilterType === 'PDS' && (
                 <>
                   <option value="ACC">✅ ACC (Disetujui)</option>
                   <option value="Perlu Revisi">🔄 Perlu Revisi</option>
@@ -540,8 +542,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
               <option value="kapal_desc">🚢 Nama Kapal (Z - A)</option>
               <option value="petugas_asc">👤 Surveyor (A - Z)</option>
               <option value="petugas_desc">👤 Surveyor (Z - A)</option>
-              {filterType === 'PDS' && <option value="nomor_asc">📄 Nomor Surat (A - Z)</option>}
-              {filterType === 'PDS' && <option value="nomor_desc">📄 Nomor Surat (Z - A)</option>}
+              {effectiveFilterType === 'PDS' && <option value="nomor_asc">📄 Nomor Surat (A - Z)</option>}
+              {effectiveFilterType === 'PDS' && <option value="nomor_desc">📄 Nomor Surat (Z - A)</option>}
             </select>
           </div>
         </div>
@@ -1083,7 +1085,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           </>
                         )}
 
-                        {filterType !== 'PDS' && (
+                        {effectiveFilterType !== 'PDS' && (
                           <button
                             className="btn btn-primary btn-icon btn-sm"
                             onClick={() => handleOpenPrint(item)}
@@ -1092,7 +1094,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                             <Printer size={15} />
                           </button>
                         )}
-                        {filterType !== 'SPS' && (
+                        {effectiveFilterType !== 'SPS' && (
                           <>
                             <button
                               className="btn btn-secondary btn-icon btn-sm"
