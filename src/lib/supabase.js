@@ -1,7 +1,14 @@
 import { createClient } from '@supabase/supabase-js';
 
-// Anon key (kunci publik) - aman untuk diekspos di client-side
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://irwlmlatrtbdcfmnfftn.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_nHGp_IZFJIrZLfVQzOraSw_RiBzuXZB';
+const supabaseUrl     = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('[Supabase] VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY wajib diisi di .env.local');
+}
+
+export const supabase = supabaseUrl && supabaseAnonKey
+  ? createClient(supabaseUrl, supabaseAnonKey, {
+      realtime: { params: { eventsPerSecond: 10 } }
+    })
+  : null;
