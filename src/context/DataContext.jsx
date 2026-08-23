@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import {
   INITIAL_SURAT_TUGAS,
   INITIAL_KWITANSI_HONOR,
@@ -6,6 +6,26 @@ import {
 } from '../utils/initialData';
 import { INITIAL_LOCATION_TARIFFS, INITIAL_GRADE_TARIFFS } from '../utils/tariffData';
 import { cleanDocNumber } from '../utils/formatters';
+import {
+  fetchSuratTugasFromCloud,
+  saveSuratTugasToCloud,
+  deleteSuratTugasFromCloud,
+  fetchKwitansiFromCloud,
+  saveKwitansiToCloud,
+  deleteKwitansiFromCloud,
+  fetchLaporanFromCloud,
+  saveLaporanToCloud,
+  deleteLaporanFromCloud,
+  fetchTariffsFromCloud,
+  saveTariffToCloud,
+  deleteTariffFromCloud,
+  fetchGradeTariffsFromCloud,
+  saveGradeTariffToCloud,
+  deleteGradeTariffFromCloud,
+  fetchAdminSettingsFromCloud,
+  saveAdminSettingsToCloud,
+  subscribeToRealtimeChanges
+} from '../lib/supabaseSync';
 
 const safeSetLocalStorage = (key, data) => {
   try {
@@ -98,6 +118,54 @@ export const DataProvider = ({ children }) => {
       ...parsed
     };
   });
+
+  // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
+  const refreshAllFromCloud = useCallback(async () => {
+    try {
+      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings] = await Promise.all([
+        fetchSuratTugasFromCloud(),
+        fetchKwitansiFromCloud(),
+        fetchLaporanFromCloud(),
+        fetchTariffsFromCloud(),
+        fetchGradeTariffsFromCloud(),
+        fetchAdminSettingsFromCloud()
+      ]);
+
+      if (Array.isArray(cloudSurat) && cloudSurat.length > 0) {
+        setSuratTugas(cloudSurat.map(cleanEntityObject));
+      }
+      if (Array.isArray(cloudKw) && cloudKw.length > 0) {
+        setKwitansiHonor(cloudKw.map(cleanEntityObject));
+      }
+      if (Array.isArray(cloudLap) && cloudLap.length > 0) {
+        setLaporanSurvei(cloudLap.map(cleanEntityObject));
+      }
+      if (Array.isArray(cloudTariffs) && cloudTariffs.length > 0) {
+        setTariffs(cloudTariffs);
+      }
+      if (Array.isArray(cloudGrades) && cloudGrades.length > 0) {
+        setGradeTariffs(cloudGrades);
+      }
+      if (cloudSettings && typeof cloudSettings === 'object') {
+        setAdminSettings((prev) => ({ ...prev, ...cloudSettings }));
+      }
+    } catch (e) {
+      console.warn('Cloud sync load warning:', e);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshAllFromCloud();
+
+    // Subscribe to live cloud changes
+    const unsubscribe = subscribeToRealtimeChanges(() => {
+      refreshAllFromCloud();
+    });
+
+    return () => {
+      if (typeof unsubscribe === 'function') unsubscribe();
+    };
+  }, [refreshAllFromCloud]);
 
   // Sync to LocalStorage (Cleaned & Quota Safe)
   useEffect(() => {
@@ -229,10 +297,9 @@ export const DataProvider = ({ children }) => {
   }, [suratTugas]);
 
   const updateAdminSettings = (newSettings) => {
-    setAdminSettings((prev) => ({
-      ...prev,
-      ...newSettings
-    }));
+    const merged = { ...adminSettings, ...newSettings };
+    setAdminSettings(merged);
+    saveAdminSettingsToCloud(merged);
   };
 
   // CRUD Actions for Tariffs / Biaya Lokasi
@@ -248,27 +315,32 @@ export const DataProvider = ({ children }) => {
       no: tariffs.length + 1
     };
     setTariffs((prev) => [...prev, newTariff]);
+    saveTariffToCloud(newTariff);
     return newTariff;
   };
 
   const updateTariff = (id, updatedData) => {
     setTariffs((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              ...updatedData,
-              name: updatedData.tujuan || updatedData.name || item.name,
-              tujuan: updatedData.tujuan || updatedData.name || item.tujuan,
-              rate: Number(updatedData.rate) !== undefined ? Number(updatedData.rate) : item.rate
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = {
+            ...item,
+            ...updatedData,
+            name: updatedData.tujuan || updatedData.name || item.name,
+            tujuan: updatedData.tujuan || updatedData.name || item.tujuan,
+            rate: Number(updatedData.rate) !== undefined ? Number(updatedData.rate) : item.rate
+          };
+          saveTariffToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
     );
   };
 
   const deleteTariff = (id) => {
     setTariffs((prev) => prev.filter((item) => item.id !== id));
+    deleteTariffFromCloud(id);
   };
 
   const resetTariffs = () => {
@@ -284,25 +356,30 @@ export const DataProvider = ({ children }) => {
       uangHarian: Number(data.uangHarian) || 0
     };
     setGradeTariffs((prev) => [...prev, newGrade]);
+    saveGradeTariffToCloud(newGrade);
     return newGrade;
   };
 
   const updateGradeTariff = (id, updatedData) => {
     setGradeTariffs((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              ...updatedData,
-              uangHarian: Number(updatedData.uangHarian) !== undefined ? Number(updatedData.uangHarian) : item.uangHarian
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = {
+            ...item,
+            ...updatedData,
+            uangHarian: Number(updatedData.uangHarian) !== undefined ? Number(updatedData.uangHarian) : item.uangHarian
+          };
+          saveGradeTariffToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
     );
   };
 
   const deleteGradeTariff = (id) => {
     setGradeTariffs((prev) => prev.filter((item) => item.id !== id));
+    deleteGradeTariffFromCloud(id);
   };
 
   const resetGradeTariffs = () => {
@@ -311,7 +388,6 @@ export const DataProvider = ({ children }) => {
   };
 
   // ====== 1. ADMIN INPUT SPS (Batch or Single Ship) ======
-  // Menerbitkan dokumen SPS per kapal sesuai inputan Admin (TIDAK ADA NO SURAT di SPS)
   const addSpsBatch = (baseData) => {
     const cleaned = cleanEntityObject(baseData);
     const batchId = `BATCH-${Date.now().toString().slice(-6)}`;
@@ -345,23 +421,26 @@ export const DataProvider = ({ children }) => {
     const createdSpsItems = shipEntries.map((shipItem, idx) => {
       const spsId = `SPS-${Date.now().toString().slice(-6)}-${idx + 1}-${Math.floor(Math.random() * 90) + 10}`;
 
-      return cleanEntityObject({
+      const item = cleanEntityObject({
         ...cleaned,
         id: spsId,
         batchId: batchId,
-        nomor: null, // SPS tidak memiliki No Surat
+        nomor: null,
         noAgenda: shipItem.noAgenda,
         agenda: shipItem.noAgenda,
         namaKapal: shipItem.namaKapal,
         docType: 'SPS',
         isSps: true,
         status: cleaned.status || 'Menunggu Survei',
-        isParafSent: false, // Menunggu surveyor kirim laporan paraf
+        isParafSent: false,
         parafSentAt: null,
         parafSentBy: null,
         pdsId: null,
         createdAt: new Date().toISOString()
       });
+
+      saveSuratTugasToCloud(item);
+      return item;
     });
 
     setSuratTugas((prev) => [...createdSpsItems, ...prev]);
@@ -370,13 +449,11 @@ export const DataProvider = ({ children }) => {
 
   // Backward compatibility alias for addSuratTugas
   const addSuratTugas = (data) => {
-    // If it's explicitly an SPS or contains multiple ships, use addSpsBatch
     if (data.docType === 'SPS' || data.isSps || (!data.docType && data.status === 'Menunggu Survei')) {
       const items = addSpsBatch(data);
       return items[0];
     }
 
-    // Direct PDS / Surat Tugas creation
     const newId = `ST-${Date.now().toString().slice(-6)}`;
     const cleanedData = cleanEntityObject(data);
     const newSurat = {
@@ -387,6 +464,7 @@ export const DataProvider = ({ children }) => {
       nomor: cleanDocNumber(cleanedData.nomor)
     };
     setSuratTugas((prev) => [newSurat, ...prev]);
+    saveSuratTugasToCloud(newSurat);
 
     // ====== GENERATE KWITANSI & LAPORAN FOR THIS PDS ======
     const baseRate = Number(cleanedData.tarifDasar) || 3000000;
@@ -420,6 +498,7 @@ export const DataProvider = ({ children }) => {
     });
 
     setKwitansiHonor((prev) => [autoKwitansi, ...prev]);
+    saveKwitansiToCloud(autoKwitansi);
 
     const autoLaporan = cleanEntityObject({
       id: `LAP-${Date.now().toString().slice(-6)}`,
@@ -449,12 +528,12 @@ export const DataProvider = ({ children }) => {
     });
 
     setLaporanSurvei((prev) => [autoLaporan, ...prev]);
+    saveLaporanToCloud(autoLaporan);
 
     return newSurat;
   };
 
   // ====== 2. SURVEYOR SIMPAN SURVEI & TERBITKAN PDS ======
-  // Menerbitkan 1 PDS untuk gabungan kapal yang disurvei di lokasi/dermaga yang sama
   const createPdsFromSurvey = (surveyData, linkedSpsIds = []) => {
     const newPdsId = `PDS-${Date.now().toString().slice(-6)}`;
     const cleaned = cleanEntityObject(surveyData);
@@ -493,11 +572,13 @@ export const DataProvider = ({ children }) => {
       createdAt: new Date().toISOString()
     };
 
+    saveSuratTugasToCloud(newPds);
+
     // Update Surat Tugas state: Add new PDS and update status of linked SPS items
     setSuratTugas((prev) => {
       const updatedList = prev.map((item) => {
         if (linkedSpsIds.includes(item.id)) {
-          return {
+          const updatedSps = {
             ...item,
             status: 'Selesai',
             pdsId: newPdsId,
@@ -505,6 +586,8 @@ export const DataProvider = ({ children }) => {
             tglSelesai: cleaned.tglSelesai || item.tglSelesai,
             lokasi: cleaned.lokasi || item.lokasi
           };
+          saveSuratTugasToCloud(updatedSps);
+          return updatedSps;
         }
         return item;
       });
@@ -537,6 +620,7 @@ export const DataProvider = ({ children }) => {
       catatan: `Honorarium Standar (${newPds.tempatSurvey || newPds.lokasi})`
     });
     setKwitansiHonor((prev) => [newKwitansi, ...prev]);
+    saveKwitansiToCloud(newKwitansi);
 
     // 2. Generate 1 Laporan Perjalanan Dinas for the combined PDS HANYA jika sudah di-ACC
     if (newPds.approvalStatus === 'ACC') {
@@ -568,6 +652,7 @@ export const DataProvider = ({ children }) => {
         fileKwitansiHotelName: newPds.fileKwitansiHotelName || ''
       });
       setLaporanSurvei((prev) => [newLaporan, ...prev]);
+      saveLaporanToCloud(newLaporan);
     }
 
     return newPds;
@@ -575,8 +660,17 @@ export const DataProvider = ({ children }) => {
 
   const updateSuratTugas = (id, updatedData) => {
     const cleanedData = cleanEntityObject(updatedData);
+    let updatedItem = null;
+
     setSuratTugas((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...cleanedData, nomor: cleanDocNumber(cleanedData.nomor || item.nomor) } : item))
+      prev.map((item) => {
+        if (item.id === id) {
+          updatedItem = { ...item, ...cleanedData, nomor: cleanDocNumber(cleanedData.nomor || item.nomor) };
+          saveSuratTugasToCloud(updatedItem);
+          return updatedItem;
+        }
+        return item;
+      })
     );
 
     // Auto-update linked Kwitansi Honor
@@ -589,29 +683,32 @@ export const DataProvider = ({ children }) => {
     setKwitansiHonor((prev) => {
       const exists = prev.some((k) => k.suratId === id);
       if (exists) {
-        return prev.map((k) =>
-          k.suratId === id
-            ? cleanEntityObject({
-                ...k,
-                nomorSurat: cleanDocNumber(cleanedData.nomor || k.nomorSurat),
-                namaKapal: cleanedData.namaKapal || k.namaKapal,
-                penerima: cleanedData.petugas || k.penerima,
-                lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || k.lokasi,
-                tarifDasar: baseRate,
-                biayaTiket: totalTicket,
-                tiketHotel: ticketHotel,
-                tiketPesawatTaxi: ticketTransport,
-                kategoriTransportasi: cleanedData.kategoriTransportasi || k.kategoriTransportasi,
-                fileTiketName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || k.fileTiketName,
-                fileFotoName: cleanedData.fileFotoName || k.fileFotoName,
-                fileFotoData: cleanedData.fileFotoData || k.fileFotoData,
-                fotoList: cleanedData.fotoList || k.fotoList,
-                fileVisitName: cleanedData.fileVisitName || k.fileVisitName,
-                fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || k.fileKwitansiHotelName,
-                jumlah: totalHonor
-              })
-            : k
-        );
+        return prev.map((k) => {
+          if (k.suratId === id) {
+            const updatedKw = cleanEntityObject({
+              ...k,
+              nomorSurat: cleanDocNumber(cleanedData.nomor || k.nomorSurat),
+              namaKapal: cleanedData.namaKapal || k.namaKapal,
+              penerima: cleanedData.petugas || k.penerima,
+              lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || k.lokasi,
+              tarifDasar: baseRate,
+              biayaTiket: totalTicket,
+              tiketHotel: ticketHotel,
+              tiketPesawatTaxi: ticketTransport,
+              kategoriTransportasi: cleanedData.kategoriTransportasi || k.kategoriTransportasi,
+              fileTiketName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || k.fileTiketName,
+              fileFotoName: cleanedData.fileFotoName || k.fileFotoName,
+              fileFotoData: cleanedData.fileFotoData || k.fileFotoData,
+              fotoList: cleanedData.fotoList || k.fotoList,
+              fileVisitName: cleanedData.fileVisitName || k.fileVisitName,
+              fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || k.fileKwitansiHotelName,
+              jumlah: totalHonor
+            });
+            saveKwitansiToCloud(updatedKw);
+            return updatedKw;
+          }
+          return k;
+        });
       } else {
         const newKw = cleanEntityObject({
           id: `KW-${Date.now().toString().slice(-6)}`,
@@ -636,6 +733,7 @@ export const DataProvider = ({ children }) => {
           tglBayar: cleanedData.tglMulai || new Date().toISOString().split('T')[0],
           catatan: `Honorarium Standar (${cleanedData.tempatSurvey || cleanedData.lokasi})`
         });
+        saveKwitansiToCloud(newKw);
         return [newKw, ...prev];
       }
     });
@@ -651,32 +749,35 @@ export const DataProvider = ({ children }) => {
       if (isPdsDoc) {
         if (isAcc) {
           if (exists) {
-            return prev.map((l) =>
-              l.suratId === id
-                ? cleanEntityObject({
-                    ...l,
-                    namaKapal: cleanedData.namaKapal || l.namaKapal,
-                    lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
-                    lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
-                    nilai: totalHonor,
-                    tarifDasar: baseRate,
-                    namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
-                    noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
-                    noCda: cleanedData.noCda || l.noCda || '5100010',
-                    noSo: cleanedData.noSo || cleanedData.noOrder || l.noSo,
-                    petugas: cleanedData.petugas || l.petugas,
-                    isCito: !!cleanedData.isCito,
-                    tglLapor: cleanedData.tglMulai || l.tglLapor,
-                    tanggal: cleanedData.tglMulai || l.tanggal,
-                    fileFotoName: cleanedData.fileFotoName || l.fileFotoName,
-                    fileFotoData: cleanedData.fileFotoData || l.fileFotoData,
-                    fotoList: cleanedData.fotoList || l.fotoList,
-                    fileVisitName: cleanedData.fileVisitName || l.fileVisitName,
-                    fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || l.fileTiketTransportName,
-                    fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || l.fileKwitansiHotelName
-                  })
-                : l
-            );
+            return prev.map((l) => {
+              if (l.suratId === id) {
+                const updatedLap = cleanEntityObject({
+                  ...l,
+                  namaKapal: cleanedData.namaKapal || l.namaKapal,
+                  lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
+                  lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
+                  nilai: totalHonor,
+                  tarifDasar: baseRate,
+                  namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
+                  noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
+                  noCda: cleanedData.noCda || l.noCda || '5100010',
+                  noSo: cleanedData.noSo || cleanedData.noOrder || l.noSo,
+                  petugas: cleanedData.petugas || l.petugas,
+                  isCito: !!cleanedData.isCito,
+                  tglLapor: cleanedData.tglMulai || l.tglLapor,
+                  tanggal: cleanedData.tglMulai || l.tanggal,
+                  fileFotoName: cleanedData.fileFotoName || l.fileFotoName,
+                  fileFotoData: cleanedData.fileFotoData || l.fileFotoData,
+                  fotoList: cleanedData.fotoList || l.fotoList,
+                  fileVisitName: cleanedData.fileVisitName || l.fileVisitName,
+                  fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || l.fileTiketTransportName,
+                  fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || l.fileKwitansiHotelName
+                });
+                saveLaporanToCloud(updatedLap);
+                return updatedLap;
+              }
+              return l;
+            });
           } else {
             const newLap = cleanEntityObject({
               id: `LAP-${Date.now().toString().slice(-6)}`,
@@ -704,33 +805,36 @@ export const DataProvider = ({ children }) => {
               fileTiketTransportName: cleanedData.fileTiketTransportName || cleanedData.fileTiketName || '',
               fileKwitansiHotelName: cleanedData.fileKwitansiHotelName || ''
             });
+            saveLaporanToCloud(newLap);
             return [newLap, ...prev];
           }
         } else {
-          // If PDS is not ACC (e.g. pending or revised), remove it from laporan
           if (exists) {
+            deleteLaporanFromCloud(id);
             return prev.filter((l) => l.suratId !== id);
           }
           return prev;
         }
       } else {
-        // For non-PDS items (if any)
         if (exists) {
-          return prev.map((l) =>
-            l.suratId === id
-              ? cleanEntityObject({
-                  ...l,
-                  namaKapal: cleanedData.namaKapal || l.namaKapal,
-                  lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
-                  lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
-                  nilai: totalHonor,
-                  tarifDasar: baseRate,
-                  namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
-                  noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
-                  petugas: cleanedData.petugas || l.petugas
-                })
-              : l
-          );
+          return prev.map((l) => {
+            if (l.suratId === id) {
+              const updatedLap = cleanEntityObject({
+                ...l,
+                namaKapal: cleanedData.namaKapal || l.namaKapal,
+                lokasi: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasi,
+                lokasiSurvey: cleanedData.tempatSurvey || cleanedData.lokasi || l.lokasiSurvey,
+                nilai: totalHonor,
+                tarifDasar: baseRate,
+                namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
+                noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
+                petugas: cleanedData.petugas || l.petugas
+              });
+              saveLaporanToCloud(updatedLap);
+              return updatedLap;
+            }
+            return l;
+          });
         }
         return prev;
       }
@@ -741,6 +845,9 @@ export const DataProvider = ({ children }) => {
     setSuratTugas((prev) => prev.filter((item) => item.id !== id));
     setKwitansiHonor((prev) => prev.filter((item) => item.suratId !== id));
     setLaporanSurvei((prev) => prev.filter((item) => item.suratId !== id));
+    deleteSuratTugasFromCloud(id);
+    deleteKwitansiFromCloud(id);
+    deleteLaporanFromCloud(id);
   };
 
   // CRUD Actions for Kwitansi Honor
@@ -752,22 +859,27 @@ export const DataProvider = ({ children }) => {
       jumlah: Number(cleaned.jumlah) || 0
     };
     setKwitansiHonor((prev) => [newKwitansi, ...prev]);
+    saveKwitansiToCloud(newKwitansi);
     return newKwitansi;
   };
 
   const updateKwitansiHonor = (id, updatedData) => {
     const cleaned = cleanEntityObject(updatedData);
     setKwitansiHonor((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? { ...item, ...cleaned, jumlah: Number(cleaned.jumlah) || item.jumlah }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = { ...item, ...cleaned, jumlah: Number(cleaned.jumlah) || item.jumlah };
+          saveKwitansiToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
     );
   };
 
   const deleteKwitansiHonor = (id) => {
     setKwitansiHonor((prev) => prev.filter((item) => item.id !== id));
+    deleteKwitansiFromCloud(id);
   };
 
   // CRUD Actions for Laporan Survei
@@ -778,47 +890,62 @@ export const DataProvider = ({ children }) => {
       id: `LAP-${Date.now().toString().slice(-6)}`
     };
     setLaporanSurvei((prev) => [newLaporan, ...prev]);
+    saveLaporanToCloud(newLaporan);
     return newLaporan;
   };
 
   const updateLaporanSurvei = (id, updatedData) => {
     const cleaned = cleanEntityObject(updatedData);
     setLaporanSurvei((prev) =>
-      prev.map((item) => (item.id === id ? { ...item, ...cleaned } : item))
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = { ...item, ...cleaned };
+          saveLaporanToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
     );
   };
 
   const deleteLaporanSurvei = (id) => {
     setLaporanSurvei((prev) => prev.filter((item) => item.id !== id));
+    deleteLaporanFromCloud(id);
   };
 
   // Request & Approve Edit for locked laporan (24h SLA)
   const requestEditApproval = (id) => {
     setLaporanSurvei((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              isEditRequested: true,
-              editRequestDate: new Date().toISOString()
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = {
+            ...item,
+            isEditRequested: true,
+            editRequestDate: new Date().toISOString()
+          };
+          saveLaporanToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
     );
   };
 
   const approveEditRequest = (id) => {
     setLaporanSurvei((prev) =>
-      prev.map((item) =>
-        item.id === id
-          ? {
-              ...item,
-              isEditRequested: false,
-              isUnlockedByAdmin: true,
-              unlockedAt: new Date().toISOString()
-            }
-          : item
-      )
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = {
+            ...item,
+            isEditRequested: false,
+            isUnlockedByAdmin: true,
+            unlockedAt: new Date().toISOString()
+          };
+          saveLaporanToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
     );
   };
 

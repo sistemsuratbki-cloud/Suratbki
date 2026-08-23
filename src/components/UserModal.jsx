@@ -87,7 +87,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
       ...prev,
       name: nameVal,
       username: prev.username || autoUsername,
-      email: prev.email || `${autoUsername || 'user'}@bki.co.id`
+      email: prev.email || `${autoUsername || 'user'}@gmail.com`
     }));
   };
 
@@ -269,7 +269,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                     className="form-input"
                     value={formData.email}
                     onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    placeholder="Contoh: bambang@bki.co.id"
+                    placeholder="Contoh: bambang@gmail.com"
                   />
                 </div>
               </div>

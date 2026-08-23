@@ -155,7 +155,7 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
                   className="form-input"
                   value={identifierInput}
                   onChange={(e) => setIdentifierInput(e.target.value)}
-                  placeholder="Contoh: budi, siti, admin, atau budi@bki.co.id..."
+                  placeholder="Contoh: budi, siti, admin, atau budi@gmail.com..."
                   required
                 />
               </div>
@@ -223,7 +223,7 @@ export const ForgotPasswordModal = ({ isOpen, onClose }) => {
                   className="form-input"
                   value={emailVerifyInput}
                   onChange={(e) => setEmailVerifyInput(e.target.value)}
-                  placeholder="Ketik email lengkap terdaftar (e.g. budi@bki.co.id)..."
+                  placeholder="Ketik email lengkap terdaftar (e.g. budi@gmail.com)..."
                   required
                 />
                 <div style={{ fontSize: '0.725rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>

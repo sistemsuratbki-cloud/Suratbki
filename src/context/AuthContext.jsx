@@ -10,6 +10,7 @@ import {
   isSessionValid,
   destroySession
 } from '../utils/security';
+import { fetchUsersFromCloud, saveUserToCloud, deleteUserFromCloud } from '../lib/supabaseSync';
 
 const AuthContext = createContext();
 
@@ -19,7 +20,7 @@ export const INITIAL_USERS = [
     username: 'muhson',
     password: 'password123',
     name: 'MUHSON NURROCHMAT',
-    email: 'muhson@bki.co.id',
+    email: 'muhson@gmail.com',
     phone: '+620000000000',
     role: 'kacab',
     grade: 'GRADE 7C',
@@ -33,7 +34,7 @@ export const INITIAL_USERS = [
     username: 'renza',
     password: 'password123',
     name: 'RENZA MUHARAM',
-    email: 'renza@bki.co.id',
+    email: 'renza@gmail.com',
     phone: '+620000000001',
     role: 'admin',
     grade: 'GRADE 7C',
@@ -46,7 +47,7 @@ export const INITIAL_USERS = [
     username: 'bone',
     password: 'password123',
     name: 'ALFIAN BONE PUTRA',
-    email: 'bone@bki.co.id',
+    email: 'bone@gmail.com',
     phone: '+620000000002',
     role: 'surveyor',
     grade: 'GRADE 6 A',
@@ -60,7 +61,7 @@ export const INITIAL_USERS = [
     username: 'andre',
     password: 'password123',
     name: 'ANDRE GUNTUR',
-    email: 'andre@bki.co.id',
+    email: 'andre@gmail.com',
     phone: '+620000000003',
     role: 'surveyor',
     grade: 'GRADE 6 A',
@@ -74,7 +75,7 @@ export const INITIAL_USERS = [
     username: 'sandi',
     password: 'password123',
     name: 'SANDI NANDARIANTO',
-    email: 'sandi@bki.co.id',
+    email: 'sandi@gmail.com',
     phone: '+620000000004',
     role: 'surveyor',
     grade: 'GRADE 5 C',
@@ -88,7 +89,7 @@ export const INITIAL_USERS = [
     username: 'septian',
     password: 'password123',
     name: 'SEPTIAN AJI',
-    email: 'septian@bki.co.id',
+    email: 'septian@gmail.com',
     phone: '+620000000005',
     role: 'surveyor',
     grade: 'GRADE 5 C',
@@ -102,7 +103,7 @@ export const INITIAL_USERS = [
     username: 'monitor',
     password: 'password123',
     name: 'TV Display Monitor',
-    email: 'monitor@bki.co.id',
+    email: 'monitor@gmail.com',
     phone: '+620000000006',
     role: 'monitor',
     grade: '-',
@@ -115,7 +116,7 @@ export const INITIAL_USERS = [
     username: 'admin',
     password: 'admin123',
     name: 'Prasetya',
-    email: 'prasetya@bki.co.id',
+    email: 'sistemsuratbki@gmail.com',
     phone: '+620000000007',
     role: 'developer',
     grade: '-',
@@ -128,7 +129,7 @@ export const INITIAL_USERS = [
     username: 'finance',
     password: 'password123',
     name: 'ANONIM',
-    email: 'finance@bki.co.id',
+    email: 'finance@gmail.com',
     phone: '+620000000008',
     role: 'keuangan',
     grade: 'GRADE 5 C',
@@ -143,6 +144,23 @@ export const AuthProvider = ({ children }) => {
     const saved = localStorage.getItem('st_users_list');
     return saved ? JSON.parse(saved) : INITIAL_USERS;
   });
+
+  useEffect(() => {
+    const loadCloudUsers = async () => {
+      try {
+        const cloudUsers = await fetchUsersFromCloud();
+        if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
+          setUsersList(cloudUsers);
+        } else {
+          // If Supabase has no users yet, seed initial users to cloud
+          INITIAL_USERS.forEach((u) => saveUserToCloud(u));
+        }
+      } catch (e) {
+        console.warn('Failed loading users from cloud:', e);
+      }
+    };
+    loadCloudUsers();
+  }, []);
 
   useEffect(() => {
     const isReset = localStorage.getItem('st_users_reset_v5');
@@ -242,7 +260,7 @@ export const AuthProvider = ({ children }) => {
           username: 'monitor',
           password: hashedPw,
           name: 'TV Display Monitor',
-          email: 'monitor@bki.co.id',
+          email: 'monitor@gmail.com',
           role: 'monitor',
           grade: 'GRADE 6 A',
           roleLabel: 'Layar Monitor Khusus',
@@ -379,7 +397,14 @@ export const AuthProvider = ({ children }) => {
     const hashedPw = await hashPassword(newPassword);
 
     setUsersList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, password: hashedPw } : u))
+      prev.map((u) => {
+        if (u.id === userId) {
+          const updated = { ...u, password: hashedPw };
+          saveUserToCloud(updated);
+          return updated;
+        }
+        return u;
+      })
     );
 
     // Don't store password in currentUser
@@ -401,7 +426,14 @@ export const AuthProvider = ({ children }) => {
     const hashedPw = await hashPassword(defaultPass);
 
     setUsersList((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, password: hashedPw } : u))
+      prev.map((u) => {
+        if (u.id === userId) {
+          const updated = { ...u, password: hashedPw };
+          saveUserToCloud(updated);
+          return updated;
+        }
+        return u;
+      })
     );
   }, []);
 
@@ -430,6 +462,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     setUsersList((prev) => [newUser, ...prev]);
+    saveUserToCloud(newUser);
   }, []);
 
   const updateUser = useCallback(async (id, updatedData) => {
@@ -440,7 +473,14 @@ export const AuthProvider = ({ children }) => {
     }
 
     setUsersList((prev) =>
-      prev.map((u) => (u.id === id ? { ...u, ...dataToSave } : u))
+      prev.map((u) => {
+        if (u.id === id) {
+          const updated = { ...u, ...dataToSave };
+          saveUserToCloud(updated);
+          return updated;
+        }
+        return u;
+      })
     );
 
     if (currentUser && currentUser.id === id) {
@@ -455,6 +495,7 @@ export const AuthProvider = ({ children }) => {
       return;
     }
     setUsersList((prev) => prev.filter((u) => u.id !== id));
+    deleteUserFromCloud(id);
   }, [currentUser]);
 
   const resetUsers = useCallback(() => {
