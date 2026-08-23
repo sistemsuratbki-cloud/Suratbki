@@ -709,6 +709,7 @@ export const DayDetailModal = ({
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
                 {/* 1. SEKSI PDS RESMI YANG TELAH TERBIT */}
                 <div
+                  className="no-print"
                   style={{
                     background: 'var(--bg-card)',
                     border: '1.5px solid var(--border-color)',

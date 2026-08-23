@@ -417,6 +417,15 @@ export const getLocationCategory = (locName, tariffList = INITIAL_LOCATION_TARIF
   }
   // Default heuristic for Pontianak harbor areas
   const clean = String(locName || '').toUpperCase();
+
+  // VIA DARAT → Dalam Kota, VIA UDARA → Luar Kota
+  if (clean.includes('VIA DARAT')) {
+    return 'Dalam Kota';
+  }
+  if (clean.includes('VIA UDARA')) {
+    return 'Luar Kota';
+  }
+
   if (
     clean.includes('WAJOK') ||
     clean.includes('BATU LAYANG') ||

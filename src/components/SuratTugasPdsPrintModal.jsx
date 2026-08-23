@@ -136,7 +136,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                 </h3>
                 <div style={{ fontSize: '0.72rem', color: '#64748b' }}>
                   {resolvedShipList.length > 1
-                    ? `Mencetak ${resolvedShipList.length} Lembar Surat Tugas (1 lembar per kapal)`
+                    ? `1 Lembar Surat Tugas — ${resolvedShipList.length} kapal`
                     : 'Pilih versi dengan TTD digital atau tanpa TTD (manual)'}
                 </div>
               </div>
@@ -158,11 +158,9 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
             </div>
           </div>
 
-          {/* Document Body */}
+          {/* Document Body — Single sheet for all ships */}
           <div className="modal-body" style={{ padding: '1.5rem 2rem', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
-            {resolvedShipList.map((shipItem, idx) => (
               <div
-                key={idx}
                 className="printable-sheet"
                 style={{
                   border: 'none',
@@ -173,33 +171,10 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                   background: '#ffffff',
                   color: '#000000',
                   boxSizing: 'border-box',
-                  pageBreakAfter: idx < resolvedShipList.length - 1 ? 'always' : 'auto',
-                  breakAfter: idx < resolvedShipList.length - 1 ? 'page' : 'auto',
-                  marginBottom: idx < resolvedShipList.length - 1 ? '2.5rem' : 0,
-                  borderBottom: idx < resolvedShipList.length - 1 ? '2px dashed #cbd5e1' : 'none',
-                  paddingBottom: idx < resolvedShipList.length - 1 ? '2.5rem' : '2rem'
+                  paddingBottom: '2rem'
                 }}
               >
-                {/* Header banner if multi-page in preview */}
-                {resolvedShipList.length > 1 && (
-                  <div
-                    className="no-print"
-                    style={{
-                      marginBottom: '1rem',
-                      padding: '0.4rem 0.75rem',
-                      background: '#f1f5f9',
-                      borderRadius: '6px',
-                      fontSize: '0.8rem',
-                      fontWeight: 700,
-                      color: '#0369a1',
-                      display: 'flex',
-                      justifyContent: 'space-between'
-                    }}
-                  >
-                    <span>📄 Lembar PDS {idx + 1} dari {shipList.length}: <strong>{shipItem.namaKapal}</strong></span>
-                    <span>NO. {shipItem.nomor}</span>
-                  </div>
-                )}
+
 
                 {/* ====== KOP LOGOS RESMI ====== */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
@@ -214,7 +189,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                     SURAT TUGAS
                   </div>
                   <div style={{ fontSize: '11pt', color: '#000000' }}>
-                    NO.{shipItem.nomor}
+                    NO.{resolvedShipList[0].nomor}
                   </div>
                 </div>
 
@@ -248,7 +223,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                         <td style={{ verticalAlign: 'top' }}></td>
                         <td style={{ verticalAlign: 'top' }}>UNTUK PERGI KE</td>
                         <td style={{ verticalAlign: 'top' }}>:</td>
-                        <td style={{ verticalAlign: 'top', textTransform: 'uppercase', fontWeight: 700 }}>{shipItem.lokasi}</td>
+                        <td style={{ verticalAlign: 'top', textTransform: 'uppercase', fontWeight: 700 }}>{resolvedShipList[0].lokasi}</td>
                       </tr>
                       <tr>
                         <td style={{ verticalAlign: 'top' }}>5.</td>
@@ -256,7 +231,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                         <td style={{ verticalAlign: 'top' }}>:</td>
                         <td style={{ verticalAlign: 'top', lineHeight: '1.5', paddingTop: '0.4rem', paddingBottom: '0.4rem' }}>
                           <div>{keperluan1}</div>
-                          <div style={{ fontWeight: 700 }}>{shipItem.namaKapal}</div>
+                          <div style={{ fontWeight: 700 }}>{resolvedShipList.map(s => s.namaKapal).join(', ')}</div>
                         </td>
                       </tr>
                       <tr>
@@ -376,7 +351,6 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                   </div>
                 </div>
               </div>
-            ))}
           </div>
 
           <style>{`
