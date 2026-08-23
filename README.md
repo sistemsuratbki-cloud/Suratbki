@@ -87,6 +87,23 @@ Sistem menyediakan akun percontohan untuk pengujian multi-role:
 
 ---
 
+## 📊 Data Dummy Demo
+
+Aplikasi dilengkapi dengan **data dummy realistis** yang otomatis dimuat saat pertama kali dijalankan:
+
+- ✅ **5 Surat Tugas** (3 PDS selesai, 2 SPS menunggu survei)
+- ✅ **3 Kwitansi Honorarium** (1 sudah dibayar, 2 belum dibayar)
+- ✅ **2 Laporan Survei** (berbagai status: Disetujui & Terkirim)
+- ✅ **Skenario Testing Lengkap** (dari input SPS sampai pembayaran)
+
+### Reset ke Data Demo Default
+
+Login sebagai **Admin** atau **Kepala Cabang**, kemudian klik tombol **"Reset Data Demo"** di header.
+
+📖 **Dokumentasi lengkap**: Lihat file [`DATA_DUMMY_INFO.md`](./DATA_DUMMY_INFO.md) untuk detail data dummy dan skenario testing.
+
+---
+
 ## 🌐 Panduan Deployment (Publikasi Web)
 
 Aplikasi ini dibangun menggunakan **Vite + React (SPA)** dan dapat dideploy dengan sangat mudah ke berbagai layanan cloud hosting gratis maupun berbayar.

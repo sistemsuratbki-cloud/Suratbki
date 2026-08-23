@@ -950,16 +950,18 @@ export const DataProvider = ({ children }) => {
   };
 
   const resetDemoData = () => {
+    // Kosongkan semua data
     setSuratTugas([]);
     setKwitansiHonor([]);
     setLaporanSurvei([]);
     setTariffs(INITIAL_LOCATION_TARIFFS);
     setGradeTariffs(INITIAL_GRADE_TARIFFS);
+
     localStorage.removeItem('st_surat_tugas');
     localStorage.removeItem('st_kwitansi_honor');
     localStorage.removeItem('st_laporan_survei');
-    localStorage.removeItem('st_tariffs');
-    localStorage.removeItem('st_grade_tariffs');
+    safeSetLocalStorage('st_tariffs_v2', INITIAL_LOCATION_TARIFFS);
+    safeSetLocalStorage('st_grade_tariffs', INITIAL_GRADE_TARIFFS);
   };
 
   return (

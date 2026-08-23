@@ -50,14 +50,14 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
       </div>
 
       <div className="header-right">
-        {currentUser?.role === 'developer' && (
+        {(currentUser?.role === 'developer' || currentUser?.role === 'admin' || currentUser?.role === 'kacab') && (
           <button
             onClick={() => setIsResetConfirmOpen(true)}
             className="btn btn-secondary btn-sm"
-            title="Kosongkan seluruh data tugas, kwitansi, dan laporan (Khusus Developer)"
+            title="Reset data ke data dummy default"
           >
             <RotateCcw size={14} />
-            <span>Kosongkan Data</span>
+            <span>Reset Data Demo</span>
           </button>
         )}
 
@@ -96,9 +96,9 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmReset}
-        title="Konfirmasi Kosongkan Data"
-        message="Tindakan ini akan mengosongkan seluruh data Surat Tugas, Kwitansi Honor, dan Laporan Survei. Masukkan password developer Anda untuk melanjutkan."
-        confirmText="Ya, Kosongkan Data"
+        title="Konfirmasi Reset Data Demo"
+        message="Tindakan ini akan mereset seluruh data ke kondisi dummy default (5 Surat Tugas, 3 Kwitansi, 2 Laporan Survei). Data saat ini akan terhapus. Masukkan password developer Anda untuk melanjutkan."
+        confirmText="Ya, Reset ke Data Demo"
         type="warning"
         requirePassword={true}
       />
