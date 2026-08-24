@@ -85,7 +85,12 @@ export class ErrorBoundary extends React.Component {
                   maxHeight: '120px'
                 }}
               >
-                {this.state.error?.toString()}
+                <div>Error: {this.state.error?.toString()}</div>
+                {this.state.error?.toString().includes('WebSocket') && (
+                  <div style={{ marginTop: '0.5rem', color: '#dc2626', fontWeight: 'bold' }}>
+                    The operation is insecure.
+                  </div>
+                )}
               </div>
             )}
 
