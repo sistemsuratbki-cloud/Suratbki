@@ -60,7 +60,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         namaSurvey: editItem.namaSurvey || editItem.jenisSurvey || '',
         noAgenda: cleanDocNumber(editItem.noAgenda || editItem.nomor || ''),
         noCda: editItem.noCda || '5100010',
-        noSo: editItem.noSo || editItem.noOrder || '',
+        noSo: editItem.noSo || '',
         noWbs: editItem.noWbs || '',
         petugas: editItem.petugas || '',
 
@@ -125,7 +125,6 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         nilai: selectedSurat.jumlahEstimasi || selectedSurat.tarifDasar || prev.nilai,
         namaSurvey: selectedSurat.jenisSurvey || selectedSurat.perihal || prev.namaSurvey,
         noAgenda: selectedSurat.nomor || prev.noAgenda,
-        noSo: selectedSurat.noOrder || prev.noSo,
         tglLapor: selectedSurat.tglMulai || prev.tglLapor,
 
         fileFotoName: selectedSurat.fileFotoName || prev.fileFotoName,
@@ -550,26 +549,40 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       9. NO.SO
+                      {!isFinance && !isAdmin && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.4rem' }}>★ Diisi Finance</span>}
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noSo}
-                      onChange={(e) => setFormData({ ...formData, noSo: e.target.value })}
-                      placeholder="Contoh: 3000255955"
+                      onChange={(e) => (isFinance || isAdmin) && setFormData({ ...formData, noSo: e.target.value })}
+                      readOnly={!isFinance && !isAdmin}
+                      placeholder={(!isFinance && !isAdmin) ? '— Akan diisi oleh Finance —' : 'Contoh: 3000255955'}
+                      style={{
+                        backgroundColor: (!isFinance && !isAdmin) ? 'var(--bg-secondary, #f1f5f9)' : undefined,
+                        color: (!isFinance && !isAdmin) ? 'var(--text-muted, #94a3b8)' : undefined,
+                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : undefined,
+                      }}
                     />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       10. NO.WBS
+                      {!isFinance && !isAdmin && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.4rem' }}>★ Diisi Finance</span>}
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noWbs}
-                      onChange={(e) => setFormData({ ...formData, noWbs: e.target.value })}
-                      placeholder="Contoh: 00578-PK-Z4-0426"
+                      onChange={(e) => (isFinance || isAdmin) && setFormData({ ...formData, noWbs: e.target.value })}
+                      readOnly={!isFinance && !isAdmin}
+                      placeholder={(!isFinance && !isAdmin) ? '— Akan diisi oleh Finance —' : 'Contoh: 00578-PK-Z4-0426'}
+                      style={{
+                        backgroundColor: (!isFinance && !isAdmin) ? 'var(--bg-secondary, #f1f5f9)' : undefined,
+                        color: (!isFinance && !isAdmin) ? 'var(--text-muted, #94a3b8)' : undefined,
+                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : undefined,
+                      }}
                     />
                   </div>
                 </div>
