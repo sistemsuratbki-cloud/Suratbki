@@ -189,12 +189,12 @@ export default function ShipDatabaseSearchSelect({
                   alignItems: 'center'
                 }}
               >
-                <span>Daftar Kapal Database ({filteredShips.length})</span>
+                <span>Daftar Kapal Database ({filteredShips.length > 100 ? `100 dari ${filteredShips.length}` : filteredShips.length})</span>
                 <span>Ketik untuk Cari / Klik untuk Pilih</span>
               </div>
-              {filteredShips.map((ship, idx) => (
+              {filteredShips.slice(0, 100).map((ship, idx) => (
                 <div
-                  key={`${ship.namaKapal}-${idx}`}
+                  key={`${ship.namaKapal}-${ship.noAgenda || idx}`}
                   onClick={() => handleItemClick(ship)}
                   style={{
                     padding: '0.55rem 0.75rem',
@@ -203,7 +203,7 @@ export default function ShipDatabaseSearchSelect({
                     alignItems: 'center',
                     justifyContent: 'space-between',
                     gap: '0.5rem',
-                    borderBottom: idx < filteredShips.length - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
+                    borderBottom: idx < Math.min(filteredShips.length, 100) - 1 ? '1px solid rgba(0,0,0,0.04)' : 'none',
                     transition: 'background 0.1s ease',
                     fontSize: '0.82rem'
                   }}
@@ -224,20 +224,6 @@ export default function ShipDatabaseSearchSelect({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-                    {ship.jenisSurvey && (
-                      <span
-                        style={{
-                          fontSize: '0.7rem',
-                          fontWeight: 700,
-                          background: 'rgba(16, 185, 129, 0.12)',
-                          color: '#059669',
-                          padding: '0.15rem 0.45rem',
-                          borderRadius: '4px'
-                        }}
-                      >
-                        {ship.jenisSurvey}
-                      </span>
-                    )}
                     <span
                       style={{
                         fontSize: '0.72rem',

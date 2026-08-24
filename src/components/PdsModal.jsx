@@ -27,7 +27,8 @@ import {
   Lock,
   Unlock,
   Eye,
-  Pencil
+  Pencil,
+  Ship
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
@@ -38,14 +39,14 @@ import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
-import { extractShipDatabase } from '../utils/shipDatabase';
+
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
 export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
-  const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs, masterKapal, updateMasterKapal } = useData();
+  const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs, masterKapal, updateMasterKapal, addMasterKapal } = useData();
   const { usersList, currentUser, role } = useAuth();
 
   const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
@@ -56,10 +57,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const defaultLocation = activeTariffs[0]?.tujuan || activeTariffs[0]?.name || 'WAJOK';
   const defaultRate = activeTariffs[0]?.rate || 500000;
 
-  const shipDatabase = useMemo(
-    () => extractShipDatabase(suratTugas, laporanSurvei),
-    [suratTugas, laporanSurvei]
-  );
+  const shipDatabase = masterKapal;
 
   const surveyorUsers = useMemo(
     () => (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab'),
@@ -78,6 +76,11 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const [isSpsDropboxOpen, setIsSpsDropboxOpen] = useState(false);
   const [spsSearchTerm, setSpsSearchTerm] = useState('');
   const spsContainerRef = useRef(null);
+
+  // State untuk Tambah Kapal Manual (Non-SPS)
+  const [showManualAddShip, setShowManualAddShip] = useState(false);
+  const [manualShipName, setManualShipName] = useState('');
+  const [manualNoAgenda, setManualNoAgenda] = useState('');
 
   // Attachment Preview Modal State
   const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
@@ -404,6 +407,85 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       noAgenda: firstShip?.noAgenda || foundShip.noAgenda || prev.noAgenda,
       noOrder: foundShip.noOrder || prev.noOrder
     }));
+  };
+
+  // Tambah Kapal Manual (Non-SPS) & Sinkron ke Database Kapal Cloud
+  const handleAddManualShipToPds = (e) => {
+    if (e) e.preventDefault();
+    const cleanName = String(manualShipName || '').trim().toUpperCase();
+    const cleanAgenda = String(manualNoAgenda || '').trim().toUpperCase();
+
+    if (!cleanName) {
+      toast.error('Nama Kapal wajib diisi!');
+      return;
+    }
+    if (!cleanAgenda) {
+      toast.error('No. Agenda wajib diisi!');
+      return;
+    }
+
+    // 1. Cek duplikat di dalam daftar kapal PDS ini
+    const existsInPds = shipsDetail.some(
+      (s) => (s.noAgenda || '').trim().toUpperCase() === cleanAgenda
+    );
+    if (existsInPds) {
+      toast.error(`No. Agenda "${cleanAgenda}" sudah ada di dalam daftar PDS ini!`);
+      return;
+    }
+
+    // 2. Cek duplikat di dalam Master Database Kapal (masterKapal)
+    const duplicateInMaster = (masterKapal || []).find(
+      (k) => (k.noAgenda || '').trim().toUpperCase() === cleanAgenda
+    );
+    if (duplicateInMaster) {
+      toast.error(
+        `No. Agenda "${cleanAgenda}" sudah digunakan oleh kapal "${duplicateInMaster.namaKapal}" di Database Kapal! Tidak dapat menambahkan data dengan No. Agenda duplikat.`,
+        { duration: 5000 }
+      );
+      return;
+    }
+
+    // 3. Simpan ke Master Database Kapal (Otomatis Sync ke Supabase Cloud)
+    if (addMasterKapal) {
+      const result = addMasterKapal({
+        namaKapal: cleanName,
+        noAgenda: cleanAgenda,
+        jenisSurvey: 'TAHUNAN'
+      });
+
+      if (result && !result.success && result.error === 'duplicate') {
+        toast.error(
+          `No. Agenda "${cleanAgenda}" sudah digunakan oleh kapal "${result.existingKapal}" di Database Kapal!`,
+          { duration: 5000 }
+        );
+        return;
+      }
+    }
+
+    // 4. Masukkan ke shipsDetail PDS saat ini
+    const newShipItem = {
+      namaKapal: cleanName,
+      noAgenda: cleanAgenda,
+      noOrder: formData.noOrder || 'RFQ-0000',
+      pemohon: formData.pemohon || '',
+      spsId: null
+    };
+
+    const updatedDetails = [...shipsDetail, newShipItem];
+    setShipsDetail(updatedDetails);
+
+    const combinedNames = updatedDetails.map((s) => s.namaKapal).filter(Boolean).join(', ');
+    setFormData((prev) => ({
+      ...prev,
+      namaKapal: combinedNames,
+      noAgenda: prev.noAgenda || cleanAgenda,
+      agenda: prev.agenda || cleanAgenda
+    }));
+
+    toast.success(`Kapal "${cleanName}" (${cleanAgenda}) berhasil ditambahkan ke PDS dan tersinkron ke Database Kapal!`);
+    setManualShipName('');
+    setManualNoAgenda('');
+    setShowManualAddShip(false);
   };
 
   const handleDirectShipNameChange = (val) => {
@@ -1149,15 +1231,111 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   marginBottom: '1.25rem'
                 }}
               >
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
                   <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)', margin: 0, display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                     <Anchor size={16} />
                     <span>Daftar Kapal & No. Agenda Perjalanan Dinas:</span>
                   </label>
-                  <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                    {shipsDetail.length > 0 ? `${shipsDetail.length} kapal terhubung` : 'Database Kapal Aktif'}
-                  </span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => setShowManualAddShip((prev) => !prev)}
+                      style={{
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.35rem',
+                        padding: '0.3rem 0.75rem',
+                        fontSize: '0.75rem',
+                        fontWeight: 700,
+                        background: showManualAddShip ? '#e2e8f0' : 'rgba(2, 132, 199, 0.12)',
+                        color: showManualAddShip ? '#334155' : 'var(--accent-primary)',
+                        border: '1px solid rgba(2, 132, 199, 0.3)',
+                        borderRadius: '6px',
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      <Plus size={13} />
+                      {showManualAddShip ? 'Tutup Form Manual' : '+ Tambah Kapal Manual (Non-SPS)'}
+                    </button>
+                    <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
+                      {shipsDetail.length > 0 ? `${shipsDetail.length} kapal terhubung` : 'Database Kapal Aktif'}
+                    </span>
+                  </div>
                 </div>
+
+                {/* Form Tambah Kapal Manual (Jika Dibuka) */}
+                {showManualAddShip && (
+                  <div
+                    style={{
+                      marginBottom: '0.75rem',
+                      background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.06) 0%, rgba(56, 189, 248, 0.1) 100%)',
+                      padding: '0.85rem 1rem',
+                      borderRadius: 'var(--radius-sm, 8px)',
+                      border: '1.5px dashed var(--accent-primary)',
+                      animation: 'fadeIn 0.2s ease-in-out'
+                    }}
+                  >
+                    <div style={{ fontSize: '0.8rem', fontWeight: 800, color: 'var(--accent-primary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Ship size={16} />
+                      <span>Tambah Kapal Manual & Simpan Permanen ke Database (Data Lampau / Non-SPS):</span>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr auto', gap: '0.6rem', alignItems: 'flex-end' }}>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+                          Nama Kapal <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Contoh: KM CITRA RAYA"
+                          value={manualShipName}
+                          onChange={(e) => setManualShipName(e.target.value.toUpperCase())}
+                          style={{ height: '34px', fontSize: '0.82rem', textTransform: 'uppercase', fontWeight: 700 }}
+                        />
+                      </div>
+                      <div className="form-group" style={{ margin: 0 }}>
+                        <label className="form-label" style={{ fontSize: '0.72rem', fontWeight: 700 }}>
+                          No. Agenda <span style={{ color: '#ef4444' }}>*</span>
+                        </label>
+                        <input
+                          type="text"
+                          className="form-input"
+                          placeholder="Contoh: 00450PK26"
+                          value={manualNoAgenda}
+                          onChange={(e) => setManualNoAgenda(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddManualShipToPds();
+                            }
+                          }}
+                          style={{ height: '34px', fontSize: '0.82rem', fontWeight: 700 }}
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleAddManualShipToPds}
+                        className="btn btn-primary"
+                        style={{
+                          height: '34px',
+                          padding: '0 1rem',
+                          fontSize: '0.78rem',
+                          fontWeight: 700,
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '0.35rem',
+                          whiteSpace: 'nowrap'
+                        }}
+                      >
+                        <Plus size={14} /> Tambah ke PDS & Database
+                      </button>
+                    </div>
+                    <p style={{ margin: '0.45rem 0 0', fontSize: '0.7rem', color: 'var(--text-muted)' }}>
+                      💡 <em>Kapal baru akan otomatis dimasukkan ke PDS ini dan terdaftar di Database Kapal Cloud. Jika No. Agenda sudah ada, sistem akan menolak duplikat.</em>
+                    </p>
+                  </div>
+                )}
 
                 {/* Dropdown Pemilihan Cepat dari Database / Riwayat Kapal */}
                 <div style={{ marginBottom: '0.75rem', background: 'var(--bg-card)', padding: '0.6rem 0.75rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)' }}>

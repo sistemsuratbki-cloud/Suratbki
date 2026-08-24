@@ -16,19 +16,16 @@ import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
 import MultiSurveySelect from './MultiSurveySelect';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
-import { extractShipDatabase } from '../utils/shipDatabase';
+
 
 export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
-  const { addSpsBatch, updateSuratTugas, suratTugas, laporanSurvei, tariffs } = useData();
+  const { addSpsBatch, updateSuratTugas, suratTugas, laporanSurvei, tariffs, masterKapal } = useData();
   const { usersList, currentUser, role } = useAuth();
 
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
   const defaultLocation = activeTariffs[0]?.tujuan || activeTariffs[0]?.name || 'WAJOK';
 
-  const shipDatabase = useMemo(
-    () => extractShipDatabase(suratTugas, laporanSurvei),
-    [suratTugas, laporanSurvei]
-  );
+  const shipDatabase = masterKapal;
 
   const surveyorUsers = useMemo(
     () => (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab'),
