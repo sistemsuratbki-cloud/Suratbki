@@ -764,10 +764,11 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     </span>
                   </label>
                   {(() => {
-                    const cleanNomor = cleanDocNumber(formData.nomor || '').trim();
+                    const rawNomor = formData.nomor ?? 'A 0    /SV.201/PK/KI-26';
+                    const cleanNomor = cleanDocNumber(rawNomor);
                     const slashIdx = cleanNomor.indexOf('/');
-                    const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : (cleanNomor || 'A 0');
-                    const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : '/SV.201/PK/KI-26';
+                    const prefix = slashIdx !== -1 ? cleanNomor.substring(0, slashIdx).trim() : cleanNomor.trim();
+                    const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx).trim() : '/SV.201/PK/KI-26';
 
                     return (
                       <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.5rem' }}>
@@ -775,17 +776,16 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="A 0"
+                            placeholder="A 0 (Kosong)"
                             value={prefix}
                             onChange={(e) => {
                               const newPrefix = e.target.value;
                               const currentSuffix = suffix.startsWith('/') ? suffix : '/' + suffix;
-                              const combined = `${newPrefix}    ${currentSuffix}`;
-                              setFormData({ ...formData, nomor: cleanDocNumber(combined) });
+                              const combined = newPrefix ? `${newPrefix}    ${currentSuffix}` : `        ${currentSuffix}`;
+                              setFormData({ ...formData, nomor: combined });
                             }}
-                            required
                             style={{ fontWeight: 800, textAlign: 'center', color: 'var(--accent-primary)', letterSpacing: '0.05em' }}
-                            title="Prefix Nomor Surat (Contoh: A 0, A0, B 0, dll)"
+                            title="Prefix Nomor Surat (Contoh: A 0, A0, atau kosongkan untuk diisi manual pensil)"
                           />
                         </div>
                         <div>
@@ -799,8 +799,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                               if (newSuffix && !newSuffix.startsWith('/')) {
                                 newSuffix = '/' + newSuffix;
                               }
-                              const combined = `${prefix}    ${newSuffix}`;
-                              setFormData({ ...formData, nomor: cleanDocNumber(combined) });
+                              const combined = prefix ? `${prefix}    ${newSuffix}` : `        ${newSuffix}`;
+                              setFormData({ ...formData, nomor: combined });
                             }}
                             required
                             style={{ fontWeight: 800, letterSpacing: '0.02em' }}

@@ -113,6 +113,33 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const kacabUser = usersList?.find((u) => u.name === kepalaCabang || u.role === 'kacab') || {};
   const kacabSignature = adminSettings?.kacabSignatureUrl || kacabUser.signatureUrl || '/signatures/kacab_muhson_signature.png';
 
+  const renderNomorSurat = (nomorVal) => {
+    const clean = cleanDocNumber(nomorVal || '').trim();
+    const slashIdx = clean.indexOf('/');
+    if (slashIdx !== -1) {
+      const prefix = clean.substring(0, slashIdx).trim();
+      const suffix = clean.substring(slashIdx);
+      if (!prefix) {
+        // Jika prefix A0 tidak diisi/dikosongkan, sediakan spasi kosong lebar agar bisa ditulis tangan dengan pensil
+        return (
+          <span>
+            NO.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{suffix}
+          </span>
+        );
+      }
+      // Jika prefix terisi, berikan spasi proporsional antara NO., prefix, dan suffix /SV...
+      return (
+        <span>
+          NO. {prefix}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{suffix}
+        </span>
+      );
+    }
+    if (!clean) {
+      return <span>NO.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/SV.201/PK/KI-26</span>;
+    }
+    return <span>NO. {clean}</span>;
+  };
+
   return (
     <ModalPortal>
       <div className="modal-overlay print-only-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
@@ -184,7 +211,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                     SURAT TUGAS
                   </div>
                   <div style={{ fontSize: '11pt', color: '#000000' }}>
-                    NO.{resolvedShipList[0].nomor}
+                    {renderNomorSurat(resolvedShipList[0].nomor)}
                   </div>
                 </div>
 

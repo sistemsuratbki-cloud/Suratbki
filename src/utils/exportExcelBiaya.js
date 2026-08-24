@@ -72,10 +72,10 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
 
     // Column widths
     sheet.columns = [
-      { width: 5 }, { width: 25 }, { width: 6 }, { width: 6 }, { width: 8 },
+      { width: 5 }, { width: 16 }, { width: 6 }, { width: 6 }, { width: 8 },
       { width: 14 }, { width: 14 }, { width: 16 }, { width: 14 }, { width: 14 },
       { width: 12 }, { width: 14 }, { width: 12 }, { width: 14 }, { width: 14 },
-      { width: 14 }, { width: 14 }, { width: 12 }
+      { width: 14 }, { width: 14 }, { width: 21 }
     ];
 
     const thinBorder = {
@@ -83,31 +83,44 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
       left: { style: 'thin' }, right: { style: 'thin' }
     };
 
-    // Row 1-4: Header info
+    // Row 1-5: Header info
     sheet.mergeCells('A1:D1');
-    sheet.getCell('A1').value = `LAMPIRAN SURAT TUGAS No ${item.nomor || '.....................'}`;
-    sheet.getCell('A1').font = { size: 10 };
-    sheet.getCell('E1').value = ':';
-    sheet.mergeCells('F1:H1');
-    sheet.getCell('F1').value = tglMulaiStr;
+    sheet.getCell('A1').value = 'LAMPIRAN SURAT TUGAS';
+    sheet.getCell('A1').font = { size: 10, bold: true };
 
-    sheet.mergeCells('A2:D2');
-    sheet.getCell('A2').value = 'DAFTAR BIAYA PERJALANAN DINAS KE';
-    sheet.getCell('A2').font = { size: 10 };
+    const cleanNomor = cleanDocNumber(item.nomor || '').trim();
+    const slashIdx = cleanNomor.indexOf('/');
+    const prefix = slashIdx !== -1 ? cleanNomor.substring(0, slashIdx).trim() : cleanNomor;
+    const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx).trim() : '/SV.201/PK/KI-26';
+
+    sheet.getCell('A2').value = prefix || '';
+    sheet.getCell('A2').font = { size: 10, bold: true };
+    sheet.getCell('A2').alignment = { horizontal: 'left' };
+    sheet.mergeCells('B2:D2');
+    sheet.getCell('B2').value = suffix || '';
+    sheet.getCell('B2').font = { size: 10, bold: true };
+    sheet.getCell('B2').alignment = { horizontal: 'left' };
     sheet.getCell('E2').value = ':';
     sheet.mergeCells('F2:H2');
-    sheet.getCell('F2').value = lokasiStr;
+    sheet.getCell('F2').value = tglMulaiStr;
 
     sheet.mergeCells('A3:D3');
-    sheet.getCell('A3').value = 'DALAM RANGKA SURVEY KLAS';
-    sheet.getCell('A3').font = { size: 10 };
+    sheet.getCell('A3').value = 'DAFTAR BIAYA PERJALANAN DINAS KE';
+    sheet.getCell('A3').font = { size: 10, bold: true };
     sheet.getCell('E3').value = ':';
     sheet.mergeCells('F3:H3');
-    sheet.getCell('F3').value = kapalStr;
+    sheet.getCell('F3').value = lokasiStr;
 
     sheet.mergeCells('A4:D4');
-    sheet.getCell('A4').value = 'SESUAI DAFTAR DAN KUITANSI TERLAMPIR';
-    sheet.getCell('A4').font = { bold: true, size: 10 };
+    sheet.getCell('A4').value = 'DALAM RANGKA SURVEY KLAS';
+    sheet.getCell('A4').font = { size: 10, bold: true };
+    sheet.getCell('E4').value = ':';
+    sheet.mergeCells('F4:H4');
+    sheet.getCell('F4').value = kapalStr;
+
+    sheet.mergeCells('A5:D5');
+    sheet.getCell('A5').value = 'SESUAI DAFTAR DAN KUITANSI TERLAMPIR';
+    sheet.getCell('A5').font = { bold: true, size: 10 };
 
     // Row 6-7: Table headers
     const headerFont = { bold: true, size: 9 };

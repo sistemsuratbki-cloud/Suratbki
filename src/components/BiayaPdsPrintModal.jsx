@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { ModalPortal } from './ModalPortal';
+import { BKILogo } from './BKILogo';
 
 export const BiayaPdsPrintModal = ({
   isOpen,
@@ -128,6 +129,12 @@ export const BiayaPdsPrintModal = ({
     return Number(n).toLocaleString('id-ID');
   };
 
+  // Parse nomor surat menjadi prefix dan suffix terpisah
+  const cleanNomor = cleanDocNumber(suratTugas.nomor || '').trim();
+  const slashIdx = cleanNomor.indexOf('/');
+  const nomorPrefix = slashIdx !== -1 ? cleanNomor.substring(0, slashIdx).trim() : cleanNomor;
+  const nomorSuffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx).trim() : '/SV.201/PK/KI-26';
+
   return (
     <ModalPortal>
       <div className="modal-overlay print-only-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
@@ -172,7 +179,7 @@ export const BiayaPdsPrintModal = ({
               className="printable-sheet"
               style={{
                 border: 'none',
-                padding: '1.5rem',
+                padding: '2.5rem 2rem 2rem 2rem',
                 borderRadius: '4px',
                 fontFamily: "'Arial', 'Segoe UI', sans-serif",
                 lineHeight: '1.35',
@@ -182,30 +189,49 @@ export const BiayaPdsPrintModal = ({
                 boxSizing: 'border-box'
               }}
             >
-              {/* Document Header Table */}
-              <div style={{ marginBottom: '1.25rem', fontSize: '10pt', fontWeight: 'bold' }}>
-                <table style={{ width: 'auto', borderCollapse: 'collapse', lineHeight: '1.5' }}>
-                  <tbody>
-                    <tr>
-                      <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>LAMPIRAN SURAT TUGAS No {cleanDocNumber(suratTugas.nomor) || '.....................'}</td>
-                      <td style={{ width: '15px', textAlign: 'center' }}>:</td>
-                      <td style={{ fontWeight: 'bold' }}>{tglMulaiStr}</td>
-                    </tr>
-                    <tr>
-                      <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>DAFTAR BIAYA PERJALANAN DINAS KE</td>
-                      <td style={{ textAlign: 'center' }}>:</td>
-                      <td style={{ fontWeight: 'bold' }}>{lokasiStr}</td>
-                    </tr>
-                    <tr>
-                      <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>DALAM RANGKA SURVEY KLAS</td>
-                      <td style={{ textAlign: 'center' }}>:</td>
-                      <td style={{ fontWeight: 'bold' }}>{kapalStr}</td>
-                    </tr>
-                    <tr>
-                      <td colSpan={3} style={{ paddingTop: '0.35rem', letterSpacing: '0.01em' }}>SESUAI DAFTAR DAN KUITANSI TERLAMPIR</td>
-                    </tr>
-                  </tbody>
-                </table>
+              {/* Document Header with BKI Logo on Top-Right */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
+                <div style={{ fontSize: '10pt', fontWeight: 'bold' }}>
+                  <table style={{ width: 'auto', borderCollapse: 'collapse', lineHeight: '1.5' }}>
+                    <tbody>
+                      <tr>
+                        <td colSpan={3} style={{ whiteSpace: 'nowrap', paddingBottom: '0.15rem' }}>
+                          LAMPIRAN SURAT TUGAS
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>
+                          <span style={{ display: 'inline-flex', alignItems: 'center' }}>
+                            <span style={{ display: 'inline-block', textAlign: 'left', minWidth: nomorPrefix ? 'auto' : '50px' }}>
+                              {nomorPrefix || <span>&nbsp;</span>}
+                            </span>
+                            <span style={{ paddingLeft: '1.25rem' }}>{nomorSuffix}</span>
+                          </span>
+                        </td>
+                        <td style={{ width: '15px', textAlign: 'center' }}>:</td>
+                        <td style={{ fontWeight: 'bold' }}>{tglMulaiStr}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>DAFTAR BIAYA PERJALANAN DINAS KE</td>
+                        <td style={{ textAlign: 'center' }}>:</td>
+                        <td style={{ fontWeight: 'bold' }}>{lokasiStr}</td>
+                      </tr>
+                      <tr>
+                        <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>DALAM RANGKA SURVEY KLAS</td>
+                        <td style={{ textAlign: 'center' }}>:</td>
+                        <td style={{ fontWeight: 'bold' }}>{kapalStr}</td>
+                      </tr>
+                      <tr>
+                        <td colSpan={3} style={{ paddingTop: '0.35rem', letterSpacing: '0.01em' }}>SESUAI DAFTAR DAN KUITANSI TERLAMPIR</td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Logo BKI Pojok Kanan Atas Sejajar dengan Kop */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', paddingRight: '0.5rem', paddingTop: '2px' }}>
+                  <BKILogo height={46} />
+                </div>
               </div>
 
               {/* Main Calculation Table */}
@@ -221,7 +247,7 @@ export const BiayaPdsPrintModal = ({
                 <thead>
                   <tr style={{ background: '#f8fafc', fontWeight: 'bold' }}>
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '3%' }}>NO.</th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '15%' }}>NAMA</th>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 3px', width: '10%' }}>NAMA</th>
                     <th colSpan={3} style={{ border: '1px solid black', padding: '6px' }}>JUMLAH</th>
                     <th colSpan={2} style={{ border: '1px solid black', padding: '6px' }}>TANGGAL</th>
                     <th colSpan={3} style={{ border: '1px solid black', padding: '6px' }}>TRANSPORT</th>
@@ -234,7 +260,7 @@ export const BiayaPdsPrintModal = ({
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '7%' }}>
                       JUMLAH<br />TERIMA
                     </th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '12%' }}>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 2px', width: '17%' }}>
                       TANDA<br />TERIMA
                     </th>
                   </tr>
@@ -293,7 +319,7 @@ export const BiayaPdsPrintModal = ({
                   {/* Row 1: Active Data */}
                   <tr>
                     <td style={{ border: '1px solid black', padding: '6px 2px', fontWeight: 'bold' }}>1</td>
-                    <td style={{ border: '1px solid black', padding: '6px', textAlign: 'left', fontWeight: 'bold' }}>
+                    <td style={{ border: '1px solid black', padding: '6px 3px', textAlign: 'left', fontWeight: 'bold', fontSize: '8pt', lineHeight: '1.25' }}>
                       {petugasStr}
                     </td>
                     <td style={{ border: '1px solid black', padding: '6px 2px' }}>{hr}</td>
@@ -418,13 +444,13 @@ export const BiayaPdsPrintModal = ({
 
           <style>{`
             @media print {
-              @page { size: A4 landscape !important; margin: 8mm 10mm !important; }
+              @page { size: A4 landscape !important; margin: 16mm 10mm 8mm 10mm !important; }
               body { background: #ffffff !important; color: #000000 !important; }
               .modal-overlay { position: static !important; background: transparent !important; padding: 0 !important; }
               .modal-content { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
               .modal-header, .modal-footer { display: none !important; }
               .modal-body { padding: 0 !important; overflow: visible !important; }
-              .printable-sheet { padding: 0 !important; width: 100% !important; }
+              .printable-sheet { padding: 6px 0 0 0 !important; width: 100% !important; }
             }
           `}</style>
 

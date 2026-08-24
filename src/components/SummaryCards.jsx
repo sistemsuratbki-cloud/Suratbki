@@ -8,15 +8,17 @@ export const SummaryCards = ({ surveyorFilter }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei } = useData();
   const { currentUser, role } = useAuth();
 
+  // Sinkronkan filter dengan CalendarView (hanya menghitung dokumen PDS yang tampil di kalender)
+  const isPdsItem = (st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps && st.docType !== 'SPS');
+
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas')
-    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
-  const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas')
-    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
+    .filter(item => !surveyorFilter || item.petugas === surveyorFilter)
+    .filter(item => isPdsItem(item));
 
   const totalSurat = filteredSurat.length;
-  // Sinkronkan hitungan Survei Selesai berdasarkan status Selesai atau dokumen PDS yang telah terbit
+  // Hitung survei selesai berdasarkan dokumen PDS yang berstatus Selesai atau sudah ACC
   const surveiSelesai = filteredSurat.filter(
-    (item) => item.status === 'Selesai' || item.docType === 'PDS' || item.isPds
+    (item) => item.status === 'Selesai' || item.approvalStatus === 'ACC'
   ).length;
 
   return (
