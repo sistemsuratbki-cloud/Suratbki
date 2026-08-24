@@ -7,37 +7,29 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.error('[Supabase] VITE_SUPABASE_URL dan VITE_SUPABASE_ANON_KEY wajib diisi di .env.local');
 }
 
-// Check if WebSocket is available
-const hasWebSocket = typeof WebSocket !== 'undefined';
+let supabaseClient = null;
 
-export const supabase = supabaseUrl && supabaseAnonKey
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-        detectSessionInUrl: false
-      },
-      realtime: {
-        params: { 
-          eventsPerSecond: 10 
+try {
+  supabaseClient = supabaseUrl && supabaseAnonKey
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+          detectSessionInUrl: false
         },
-        // Disable realtime if WebSocket not available
-        enabled: hasWebSocket,
-        // Use WSS (secure WebSocket) for production
-        transport: hasWebSocket ? 'websocket' : undefined
-      },
-      global: {
-        headers: {
-          'Content-Type': 'application/json'
+        global: {
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        },
+        db: {
+          schema: 'public'
         }
-      },
-      db: {
-        schema: 'public'
-      }
-    })
-  : null;
-
-// Log WebSocket status for debugging
-if (!hasWebSocket) {
-  console.warn('[Supabase] WebSocket not available - Realtime features disabled');
+      })
+    : null;
+} catch (error) {
+  console.error('[Supabase] Failed to create client:', error);
+  console.warn('[Supabase] Running in offline mode - realtime features disabled');
 }
+
+export const supabase = supabaseClient;
