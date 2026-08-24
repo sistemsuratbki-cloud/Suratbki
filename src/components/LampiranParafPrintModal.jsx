@@ -3,6 +3,7 @@ import { X, Printer, FileCheck } from 'lucide-react';
 import { formatDateIndo } from '../utils/formatters';
 import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
+import bkiLogo from '/bki-logo.svg';
 
 export const LampiranParafPrintModal = ({
   isOpen,
@@ -85,7 +86,7 @@ export const LampiranParafPrintModal = ({
                 {/* Logo BKI - Positioned at top right */}
                 <div style={{ position: 'absolute', top: '-0.5rem', right: '0', width: '80px', height: '80px' }}>
                   <img 
-                    src="/bki-logo.svg" 
+                    src={bkiLogo} 
                     alt="Logo BKI" 
                     style={{ width: '100%', height: '100%', objectFit: 'contain' }}
                   />
