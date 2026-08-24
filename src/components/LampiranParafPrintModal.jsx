@@ -80,19 +80,31 @@ export const LampiranParafPrintModal = ({
                 maxWidth: '100%'
               }}
             >
-              {/* Document Title Header */}
-              <div style={{ textAlign: 'center', marginBottom: '1.5rem', textTransform: 'uppercase' }}>
-                <div style={{ fontSize: '12pt', fontWeight: 'bold', letterSpacing: '0.03em' }}>
-                  LAMPIRAN PERMOHONAN PARAF PADA SURAT PENUGASAN
+              {/* Document Title Header with Logo */}
+              <div style={{ position: 'relative', marginBottom: '2rem', marginTop: '1rem' }}>
+                {/* Logo BKI - Positioned at top right */}
+                <div style={{ position: 'absolute', top: '-0.5rem', right: '0', width: '80px', height: '80px' }}>
+                  <img 
+                    src="/bki-logo.svg" 
+                    alt="Logo BKI" 
+                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                  />
                 </div>
-                <div style={{ fontSize: '11pt', fontWeight: 'bold' }}>
-                  CABANG MADYA KLAS PONTIANAK
-                </div>
-                {currentPeriod && (
-                  <div style={{ fontSize: '9.5pt', fontWeight: 600, color: '#334155', marginTop: '0.25rem' }}>
-                    {currentPeriod}
+
+                {/* Title Text - Centered */}
+                <div style={{ textAlign: 'center', textTransform: 'uppercase', paddingTop: '0.5rem' }}>
+                  <div style={{ fontSize: '12pt', fontWeight: 'bold', letterSpacing: '0.03em' }}>
+                    LAMPIRAN PERMOHONAN PARAF PADA SURAT PENUGASAN
                   </div>
-                )}
+                  <div style={{ fontSize: '11pt', fontWeight: 'bold' }}>
+                    CABANG MADYA KLAS PONTIANAK
+                  </div>
+                  {currentPeriod && (
+                    <div style={{ fontSize: '9.5pt', fontWeight: 600, color: '#334155', marginTop: '0.25rem' }}>
+                      {currentPeriod}
+                    </div>
+                  )}
+                </div>
               </div>
 
               {/* Accumulated Data Table */}
@@ -110,13 +122,13 @@ export const LampiranParafPrintModal = ({
                   <thead>
                     <tr style={{ background: '#f1f5f9', textAlign: 'center', fontWeight: 'bold' }}>
                       <th style={{ border: '1px solid #000000', padding: '0.5rem 0.2rem', width: '4.5%', boxSizing: 'border-box' }}>NO.</th>
-                      <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '20%', textAlign: 'left', boxSizing: 'border-box' }}>NAMA KAPAL</th>
-                      <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '17.5%', textAlign: 'left', boxSizing: 'border-box' }}>SURVEYOR</th>
-                      <th style={{ border: '1px solid #000000', padding: '0.5rem 0.3rem', width: '12%', textAlign: 'center', boxSizing: 'border-box' }}>NO HP</th>
+                      <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '14%', textAlign: 'left', boxSizing: 'border-box' }}>NAMA KAPAL</th>
+                      <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '17%', textAlign: 'left', boxSizing: 'border-box' }}>SURVEYOR</th>
+                      <th style={{ border: '1px solid #000000', padding: '0.5rem 0.3rem', width: '11%', textAlign: 'center', boxSizing: 'border-box' }}>NO HP</th>
                       <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '16%', textAlign: 'left', boxSizing: 'border-box' }}>JENIS SURVEY</th>
                       <th style={{ border: '1px solid #000000', padding: '0.5rem 0.3rem', width: '11%', textAlign: 'center', boxSizing: 'border-box' }}>TGL. SURVEY</th>
-                      <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '10%', textAlign: 'left', boxSizing: 'border-box' }}>LOKASI</th>
-                      <th style={{ border: '1px solid #000000', borderRight: '1.5px solid #000000', padding: '0.5rem 0.3rem', width: '9%', textAlign: 'center', boxSizing: 'border-box' }}>RFQ</th>
+                      <th style={{ border: '1px solid #000000', padding: '0.5rem', width: '11.5%', textAlign: 'left', boxSizing: 'border-box' }}>LOKASI</th>
+                      <th style={{ border: '1px solid #000000', borderRight: '1.5px solid #000000', padding: '0.5rem 0.3rem', width: '15%', textAlign: 'center', boxSizing: 'border-box' }}>RFQ</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -195,6 +207,7 @@ export const LampiranParafPrintModal = ({
               .printable-sheet { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
               table { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; border: 1.5px solid #000000 !important; box-sizing: border-box !important; }
               th, td { border: 1px solid #000000 !important; box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
             }
           `}</style>
 
