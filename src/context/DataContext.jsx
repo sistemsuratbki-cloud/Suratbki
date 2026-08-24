@@ -389,7 +389,12 @@ export const DataProvider = ({ children }) => {
 
   // ====== 1. ADMIN INPUT SPS (Batch or Single Ship) ======
   const addSpsBatch = (baseData) => {
+    console.log('[DataContext] addSpsBatch received baseData:', baseData);
+    console.log('[DataContext] baseData.petugas value:', baseData.petugas);
+    
     const cleaned = cleanEntityObject(baseData);
+    console.log('[DataContext] After cleanEntityObject, cleaned.petugas:', cleaned.petugas);
+    
     const batchId = `BATCH-${Date.now().toString().slice(-6)}`;
 
     let shipEntries = [];

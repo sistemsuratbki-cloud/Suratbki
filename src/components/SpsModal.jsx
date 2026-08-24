@@ -159,6 +159,14 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       return;
     }
 
+    // Validate petugas (surveyor) is selected
+    if (!formData.petugas || formData.petugas.trim() === '') {
+      toast.error('Surveyor wajib dipilih!');
+      return;
+    }
+
+    console.log('[SpsModal] Submitting with petugas:', formData.petugas);
+
     if (editItem) {
       updateSuratTugas(editItem.id, {
         ...editItem,
@@ -174,7 +182,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       });
       toast.success('Penugasan SPS berhasil disimpan!');
     } else {
-      addSpsBatch({
+      const submitData = {
         ...formData,
         tglSelesai: formData.tglMulai,
         visit: '1',
@@ -186,7 +194,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
             noAgenda: agendaClean || String(Math.floor(Math.random() * 900) + 100)
           }
         ]
-      });
+      };
+      console.log('[SpsModal] Submit data being sent to addSpsBatch:', submitData);
+      addSpsBatch(submitData);
       toast.success(`Penugasan SPS untuk ${shipNameUpper} berhasil diterbitkan (Menunggu surveyor kirim Laporan Paraf).`);
     }
 
