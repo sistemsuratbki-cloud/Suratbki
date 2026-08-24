@@ -1048,48 +1048,36 @@ export const DataProvider = ({ children }) => {
     );
   };
 
-  const resetDemoData = () => {
-    // Kosongkan semua data
-    setSuratTugas([]);
-    setKwitansiHonor([]);
-    setLaporanSurvei([]);
-    setTariffs(INITIAL_LOCATION_TARIFFS);
-    setGradeTariffs(INITIAL_GRADE_TARIFFS);
-
-    localStorage.removeItem('st_surat_tugas');
-    localStorage.removeItem('st_kwitansi_honor');
-    localStorage.removeItem('st_laporan_survei');
-    safeSetLocalStorage('st_tariffs_v2', INITIAL_LOCATION_TARIFFS);
-    safeSetLocalStorage('st_grade_tariffs', INITIAL_GRADE_TARIFFS);
-  };
-
-  // Hapus semua data KECUALI tarif, grade, dan admin settings
-  const clearAllDataKeepSettings = async () => {
-    // Clear state
+  // Hapus semua data operasional (SPS, PDS, Laporan, Kwitansi, Lampiran) baik lokal maupun di Supabase Cloud.
+  // TETAP MENYIMPAN: Manajemen Tarif, Grade Tarif, Manajemen User, Database Kapal, dan Pengaturan Admin.
+  const resetData = async () => {
+    // 1. Clear operational states
     setSuratTugas([]);
     setKwitansiHonor([]);
     setLaporanSurvei([]);
 
-    // Clear localStorage
+    // 2. Clear operational localStorage
     localStorage.removeItem('st_surat_tugas');
     localStorage.removeItem('st_kwitansi_honor');
     localStorage.removeItem('st_laporan_survei');
-    localStorage.removeItem('st_ship_database');
 
-    // Clear Supabase if connected
+    // 3. Clear from Supabase Cloud
     if (supabase) {
       try {
-        await supabase.from('surat_tugas').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('kwitansi_honor').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        await supabase.from('laporan_survei').delete().neq('id', '00000000-0000-0000-0000-000000000000');
-        console.log('[DataContext] All data cleared from Supabase (kept tariffs & settings)');
+        await Promise.all([
+          supabase.from('surat_tugas').delete().neq('id', '___safe_keep___'),
+          supabase.from('kwitansi_honor').delete().neq('id', '___safe_keep___'),
+          supabase.from('laporan_survei').delete().neq('id', '___safe_keep___')
+        ]);
+        console.log('[DataContext] Data SPS, PDS, Laporan, dan Kwitansi berhasil dihapus dari Supabase Cloud');
       } catch (error) {
-        console.error('[DataContext] Error clearing Supabase data:', error);
+        console.error('[DataContext] Error clearing Supabase operational data:', error);
       }
     }
-
-    console.log('[DataContext] All data cleared (tariffs, grade, and admin settings preserved)');
   };
+
+  const resetDemoData = resetData;
+  const clearAllDataKeepSettings = resetData;
 
   return (
     <DataContext.Provider
@@ -1126,6 +1114,7 @@ export const DataProvider = ({ children }) => {
         deleteLaporanSurvei,
         requestEditApproval,
         approveEditRequest,
+        resetData,
         resetDemoData,
         clearAllDataKeepSettings
       }}

@@ -8,8 +8,8 @@ import { validatePasswordStrength } from '../utils/security';
 import { toast } from 'react-hot-toast';
 
 export const SettingsTab = () => {
-  const { currentUser, changePassword, verifyCurrentPassword, resetUsers, updateUser, usersList } = useAuth();
-  const { adminSettings, updateAdminSettings, clearAllDataKeepSettings } = useData();
+  const { currentUser, changePassword, verifyCurrentPassword, updateUser, usersList } = useAuth();
+  const { adminSettings, updateAdminSettings, resetData, clearAllDataKeepSettings } = useData();
 
   const [currentPassInput, setCurrentPassInput] = useState('');
   const [newPassInput, setNewPassInput] = useState('');
@@ -176,10 +176,15 @@ export const SettingsTab = () => {
     }
   };
 
-  const handleConfirmResetDemo = () => {
-    resetUsers();
-    setIsResetConfirmOpen(false);
-    alert('Seluruh data demo dan akun pengguna telah berhasil dikembalikan ke status awal.');
+  const handleConfirmResetDemo = async () => {
+    try {
+      await resetData();
+      setIsResetConfirmOpen(false);
+      toast.success('Data SPS, PDS, Laporan, dan Kwitansi berhasil direset! (Data Tarif, User, dan Kapal tetap tersimpan)');
+    } catch (error) {
+      toast.error('Gagal mereset data. Silakan coba lagi.');
+      console.error('Reset data error:', error);
+    }
   };
 
   const handleConfirmClearData = async () => {
@@ -586,7 +591,7 @@ export const SettingsTab = () => {
             <div className="card-title-group">
               <Shield size={22} color="#dc2626" />
               <div>
-                <h3 className="card-title" style={{ color: '#dc2626' }}>Pemeliharaan Sistem & Reset Data Demo</h3>
+                <h3 className="card-title" style={{ color: '#dc2626' }}>Pemeliharaan Sistem & Reset Data</h3>
                 <div className="card-subtitle">Kembalikan seluruh akun pengguna dan data ke status awal (Akses Khusus Developer)</div>
               </div>
             </div>
@@ -594,7 +599,7 @@ export const SettingsTab = () => {
 
           <button className="btn btn-danger" onClick={() => setIsResetConfirmOpen(true)}>
             <RotateCcw size={16} />
-            <span>Reset Seluruh Data & Akun Demo</span>
+            <span>Reset Seluruh Data</span>
           </button>
 
           <div style={{ marginTop: '0.75rem', padding: '1rem', background: '#fef3c7', border: '1.5px solid #fde68a', borderRadius: '8px' }}>
@@ -625,8 +630,8 @@ export const SettingsTab = () => {
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmResetDemo}
-        title="Konfirmasi Reset Data Demo"
-        message="Tindakan ini akan mengembalikan seluruh akun pengguna, password, dan data sistem ke status default bawaan. Masukkan password developer Anda untuk melanjutkan."
+        title="Konfirmasi Reset Data"
+        message="Tindakan ini akan menghapus semua data Surat Tugas (SPS & PDS), Laporan BKI, Kwitansi, dan Lampiran dari sistem lokal & Cloud Supabase. Data Manajemen Tarif, Manajemen User, dan Database Kapal TIDAK AKAN DIHAPUS. Masukkan password developer Anda untuk melanjutkan."
         confirmText="Ya, Reset Semua Data"
         type="danger"
         requirePassword={true}

@@ -1,22 +1,29 @@
 import React, { useState } from 'react';
 import { Sun, Moon, RotateCcw, LogOut, User, Menu } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmModal } from './ConfirmModal';
 import { BKILogo } from './BKILogo';
 
 export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
-  const { resetDemoData } = useData();
-  const { currentUser, logout, resetUsers } = useAuth();
+  const { resetData } = useData();
+  const { currentUser, logout } = useAuth();
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
 
   const toggleTheme = () => {
     setTheme(theme === 'dark' ? 'light' : 'dark');
   };
 
-  const handleConfirmReset = () => {
-    resetDemoData();
-    resetUsers();
+  const handleConfirmReset = async () => {
+    try {
+      await resetData();
+      setIsResetConfirmOpen(false);
+      toast.success('Data SPS, PDS, Laporan, dan Kwitansi berhasil direset! (Data Tarif, User, dan Kapal tetap tersimpan)');
+    } catch (e) {
+      toast.error('Gagal mereset data.');
+      console.error(e);
+    }
   };
 
   const getRolePanelTitle = () => {
@@ -54,10 +61,10 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
           <button
             onClick={() => setIsResetConfirmOpen(true)}
             className="btn btn-secondary btn-sm"
-            title="Reset data ke data dummy default"
+            title="Reset data ke kondisi awal"
           >
             <RotateCcw size={14} />
-            <span>Reset Data Demo</span>
+            <span>Reset Data</span>
           </button>
         )}
 
@@ -96,10 +103,10 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
         isOpen={isResetConfirmOpen}
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmReset}
-        title="Konfirmasi Reset Data Demo"
-        message="Tindakan ini akan mereset seluruh data ke kondisi dummy default (5 Surat Tugas, 3 Kwitansi, 2 Laporan Survei). Data saat ini akan terhapus. Masukkan password developer Anda untuk melanjutkan."
-        confirmText="Ya, Reset ke Data Demo"
-        type="warning"
+        title="Konfirmasi Reset Data"
+        message="Tindakan ini akan menghapus semua data Surat Tugas (SPS & PDS), Laporan BKI, Kwitansi, dan Lampiran dari sistem lokal & Cloud Supabase. Data Manajemen Tarif, Manajemen User, dan Database Kapal TIDAK AKAN DIHAPUS. Masukkan password untuk melanjutkan."
+        confirmText="Ya, Reset Data"
+        type="danger"
         requirePassword={true}
       />
     </header>
