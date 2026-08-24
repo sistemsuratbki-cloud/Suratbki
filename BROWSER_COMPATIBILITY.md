@@ -3,34 +3,35 @@
 ## Fixed Issues
 
 ### ✅ WebSocket Error - Firefox & iOS Safari
-**Error:** `WebSocket not available: The operation is insecure.`
+**Error 1:** `WebSocket not available: The operation is insecure.`
+**Error 2:** `Error: WebSocket not available: this.transport is not a constructor`
 
 **Root Cause:**
 - Supabase Realtime menggunakan WebSocket (WSS) untuk live updates
-- CSP (Content Security Policy) terlalu ketat dan memblokir WSS connections
-- Mixed content issues (HTTP/HTTPS)
+- CSP (Content Security Policy) di HTML blocking WebSocket connections
+- Invalid `transport` config di Supabase client options
+- Browser compatibility issues dengan Supabase realtime-js
 
 **Solutions Applied:**
 
-1. **Updated CSP Headers in `index.html`:**
-   ```html
-   connect-src 'self' https://*.supabase.co wss://*.supabase.co
-   ```
-   - Added `wss://` untuk secure WebSocket connections
-   - Added `unsafe-eval` untuk Vite development
+1. **Removed CSP from index.html:**
+   - CSP headers sekarang dihandle oleh Vercel (production)
+   - Development mode tanpa CSP restrictions
 
-2. **Enhanced Supabase Client (`src/lib/supabase.js`):**
+2. **Simplified Supabase Client (`src/lib/supabase.js`):**
    ```js
-   - Check WebSocket availability before enabling realtime
-   - Graceful degradation jika WebSocket tidak tersedia
-   - Auto-disable realtime features untuk browser yang tidak support
+   - Removed invalid `transport` config
+   - Added try-catch error handling
+   - Let Supabase auto-detect WebSocket availability
+   - Graceful fallback jika client init failed
    ```
 
-3. **Vercel Headers (`vercel.json`):**
-   ```json
-   - Strict-Transport-Security untuk force HTTPS
-   - X-Content-Type-Options untuk security
-   - Rewrites untuk SPA routing
+3. **Vercel CSP Headers (`vercel.json`):**
+   ```
+   Content-Security-Policy:
+   - connect-src: https://*.supabase.co wss://*.supabase.co
+   - script-src: 'unsafe-eval' (required for Vite)
+   - Strict-Transport-Security: force HTTPS
    ```
 
 4. **Mobile Optimization (`vite.config.js`):**
@@ -61,10 +62,13 @@
 
 ## Feature Degradation
 
-Jika WebSocket tidak tersedia (detected automatically):
-- ✅ **Core features tetap berfungsi**: CRUD operations, export, print
-- ❌ **Realtime sync disabled**: Perlu manual refresh untuk melihat update dari user lain
-- ⚠️ **Console warning**: "WebSocket not available - Realtime features disabled"
+Aplikasi sekarang **tidak bergantung pada WebSocket**:
+- ✅ **All core features work**: CRUD operations, export, print, upload
+- ✅ **Database sync via HTTPS**: Standard REST API calls ke Supabase
+- ℹ️ **Realtime disabled**: Auto-refresh tidak aktif, perlu manual refresh
+- ✅ **Error handling**: Graceful fallback jika Supabase client init failed
+
+**Note:** Realtime features (live updates tanpa refresh) memang di-disable untuk compatibility dengan semua browser.
 
 ## Testing Checklist
 
@@ -92,10 +96,16 @@ Untuk troubleshoot browser compatibility issues:
 1. **Open Browser Console** (F12 atau Inspect)
 2. **Check for errors**:
    ```
-   [Supabase] WebSocket not available - Realtime features disabled
+   [Supabase] Failed to create client: <error>
+   [Supabase] Running in offline mode - realtime features disabled
    ```
-3. **Network tab**: Verify Supabase API calls (should be HTTPS)
+3. **Network tab**: Verify Supabase API calls (should be HTTPS, **not WSS**)
 4. **Application tab**: Check localStorage for `st_auth_user`
+
+**Expected Behavior:**
+- No WebSocket connections (wss://) in Network tab
+- All API calls via HTTPS REST (https://*.supabase.co/rest/v1/)
+- Console may show "[Supabase] Running in offline mode" - **this is normal**
 
 ## Known Issues
 
