@@ -675,11 +675,18 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       <div className="modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
-          style={{ maxWidth: '880px', width: '95vw', maxHeight: '92vh' }}
+          style={{ 
+            maxWidth: '95vw', 
+            width: '95vw', 
+            height: '95vh',
+            maxHeight: '95vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header */}
-          <div className="modal-header">
+          <div className="modal-header" style={{ flexShrink: 0 }}>
             <div className="card-title-group">
               <FileText size={24} style={{ color: 'var(--accent-primary)' }} />
               <div>
@@ -697,7 +704,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
           </div>
 
           {/* Modal Body */}
-          <div className="modal-body" style={{ maxHeight: 'calc(92vh - 140px)', overflowY: 'auto', padding: '1.5rem' }}>
+          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
             <form onSubmit={handleSubmit}>
               {/* Lock Warning Banner */}
               {isLocked && (

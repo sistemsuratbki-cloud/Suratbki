@@ -208,11 +208,18 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       <div className="modal-overlay" onClick={onClose}>
         <div
           className="modal-content"
-          style={{ maxWidth: '850px', width: '95vw', maxHeight: '90vh' }}
+          style={{ 
+            maxWidth: '95vw', 
+            width: '95vw', 
+            height: '95vh',
+            maxHeight: '95vh',
+            display: 'flex',
+            flexDirection: 'column'
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Header */}
-          <div className="modal-header">
+          <div className="modal-header" style={{ flexShrink: 0 }}>
             <div className="card-title-group">
               <FileCheck2 size={24} style={{ color: 'var(--accent-primary)' }} />
               <div>
@@ -230,7 +237,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
           </div>
 
           {/* Form Body */}
-          <div className="modal-body" style={{ maxHeight: 'calc(90vh - 140px)', overflowY: 'auto', padding: '1.5rem' }}>
+          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
             <form onSubmit={handleSubmit}>
               {/* Section 1: Penugasan Surveyor & Jadwal Survei */}
               <div
