@@ -46,6 +46,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const { usersList, currentUser, role } = useAuth();
 
   const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
+  const isFinance = role === 'finance' || role === 'keuangan';
   const isLocked = Boolean(editItem && isDocumentLocked(editItem, 3) && !editItem.isUnlockedByAdmin);
 
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
@@ -112,6 +113,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     tglMulai: '',
     tglSelesai: '',
     noOrder: 'RFQ-0000',
+    noSo: '',
+    noWbs: '',
     jumlahHariLibur: 0,
     tiketHotel: 0,
     tiketPesawatTaxi: 0,
@@ -171,6 +174,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         lokasi: editLoc.toUpperCase(),
         tempatSurvey: editLoc.toUpperCase(),
         noOrder: editItem.noOrder || 'RFQ-0000',
+        noSo: editItem.noSo || '',
+        noWbs: editItem.noWbs || '',
         jumlahHariLibur: editItem.jumlahHariLibur !== undefined ? Number(editItem.jumlahHariLibur) : 0,
         tiketHotel: Number(editItem.tiketHotel) || 0,
         tiketPesawatTaxi: Number(editItem.tiketPesawatTaxi) || Number(editItem.biayaTiket) || 0,
@@ -223,6 +228,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tglMulai: todayDate,
         tglSelesai: todayDate,
         noOrder: `RFQ260${String(Math.floor(Math.random() * 900) + 100)}`,
+        noSo: '',
+        noWbs: '',
         jumlahHariLibur: 0,
         tiketHotel: 0,
         tiketPesawatTaxi: 0,
@@ -1272,6 +1279,63 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Section 3.5: No. SO & No. WBS (Finance Only) */}
+              <div
+                style={{
+                  background: 'var(--bg-main)',
+                  border: '1.5px solid #e0e7ff',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '1rem 1.25rem',
+                  marginBottom: '1.25rem'
+                }}
+              >
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
+                  💼 DATA KEUANGAN (Finance)
+                </div>
+
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      No. SO (Sales Order)
+                      {!isFinance && !isAdmin && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.4rem' }}>★ Diisi Finance</span>}
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.noSo || ''}
+                      onChange={(e) => (isFinance || isAdmin) && setFormData({ ...formData, noSo: e.target.value })}
+                      readOnly={!isFinance && !isAdmin}
+                      placeholder={(!isFinance && !isAdmin) ? '— Akan diisi oleh Finance —' : 'Contoh: 3000255955'}
+                      style={{
+                        backgroundColor: (!isFinance && !isAdmin) ? 'var(--bg-secondary, #f1f5f9)' : undefined,
+                        color: (!isFinance && !isAdmin) ? 'var(--text-muted, #94a3b8)' : undefined,
+                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : undefined,
+                      }}
+                    />
+                  </div>
+
+                  <div className="form-group" style={{ margin: 0 }}>
+                    <label className="form-label" style={{ fontWeight: 700 }}>
+                      No. WBS (Work Breakdown Structure)
+                      {!isFinance && !isAdmin && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.4rem' }}>★ Diisi Finance</span>}
+                    </label>
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.noWbs || ''}
+                      onChange={(e) => (isFinance || isAdmin) && setFormData({ ...formData, noWbs: e.target.value })}
+                      readOnly={!isFinance && !isAdmin}
+                      placeholder={(!isFinance && !isAdmin) ? '— Akan diisi oleh Finance —' : 'Contoh: 00578-PK-Z4-0426'}
+                      style={{
+                        backgroundColor: (!isFinance && !isAdmin) ? 'var(--bg-secondary, #f1f5f9)' : undefined,
+                        color: (!isFinance && !isAdmin) ? 'var(--text-muted, #94a3b8)' : undefined,
+                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : undefined,
+                      }}
+                    />
+                  </div>
+                </div>
               </div>
 
               {/* Section 4: Tanggal, Lokasi, Hari Libur & Opsi Uang Harian */}
