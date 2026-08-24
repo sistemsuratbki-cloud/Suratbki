@@ -715,28 +715,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
   return (
     <ModalPortal>
-      <div 
-        className="modal-overlay" 
-        onClick={onClose} 
-        style={{ 
-          padding: '0.5rem',
-          alignItems: 'flex-start',
-          paddingTop: '2vh'
-        }}
-      >
-        <div
-          className="modal-content"
-          style={{ 
-            maxWidth: '1200px !important', 
-            width: '98vw !important', 
-            height: 'auto !important',
-            maxHeight: '96vh !important',
-            display: 'flex !important',
-            flexDirection: 'column !important',
-            margin: '0 auto !important'
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
+      <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           {/* Modal Header */}
           <div className="modal-header" style={{ flexShrink: 0 }}>
             <div className="card-title-group">

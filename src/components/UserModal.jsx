@@ -178,7 +178,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '640px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
               <UserCheck size={20} color="var(--accent-primary)" />
@@ -190,7 +190,7 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
           </div>
 
           <form onSubmit={handleSubmit}>
-            <div className="modal-body" style={{ maxHeight: 'calc(90vh - 140px)', overflowY: 'auto' }}>
+            <div className="modal-body">
               {errorMsg && (
                 <div style={{ padding: '0.6rem 0.85rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1rem' }}>
                   ⚠️ {errorMsg}

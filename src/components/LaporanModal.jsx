@@ -263,7 +263,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: isFinance ? '680px' : '840px' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           <div className="modal-header">
             <div className="card-title-group">
               {isFinance ? <ClipboardList size={22} style={{ color: 'var(--accent-primary)' }} /> : <Anchor size={22} style={{ color: 'var(--accent-primary)' }} />}

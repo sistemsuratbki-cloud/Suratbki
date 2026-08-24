@@ -646,7 +646,7 @@ export const DayDetailModal = ({
   return (
     <ModalPortal>
       <div className="modal-overlay" onClick={onClose}>
-        <div className="modal-content" style={{ maxWidth: '920px', width: '95vw', maxHeight: '92vh' }} onClick={(e) => e.stopPropagation()}>
+        <div className="modal-content" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div className="modal-header" style={{ padding: '1rem 1.5rem', borderBottom: '1px solid var(--border-color)' }}>
             <div className="card-title-group">

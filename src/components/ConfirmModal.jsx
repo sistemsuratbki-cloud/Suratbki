@@ -100,10 +100,10 @@ export const ConfirmModal = ({
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay" onClick={onClose} style={{ alignItems: 'center', justifyContent: 'center' }}>
         <div
-          className="modal-content"
-          style={{ maxWidth: '460px', padding: '1.75rem', borderRadius: 'var(--radius-lg)' }}
+          className="modal-content modal-dialog"
+          style={{ maxWidth: '460px', padding: '1.75rem', borderRadius: 'var(--radius-lg)', margin: 'auto' }}
           onClick={(e) => e.stopPropagation()}
         >
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
