@@ -15,7 +15,7 @@ export const BiayaPdsPrintModal = ({
   const { adminSettings, gradeTariffs } = useData();
   const { usersList, role } = useAuth();
   const [withSignature, setWithSignature] = useState(true);
-  const [mobileFit, setMobileFit] = useState(true);
+  const [isFitToScreen, setIsFitToScreen] = useState(true);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
 
   useEffect(() => {
@@ -30,7 +30,8 @@ export const BiayaPdsPrintModal = ({
   const canPrint = !isSurveyor;
   const isMobileScreen = windowWidth <= 768;
   const targetDocWidth = 980;
-  const fitScale = isMobileScreen ? Math.min(Math.max((windowWidth - 20) / targetDocWidth, 0.28), 1) : 1;
+  const availableWidth = isMobileScreen ? (windowWidth - 20) : Math.min(windowWidth * 0.94, 1150) - 30;
+  const fitScale = isFitToScreen ? Math.min(Math.max(availableWidth / targetDocWidth, 0.28), 1) : 1;
 
   const isLuarKota = (suratTugas.kategoriPerjalanan || '').toLowerCase().includes('luar') || suratTugas.kategoriPerjalanan === 'Luar Kota';
 
@@ -189,19 +190,17 @@ export const BiayaPdsPrintModal = ({
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-              {/* Mobile Zoom Mode Toggle */}
-              {isMobileScreen && (
-                <button
-                  type="button"
-                  className={`btn btn-sm ${mobileFit ? 'btn-outline-primary' : 'btn-primary'}`}
-                  onClick={() => setMobileFit(!mobileFit)}
-                  style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.3rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                  title={mobileFit ? 'Perbesar ke ukuran asli' : 'Kecilkan agar pas layar'}
-                >
-                  {mobileFit ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
-                  <span>{mobileFit ? 'Ukuran Penuh' : 'Pas Layar'}</span>
-                </button>
-              )}
+              {/* Zoom Mode Toggle */}
+              <button
+                type="button"
+                className={`btn btn-sm ${isFitToScreen ? 'btn-outline-primary' : 'btn-primary'}`}
+                onClick={() => setIsFitToScreen(!isFitToScreen)}
+                style={{ fontSize: isMobileScreen ? '0.72rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.3rem 0.5rem' : '0.35rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                title={isFitToScreen ? 'Perbesar ke ukuran penuh (100%)' : 'Kecilkan agar pas layar'}
+              >
+                {isFitToScreen ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+                <span>{isFitToScreen ? '🔍 Ukuran Penuh' : '📱 Pas Layar'}</span>
+              </button>
 
               {/* Toggle Versi TTD */}
               <button
@@ -223,59 +222,59 @@ export const BiayaPdsPrintModal = ({
           <div
             className="modal-body print-modal-body"
             style={{
-              padding: isMobileScreen ? '0.5rem' : '1.5rem 2rem',
+              padding: isMobileScreen ? '0.5rem' : '1.25rem 1.5rem',
               overflow: 'auto',
               flex: '1 1 auto',
               minHeight: 0,
               WebkitOverflowScrolling: 'touch',
-              background: isMobileScreen ? '#f8fafc' : '#ffffff'
+              background: '#f8fafc'
             }}
           >
-            {/* Mobile Guidance Banner */}
-            {isMobileScreen && (
-              <div
+            {/* Guidance Banner */}
+            <div
+              className="guidance-banner no-print"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.5rem',
+                padding: '0.4rem 0.75rem',
+                background: '#e2e8f0',
+                borderRadius: '6px',
+                marginBottom: '0.6rem',
+                fontSize: isMobileScreen ? '0.72rem' : '0.78rem',
+                color: '#1e293b'
+              }}
+            >
+              <span>
+                {isFitToScreen ? '📱 Mode Pas Layar (Seluruh 18 kolom terlihat utuh)' : '👉 Geser layar ke samping kanan untuk cek kolom lainnya'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setIsFitToScreen(!isFitToScreen)}
                 style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'space-between',
-                  gap: '0.5rem',
-                  padding: '0.35rem 0.6rem',
-                  background: '#e2e8f0',
-                  borderRadius: '6px',
-                  marginBottom: '0.5rem',
-                  fontSize: '0.72rem',
-                  color: '#1e293b'
+                  border: 'none',
+                  background: '#003366',
+                  color: '#ffffff',
+                  padding: '0.2rem 0.6rem',
+                  borderRadius: '4px',
+                  fontSize: '0.7rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  whiteSpace: 'nowrap'
                 }}
               >
-                <span>
-                  {mobileFit ? '📱 Seluruh 18 kolom terlihat utuh (Pas Layar)' : '👉 Geser layar ke samping kanan untuk cek kolom lainnya'}
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setMobileFit(!mobileFit)}
-                  style={{
-                    border: 'none',
-                    background: '#003366',
-                    color: '#ffffff',
-                    padding: '0.15rem 0.45rem',
-                    borderRadius: '4px',
-                    fontSize: '0.68rem',
-                    fontWeight: 700,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {mobileFit ? 'Perbesar' : 'Kecilkan'}
-                </button>
-              </div>
-            )}
+                {isFitToScreen ? 'Perbesar' : 'Kecilkan'}
+              </button>
+            </div>
 
             <div
               className="printable-sheet-wrapper"
               style={{
                 width: '100%',
                 display: 'flex',
-                justifyContent: isMobileScreen && mobileFit ? 'center' : 'flex-start',
-                overflowX: isMobileScreen && !mobileFit ? 'auto' : 'visible'
+                justifyContent: isFitToScreen ? 'center' : 'flex-start',
+                overflowX: !isFitToScreen ? 'auto' : 'visible'
               }}
             >
               <div
@@ -290,9 +289,9 @@ export const BiayaPdsPrintModal = ({
                   background: '#ffffff',
                   color: '#000000',
                   boxSizing: 'border-box',
-                  width: isMobileScreen ? `${targetDocWidth}px` : '100%',
-                  minWidth: isMobileScreen ? `${targetDocWidth}px` : 'auto',
-                  zoom: isMobileScreen && mobileFit ? fitScale : 1,
+                  width: `${targetDocWidth}px`,
+                  minWidth: `${targetDocWidth}px`,
+                  zoom: isFitToScreen ? fitScale : 1,
                   boxShadow: isMobileScreen ? '0 2px 8px rgba(0,0,0,0.06)' : 'none'
                 }}
               >
@@ -577,6 +576,7 @@ export const BiayaPdsPrintModal = ({
             @media print {
               @page { size: A4 landscape !important; margin: 16mm 10mm 8mm 10mm !important; }
               body { background: #ffffff !important; color: #000000 !important; }
+              .no-print, .guidance-banner { display: none !important; }
               .modal-overlay { position: static !important; background: transparent !important; padding: 0 !important; }
               .modal-content { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
               .modal-header, .modal-footer { display: none !important; }

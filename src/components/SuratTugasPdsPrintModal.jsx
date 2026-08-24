@@ -197,19 +197,17 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
-              {/* Mobile Zoom Switcher */}
-              {isMobileScreen && (
-                <button
-                  type="button"
-                  className={`btn btn-sm ${mobileFit ? 'btn-outline-primary' : 'btn-primary'}`}
-                  onClick={() => setMobileFit(!mobileFit)}
-                  style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.3rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                  title={mobileFit ? 'Perbesar ke ukuran asli' : 'Kecilkan agar pas layar'}
-                >
-                  {mobileFit ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
-                  <span>{mobileFit ? 'Ukuran Asli' : 'Pas Layar'}</span>
-                </button>
-              )}
+              {/* Zoom Switcher */}
+              <button
+                type="button"
+                className={`btn btn-sm ${mobileFit ? 'btn-outline-primary' : 'btn-primary'}`}
+                onClick={() => setMobileFit(!mobileFit)}
+                style={{ fontSize: isMobileScreen ? '0.72rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.3rem 0.5rem' : '0.35rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                title={mobileFit ? 'Perbesar ke ukuran asli' : 'Kecilkan agar pas layar'}
+              >
+                {mobileFit ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+                <span>{mobileFit ? '🔍 Ukuran Asli' : '📱 Pas Layar'}</span>
+              </button>
 
               {/* Toggle Versi TTD */}
               <button
