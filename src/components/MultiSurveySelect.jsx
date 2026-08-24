@@ -323,7 +323,7 @@ export default function MultiSurveySelect({
           {/* Options List */}
           <div
             style={{
-              maxHeight: '220px',
+              maxHeight: '280px',
               overflowY: 'auto',
               display: 'flex',
               flexDirection: 'column',
@@ -390,15 +390,18 @@ export default function MultiSurveySelect({
           <div
             style={{
               marginTop: '0.6rem',
-              paddingTop: '0.5rem',
-              borderTop: '1px solid var(--border-color)',
+              paddingTop: '0.75rem',
+              borderTop: '2px solid var(--accent-primary)',
+              background: 'var(--accent-light)',
+              padding: '0.75rem',
+              borderRadius: 'var(--radius-sm)',
               display: 'flex',
               flexDirection: 'column',
               gap: '0.5rem'
             }}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
-              <Plus size={13} color="var(--accent-primary)" />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 700 }}>
+              <Plus size={15} color="var(--accent-primary)" />
               <span>Input Manual / Custom:</span>
             </div>
             <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
