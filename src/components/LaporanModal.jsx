@@ -1,6 +1,6 @@
 import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
-import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles, Eye, Check, ClipboardList } from 'lucide-react';
+import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles, Eye, Check, ClipboardList, UserCheck, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -49,6 +49,36 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     fileKwitansiHotelData: ''
   });
 
+  const resolveSpsAgenda = (st) => {
+    if (!st) return '';
+    // 1. Cek dari shipsDetail (inputan langsung dari SPS)
+    if (Array.isArray(st.shipsDetail) && st.shipsDetail.length > 0) {
+      const fromShips = st.shipsDetail
+        .map((s) => s.noAgenda)
+        .filter((a) => a && a !== '-' && !String(a).toUpperCase().includes('/SV.') && !String(a).startsWith('A 0'))
+        .join(', ');
+      if (fromShips) return fromShips;
+    }
+    // 2. Cek jika surat ini punya linkedSpsIds
+    if (Array.isArray(st.linkedSpsIds) && st.linkedSpsIds.length > 0) {
+      const spsList = (suratTugas || []).filter((s) => st.linkedSpsIds.includes(s.id));
+      const fromSps = spsList
+        .map((s) => s.noAgenda || s.agenda)
+        .filter((a) => a && a !== '-' && !String(a).toUpperCase().includes('/SV.') && !String(a).startsWith('A 0'))
+        .join(', ');
+      if (fromSps) return fromSps;
+    }
+    // 3. Cek dari field noAgenda / agenda jika murni angka agenda (bukan format nomor surat A 0...)
+    if (st.noAgenda && !String(st.noAgenda).toUpperCase().includes('/SV.') && !String(st.noAgenda).startsWith('A 0')) {
+      return st.noAgenda;
+    }
+    if (st.agenda && !String(st.agenda).toUpperCase().includes('/SV.') && !String(st.agenda).startsWith('A 0')) {
+      return st.agenda;
+    }
+    // 4. Ekstrak angka agenda dari nomor surat (misal: "A 0 /SV.295/PK/KI-26" -> "295")
+    return extractAgendaNumber(st.noAgenda || st.nomor || '');
+  };
+
   useEffect(() => {
     if (editItem) {
       setFormData({
@@ -58,7 +88,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         lokasi: editItem.lokasi || editItem.lokasiSurvey || defaultLoc,
         nilai: editItem.nilai || editItem.tarifDasar || defaultRate,
         namaSurvey: editItem.namaSurvey || editItem.jenisSurvey || '',
-        noAgenda: cleanDocNumber(editItem.noAgenda || editItem.nomor || ''),
+        noAgenda: resolveSpsAgenda(editItem),
         noCda: editItem.noCda || '5100010',
         noSo: editItem.noSo || '',
         noWbs: editItem.noWbs || '',
@@ -77,7 +107,8 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         fileKwitansiHotelData: editItem.fileKwitansiHotelData || ''
       });
     } else {
-      const defaultSurat = suratTugas.length > 0 ? suratTugas[0] : null;
+      const validSuratList = (suratTugas || []).filter((st) => Boolean(st.nomor && st.nomor.trim() && st.nomor.trim() !== '-'));
+      const defaultSurat = validSuratList.length > 0 ? validSuratList[0] : null;
       const todayDate = new Date().toISOString().split('T')[0];
 
       setFormData({
@@ -86,8 +117,8 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         namaKapal: defaultSurat?.namaKapal || '',
         lokasi: defaultSurat?.lokasi || defaultLoc,
         nilai: defaultSurat?.jumlahEstimasi || defaultSurat?.tarifDasar || defaultRate,
-        namaSurvey: defaultSurat?.jenisSurvey || '',
-        noAgenda: cleanDocNumber(defaultSurat?.nomor) || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`,
+        namaSurvey: defaultSurat?.jenisSurvey || 'DINAS SURVEY KLAS',
+        noAgenda: resolveSpsAgenda(defaultSurat),
         noCda: defaultSurat?.noCda || '5100010',
         noSo: defaultSurat?.noSo || '',
         noWbs: defaultSurat?.noWbs || '',
@@ -114,17 +145,20 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
   const isLockedForSurveyor = role === 'surveyor' && isExpired && !editItem?.isUnlockedByAdmin;
 
   const handleSuratChange = (suratId) => {
-    const selectedSurat = suratTugas.find((s) => s.id === suratId);
+    const selectedSurat = (suratTugas || []).find((s) => s.id === suratId);
     if (selectedSurat) {
       setFormData((prev) => ({
         ...prev,
         suratId,
         namaKapal: selectedSurat.namaKapal || prev.namaKapal,
         petugas: selectedSurat.petugas || prev.petugas,
-        lokasi: selectedSurat.lokasi || prev.lokasi,
+        lokasi: selectedSurat.lokasi || selectedSurat.tempatSurvey || prev.lokasi,
         nilai: selectedSurat.jumlahEstimasi || selectedSurat.tarifDasar || prev.nilai,
         namaSurvey: selectedSurat.jenisSurvey || selectedSurat.perihal || prev.namaSurvey,
-        noAgenda: selectedSurat.nomor || prev.noAgenda,
+        noAgenda: resolveSpsAgenda(selectedSurat) || prev.noAgenda,
+        noCda: selectedSurat.noCda || prev.noCda || '5100010',
+        noSo: selectedSurat.noSo || '',
+        noWbs: selectedSurat.noWbs || '',
         tglLapor: selectedSurat.tglMulai || prev.tglLapor,
 
         fileFotoName: selectedSurat.fileFotoName || prev.fileFotoName,
@@ -144,94 +178,67 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
 
   const handleFileUpload = async (fieldKey, e) => {
     const file = e.target.files[0];
-    if (file) {
-      const validation = validateFileUpload(file, 3 * 1024 * 1024);
-      if (!validation.isValid) {
-        toast.error(validation.message);
-        e.target.value = '';
-        return;
-      }
+    if (!file) return;
+
+    const valRes = validateFileUpload(file, 25);
+    if (!valRes.valid) {
+      toast.error(valRes.message);
+      return;
+    }
+
+    try {
+      const fileNameKey = `${fieldKey}Name`;
+      const fileDataKey = `${fieldKey}Data`;
+      const base64 = await readFileAsBase64(file);
 
       setFormData((prev) => ({
         ...prev,
-        [fieldKey]: 'Mengunggah... ' + file.name
+        [fileNameKey]: file.name,
+        [fileDataKey]: base64
       }));
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-      const filePath = `uploads/${fileName}`;
-
+      // Direct Cloud Upload for Storage
       try {
-        if (!supabase) throw new Error('Supabase not configured');
-        const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
-        if (error) throw error;
-        
-        const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
-        
-        setFormData((prev) => ({
-          ...prev,
-          [fieldKey]: file.name,
-          [`${fieldKey.replace('Name', 'Data')}`]: publicUrlData.publicUrl
-        }));
-      } catch (err) {
-        console.error('Supabase upload failed, falling back to local base64:', err);
-        // Fallback to Base64 (Local)
-        const reader = new FileReader();
-        reader.onloadend = () => {
-          setFormData((prev) => ({
-            ...prev,
-            [fieldKey]: file.name,
-            [`${fieldKey.replace('Name', 'Data')}`]: reader.result
-          }));
-        };
-        reader.readAsDataURL(file);
+        const fileExt = file.name.split('.').pop();
+        const filePath = `laporan/${Date.now()}_${fieldKey}.${fileExt}`;
+        const { error: uploadError } = await supabase.storage
+          .from('attachments')
+          .upload(filePath, file);
+
+        if (!uploadError) {
+          const { data: urlData } = supabase.storage
+            .from('attachments')
+            .getPublicUrl(filePath);
+
+          if (urlData?.publicUrl) {
+            setFormData((prev) => ({
+              ...prev,
+              [fileDataKey]: urlData.publicUrl
+            }));
+          }
+        }
+      } catch (storageErr) {
+        console.warn('Storage bucket upload optional fallback to base64:', storageErr);
       }
+
+      toast.success(`${file.name} berhasil diunggah.`);
+    } catch (err) {
+      toast.error('Gagal membaca berkas lampiran.');
     }
   };
 
-  const handleRemoveFile = (fieldKey) => {
-    setFormData((prev) => ({
-      ...prev,
-      [fieldKey]: '',
-      [`${fieldKey.replace('Name', 'Data')}`]: ''
-    }));
+  const readFileAsBase64 = (file) => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = (error) => reject(error);
+      reader.readAsDataURL(file);
+    });
   };
 
   const processSave = () => {
-    if (isFinance) {
-      const payload = sanitizeFormData({
-        ...(editItem || {}),
-        ...formData,
-        noSo: formData.noSo?.trim() || '',
-        noWbs: formData.noWbs?.trim() || ''
-      });
-
-      if (editItem) {
-        updateLaporanSurvei(editItem.id, payload);
-        if (editItem.suratId) {
-          updateSuratTugas(editItem.suratId, {
-            noOrder: formData.noSo?.trim() || editItem.noSo,
-            noWbs: formData.noWbs?.trim() || editItem.noWbs
-          });
-        }
-        toast.success(`No. SO & WBS untuk ${formData.namaKapal || 'dokumen'} berhasil diperbarui.`);
-        return { ...payload, id: editItem.id };
-      }
-      return null;
-    }
-
     if (!formData.namaKapal || !formData.petugas) {
       toast.error('Mohon lengkapi Nama Kapal dan Nama Marine Surveyor!');
-      return null;
-    }
-
-    const cleanJenis = (formData.namaSurvey || formData.jenisSurvey || '')
-      .split(',')
-      .map((s) => s.trim())
-      .filter((s) => s && s.toUpperCase() !== 'DINAS SURVEY KLAS');
-
-    if (cleanJenis.length === 0) {
-      toast.error('Jenis Survey wajib dipilih (minimal 1 jenis survei)!');
       return null;
     }
 
@@ -241,14 +248,31 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
       lokasiSurvey: formData.lokasi,
       tarifDasar: Number(formData.nilai) || defaultRate,
       nilai: Number(formData.nilai) || defaultRate,
-      jenisSurvey: formData.namaSurvey
+      namaSurvey: formData.namaSurvey || formData.jenisSurvey || 'DINAS SURVEY KLAS',
+      jenisSurvey: formData.namaSurvey || formData.jenisSurvey || 'DINAS SURVEY KLAS',
+      noSo: formData.noSo?.trim() || '',
+      noOrder: formData.noSo?.trim() || '',
+      noWbs: formData.noWbs?.trim() || ''
     });
 
     if (editItem) {
-      updateLaporanSurvei(editItem.id, payload);
+      if (typeof updateLaporanSurvei === 'function') {
+        updateLaporanSurvei(editItem.id, payload);
+      }
+      if (typeof updateSuratTugas === 'function') {
+        updateSuratTugas(editItem.id, payload);
+        if (editItem.suratId) {
+          updateSuratTugas(editItem.suratId, payload);
+        }
+      }
+      toast.success('Data Perjalanan Dinas berhasil diperbarui.');
       return { ...payload, id: editItem.id };
     } else {
-      return addLaporanSurvei(payload);
+      if (typeof addLaporanSurvei === 'function') {
+        addLaporanSurvei(payload);
+      }
+      toast.success('Data Perjalanan Dinas berhasil ditambahkan.');
+      return payload;
     }
   };
 
@@ -287,7 +311,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
             </button>
           </div>
 
-          <div className="modal-body" style={{ maxHeight: 'calc(90vh - 130px)', overflowY: 'auto' }}>
+          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
             {isFinance ? (
               <form onSubmit={handleSubmit}>
                 {/* Summary Info Card for Finance */}
@@ -419,11 +443,13 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                   onChange={(e) => handleSuratChange(e.target.value)}
                 >
                   <option value="">-- Input Bebas / Tanpa Surat Tugas Terkait --</option>
-                  {suratTugas.map((st) => (
-                    <option key={st.id} value={st.id}>
-                      {st.nomor} — {st.namaKapal} ({st.petugas}) • {st.lokasi}
-                    </option>
-                  ))}
+                  {(suratTugas || [])
+                    .filter((st) => Boolean(st.nomor && st.nomor.trim() && st.nomor.trim() !== '-'))
+                    .map((st) => (
+                      <option key={st.id} value={st.id}>
+                        {st.nomor} — {st.namaKapal} ({st.petugas}) • {st.lokasi}
+                      </option>
+                    ))}
                 </select>
               </div>
 
@@ -485,7 +511,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                   </div>
                 </div>
 
-                {/* Baris 2: NILAI, NAMA SURVEY, NO AGENDA */}
+                {/* Baris 2: NILAI, NAMA SURVEYOR, NO AGENDA */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
@@ -507,12 +533,16 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700 }}>
-                      6. NAMA SURVEY *
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <UserCheck size={14} color="var(--accent-primary)" />
+                      <span>6. NAMA SURVEYOR *</span>
                     </label>
-                    <MultiSurveySelect
-                      value={formData.namaSurvey}
-                      onChange={(val) => setFormData({ ...formData, namaSurvey: val })}
+                    <input
+                      type="text"
+                      className="form-input"
+                      value={formData.petugas}
+                      onChange={(e) => setFormData({ ...formData, petugas: e.target.value })}
+                      placeholder="Nama Surveyor..."
                       required
                     />
                   </div>
@@ -532,7 +562,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                 </div>
 
                 {/* Baris 3: NO CDA, NO.SO, NO.WBS */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       8. NO CDA
@@ -549,59 +579,32 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       9. NO.SO
-                      {!isFinance && !isAdmin && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.4rem' }}>★ Diisi Finance</span>}
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noSo}
-                      onChange={(e) => (isFinance || isAdmin) && setFormData({ ...formData, noSo: e.target.value })}
-                      readOnly={!isFinance && !isAdmin}
-                      placeholder={(!isFinance && !isAdmin) ? '— Akan diisi oleh Finance —' : 'Contoh: 3000255955'}
-                      style={{
-                        backgroundColor: (!isFinance && !isAdmin) ? 'var(--bg-secondary, #f1f5f9)' : undefined,
-                        color: (!isFinance && !isAdmin) ? 'var(--text-muted, #94a3b8)' : undefined,
-                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : undefined,
-                      }}
+                      onChange={(e) => setFormData({ ...formData, noSo: e.target.value })}
+                      placeholder="Contoh: 3000255955"
+                      style={{ fontWeight: 700, color: formData.noSo ? '#0284c7' : 'inherit' }}
                     />
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       10. NO.WBS
-                      {!isFinance && !isAdmin && <span style={{ fontSize: '0.7rem', color: '#f59e0b', marginLeft: '0.4rem' }}>★ Diisi Finance</span>}
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noWbs}
-                      onChange={(e) => (isFinance || isAdmin) && setFormData({ ...formData, noWbs: e.target.value })}
-                      readOnly={!isFinance && !isAdmin}
-                      placeholder={(!isFinance && !isAdmin) ? '— Akan diisi oleh Finance —' : 'Contoh: 00578-PK-Z4-0426'}
-                      style={{
-                        backgroundColor: (!isFinance && !isAdmin) ? 'var(--bg-secondary, #f1f5f9)' : undefined,
-                        color: (!isFinance && !isAdmin) ? 'var(--text-muted, #94a3b8)' : undefined,
-                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : undefined,
-                      }}
+                      onChange={(e) => setFormData({ ...formData, noWbs: e.target.value })}
+                      placeholder="Contoh: 00578-PK-Z4-0426"
                     />
                   </div>
                 </div>
-              </div>
 
-              {/* Marine Surveyor & Status */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontWeight: 700 }}>Nama Marine Surveyor *</label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    value={formData.petugas}
-                    onChange={(e) => setFormData({ ...formData, petugas: e.target.value })}
-                    placeholder="Nama Surveyor..."
-                    required
-                  />
-                </div>
-
+                {/* Status Dokumen */}
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontWeight: 700 }}>Status Dokumen</label>
                   <select

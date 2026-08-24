@@ -287,6 +287,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     if (selectedItems.length > 0) {
       const combinedNames = selectedItems.map((s) => s.namaKapal).filter(Boolean).join(', ');
       const firstSps = selectedItems[0];
+      const firstAgenda = firstSps?.noAgenda || firstSps?.agenda || selectedItems.map((s) => s.noAgenda || s.agenda).filter(Boolean).join(', ') || '';
       const spsLoc = firstSps?.lokasi || firstSps?.tempatSurvey || formData.lokasi || '';
       const matchedTariff = findTariffByLocation(spsLoc, activeTariffs);
       const cat = matchedTariff?.kategori || getLocationCategory(spsLoc, activeTariffs);
@@ -295,6 +296,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         ...prev,
         namaKapal: combinedNames,
         pemohon: firstSps?.pemohon || prev.pemohon,
+        noAgenda: firstAgenda || prev.noAgenda,
+        agenda: firstAgenda || prev.agenda,
         lokasi: spsLoc ? String(spsLoc).toUpperCase() : prev.lokasi,
         tempatSurvey: spsLoc ? String(spsLoc).toUpperCase() : prev.tempatSurvey,
         tarifDasar: matchedTariff ? Number(matchedTariff.rate) : prev.tarifDasar,
@@ -324,6 +327,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     if (availableSpsItems.length > 0) {
       const combinedNames = availableSpsItems.map((s) => s.namaKapal).filter(Boolean).join(', ');
       const firstSps = availableSpsItems[0];
+      const firstAgenda = firstSps?.noAgenda || firstSps?.agenda || availableSpsItems.map((s) => s.noAgenda || s.agenda).filter(Boolean).join(', ') || '';
       const spsLoc = firstSps?.lokasi || firstSps?.tempatSurvey || formData.lokasi || '';
       const matchedTariff = findTariffByLocation(spsLoc, activeTariffs);
       const cat = matchedTariff?.kategori || getLocationCategory(spsLoc, activeTariffs);
@@ -332,6 +336,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         ...prev,
         namaKapal: combinedNames,
         pemohon: firstSps?.pemohon || prev.pemohon,
+        noAgenda: firstAgenda || prev.noAgenda,
+        agenda: firstAgenda || prev.agenda,
         lokasi: spsLoc ? String(spsLoc).toUpperCase() : prev.lokasi,
         tempatSurvey: spsLoc ? String(spsLoc).toUpperCase() : prev.tempatSurvey,
         tarifDasar: matchedTariff ? Number(matchedTariff.rate) : prev.tarifDasar,
@@ -735,9 +741,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
             </button>
           </div>
 
-          {/* Modal Body */}
-          <div className="modal-body" style={{ flex: '1 1 auto', overflowY: 'auto', padding: '1.5rem', minHeight: 0 }}>
-            <form onSubmit={handleSubmit}>
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
               {/* Lock Warning Banner */}
               {isLocked && (
                 <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.65rem', color: '#991b1b', fontSize: '0.84rem' }}>
@@ -758,20 +764,61 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
               <fieldset disabled={isLocked} style={{ border: 'none', padding: 0, margin: 0, opacity: isLocked ? 0.9 : 1 }}>
               {/* Section 1: Nomor Surat PDS & Surveyor */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div className="form-group" style={{ margin: 0 }}>
-                  <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
-                    Nomor Surat PDS (Resmi BKI) *
+                  <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span>Nomor Surat PDS (Resmi BKI) *</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                      Prefix & Nomor Terpisah
+                    </span>
                   </label>
-                  <input
-                    type="text"
-                    className="form-input"
-                    placeholder="A 0    /SV.XXX/PK/KI-26"
-                    value={formData.nomor}
-                    onChange={(e) => setFormData({ ...formData, nomor: cleanDocNumber(e.target.value) })}
-                    required
-                    style={{ fontWeight: 800, letterSpacing: '0.02em' }}
-                  />
+                  {(() => {
+                    const cleanNomor = cleanDocNumber(formData.nomor || '').trim();
+                    const slashIdx = cleanNomor.indexOf('/');
+                    const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : (cleanNomor || 'A 0');
+                    const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : `/SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`;
+
+                    return (
+                      <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.5rem' }}>
+                        <div>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="A 0"
+                            value={prefix}
+                            onChange={(e) => {
+                              const newPrefix = e.target.value;
+                              const currentSuffix = suffix.startsWith('/') ? suffix : '/' + suffix;
+                              const combined = `${newPrefix}    ${currentSuffix}`;
+                              setFormData({ ...formData, nomor: cleanDocNumber(combined) });
+                            }}
+                            required
+                            style={{ fontWeight: 800, textAlign: 'center', color: 'var(--accent-primary)', letterSpacing: '0.05em' }}
+                            title="Prefix Nomor Surat (Contoh: A 0, A0, B 0, dll)"
+                          />
+                        </div>
+                        <div>
+                          <input
+                            type="text"
+                            className="form-input"
+                            placeholder="/SV.XXX/PK/KI-26"
+                            value={suffix}
+                            onChange={(e) => {
+                              let newSuffix = e.target.value;
+                              if (newSuffix && !newSuffix.startsWith('/')) {
+                                newSuffix = '/' + newSuffix;
+                              }
+                              const combined = `${prefix}    ${newSuffix}`;
+                              setFormData({ ...formData, nomor: cleanDocNumber(combined) });
+                            }}
+                            required
+                            style={{ fontWeight: 800, letterSpacing: '0.02em' }}
+                            title="Nomor Surat & Klasifikasi (Contoh: /SV.691/PK/KI-26)"
+                          />
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>
@@ -1152,29 +1199,22 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                           <tr key={sh.spsId || idx}>
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>{idx + 1}</td>
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', fontWeight: 800 }}>{sh.namaKapal}</td>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                              {/* disabled={false} tidak override fieldset — pakai wrapper dengan pointerEvents */}
-                              <div style={{ pointerEvents: 'all' }}>
-                                <input
-                                  type="text"
-                                  className="form-input"
-                                  style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '26px', pointerEvents: 'all' }}
-                                  value={sh.noAgenda || ''}
-                                  onChange={(e) => {
-                                    const val = e.target.value;
-                                    setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s)));
-                                    if (idx === 0) {
-                                      setFormData((prev) => ({ ...prev, noAgenda: val }));
-                                    }
-                                  }}
-                                  onKeyDown={(e) => e.stopPropagation()}
-                                  onClick={(e) => {
-                                    e.currentTarget.removeAttribute('disabled');
-                                    e.currentTarget.focus();
-                                  }}
-                                  ref={(el) => { if (el) el.removeAttribute('disabled'); }}
-                                />
-                              </div>
+                            <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>
+                              <input
+                                type="text"
+                                className="form-input"
+                                style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '28px', fontWeight: 700, color: 'var(--accent-primary)', maxWidth: '140px' }}
+                                value={sh.noAgenda || ''}
+                                placeholder="No. Agenda..."
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  const updated = shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s));
+                                  setShipsDetail(updated);
+                                  if (idx === 0) {
+                                    setFormData((prev) => ({ ...prev, noAgenda: val, agenda: val }));
+                                  }
+                                }}
+                              />
                             </td>
                             {shipsDetail.length > 1 && (
                               <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>
@@ -1292,54 +1332,37 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     />
                   </div>
 
-                  {/* NO.SO - Readonly for Surveyor, Editable for Finance/Admin */}
+                  {/* NO.SO */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem' }}>
                       <span>9. NO.SO</span>
-                      {!isFinance && !isAdmin && (
-                        <span style={{ fontSize: '0.7rem', background: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '12px', fontWeight: 800 }}>
-                          ★ Diisi Finance
-                        </span>
-                      )}
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noSo}
                       onChange={(e) => setFormData({ ...formData, noSo: e.target.value })}
-                      placeholder={isFinance || isAdmin ? "Contoh: 3000255955" : "Kosong - Diisi oleh Finance"}
-                      readOnly={!isFinance && !isAdmin}
+                      placeholder="Contoh: 3000255955"
                       style={{
                         fontWeight: 700,
-                        color: formData.noSo ? '#0284c7' : 'var(--text-muted)',
-                        background: (!isFinance && !isAdmin) ? 'var(--bg-disabled)' : 'var(--bg-input)',
-                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : 'text'
+                        color: formData.noSo ? '#0284c7' : 'inherit'
                       }}
                     />
                   </div>
 
-                  {/* NO.WBS - Readonly for Surveyor, Editable for Finance/Admin */}
+                  {/* NO.WBS */}
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem' }}>
                       <span>10. NO.WBS</span>
-                      {!isFinance && !isAdmin && (
-                        <span style={{ fontSize: '0.7rem', background: '#fef3c7', color: '#92400e', padding: '0.15rem 0.5rem', borderRadius: '12px', fontWeight: 800 }}>
-                          ★ Diisi Finance
-                        </span>
-                      )}
                     </label>
                     <input
                       type="text"
                       className="form-input"
                       value={formData.noWbs}
                       onChange={(e) => setFormData({ ...formData, noWbs: e.target.value })}
-                      placeholder={isFinance || isAdmin ? "Contoh: 00578-PK-Z4-0426" : "Kosong - Diisi oleh Finance"}
-                      readOnly={!isFinance && !isAdmin}
+                      placeholder="Contoh: 00578-PK-Z4-0426"
                       style={{
-                        fontWeight: 600,
-                        color: formData.noWbs ? 'var(--text-secondary)' : 'var(--text-muted)',
-                        background: (!isFinance && !isAdmin) ? 'var(--bg-disabled)' : 'var(--bg-input)',
-                        cursor: (!isFinance && !isAdmin) ? 'not-allowed' : 'text'
+                        fontWeight: 600
                       }}
                     />
                   </div>
@@ -1894,60 +1917,60 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 />
               </div>
               </fieldset>
+            </div>
 
-              {/* Footer */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                <div>
-                  {(role === 'admin' || role === 'developer' || role === 'kacab') && editItem && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const newStatus = !editItem.isUnlockedByAdmin;
-                        updateSuratTugas(editItem.id, {
-                          isUnlockedByAdmin: newStatus,
-                          unlockedAt: newStatus ? new Date().toISOString() : null,
-                          unlockedBy: newStatus ? currentUser?.name : null
-                        });
-                        if (newStatus) {
-                          toast.success('🔓 Kunci dokumen dibuka. Dokumen dapat diedit kembali.');
-                        } else {
-                          toast.info('🔒 Dokumen berhasil dikunci kembali.');
-                        }
-                      }}
-                      className={`btn ${editItem.isUnlockedByAdmin ? 'btn-secondary' : 'btn-warning'} btn-sm`}
-                      style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
-                    >
-                      {editItem.isUnlockedByAdmin ? <Lock size={14} /> : <Unlock size={14} />}
-                      <span>{editItem.isUnlockedByAdmin ? 'Kunci Kembali Dokumen' : 'Buka Kunci Dokumen (Admin)'}</span>
-                    </button>
-                  )}
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem' }}>
-                  <button type="button" className="btn btn-secondary" onClick={onClose}>
-                    {isLocked ? 'Tutup' : 'Batal'}
+            {/* Footer */}
+            <div className="modal-footer" style={{ flexShrink: 0, padding: '1rem 2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                {(role === 'admin' || role === 'developer' || role === 'kacab') && editItem && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const newStatus = !editItem.isUnlockedByAdmin;
+                      updateSuratTugas(editItem.id, {
+                        isUnlockedByAdmin: newStatus,
+                        unlockedAt: newStatus ? new Date().toISOString() : null,
+                        unlockedBy: newStatus ? currentUser?.name : null
+                      });
+                      if (newStatus) {
+                        toast.success('🔓 Kunci dokumen dibuka. Dokumen dapat diedit kembali.');
+                      } else {
+                        toast.info('🔒 Dokumen berhasil dikunci kembali.');
+                      }
+                    }}
+                    className={`btn ${editItem.isUnlockedByAdmin ? 'btn-secondary' : 'btn-warning'} btn-sm`}
+                    style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}
+                  >
+                    {editItem.isUnlockedByAdmin ? <Lock size={14} /> : <Unlock size={14} />}
+                    <span>{editItem.isUnlockedByAdmin ? 'Kunci Kembali Dokumen' : 'Buka Kunci Dokumen (Admin)'}</span>
                   </button>
-                  {isLocked ? (
-                    <button
-                      type="button"
-                      disabled
-                      className="btn btn-secondary"
-                      style={{ opacity: 0.65, cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca', fontWeight: 700 }}
-                      title="Dokumen terkunci (hanya bisa dilihat). Buka kunci dokumen untuk mengedit."
-                    >
-                      <Lock size={16} color="#dc2626" />
-                      <span>Terkunci (Hanya Lihat)</span>
-                    </button>
-                  ) : (
-                    <button type="submit" className="btn btn-primary">
-                      <Save size={16} />
-                      <span>{editItem ? 'Simpan Perubahan PDS' : 'Terbitkan Perjalanan Dinas (PDS)'}</span>
-                    </button>
-                  )}
-                </div>
+                )}
               </div>
-            </form>
-          </div>
+
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button type="button" className="btn btn-secondary" onClick={onClose}>
+                  {isLocked ? 'Tutup' : 'Batal'}
+                </button>
+                {isLocked ? (
+                  <button
+                    type="button"
+                    disabled
+                    className="btn btn-secondary"
+                    style={{ opacity: 0.65, cursor: 'not-allowed', display: 'flex', alignItems: 'center', gap: '0.45rem', background: '#fef2f2', color: '#dc2626', borderColor: '#fecaca', fontWeight: 700 }}
+                    title="Dokumen terkunci (hanya bisa dilihat). Buka kunci dokumen untuk mengedit."
+                  >
+                    <Lock size={16} color="#dc2626" />
+                    <span>Terkunci (Hanya Lihat)</span>
+                  </button>
+                ) : (
+                  <button type="submit" className="btn btn-primary">
+                    <Save size={16} />
+                    <span>{editItem ? 'Simpan Perubahan PDS' : 'Terbitkan Perjalanan Dinas (PDS)'}</span>
+                  </button>
+                )}
+              </div>
+            </div>
+          </form>
         </div>
       </div>
 

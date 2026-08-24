@@ -225,9 +225,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
             </button>
           </div>
 
-          {/* Form Body */}
-          <div className="modal-body" style={{ flex: '1 1 auto', overflowY: 'auto', padding: '1.5rem', minHeight: 0 }}>
-            <form onSubmit={handleSubmit}>
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
               {/* Section 1: Penugasan Surveyor & Jadwal Survei */}
               <div
                 style={{
@@ -465,19 +465,19 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                   onChange={(e) => setFormData({ ...formData, catatan: e.target.value })}
                 />
               </div>
+            </div>
 
-              {/* Footer Actions */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', borderTop: '1px solid var(--border-color)', paddingTop: '1rem' }}>
-                <button type="button" className="btn btn-secondary" onClick={onClose}>
-                  Batal
-                </button>
-                <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                  <Send size={16} />
-                  <span>Simpan dan Send</span>
-                </button>
-              </div>
-            </form>
-          </div>
+            {/* Footer Actions */}
+            <div className="modal-footer" style={{ flexShrink: 0, padding: '1rem 2rem' }}>
+              <button type="button" className="btn btn-secondary" onClick={onClose}>
+                Batal
+              </button>
+              <button type="submit" className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Send size={16} />
+                <span>Simpan dan Send</span>
+              </button>
+            </div>
+          </form>
         </div>
       </div>
     </ModalPortal>

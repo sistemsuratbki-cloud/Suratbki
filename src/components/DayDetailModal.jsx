@@ -1247,20 +1247,61 @@ export const DayDetailModal = ({
                 </div>
 
                 {/* Section 1: Nomor Surat PDS & Surveyor */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1.3fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
-                      Nomor Surat PDS (Resmi BKI) *
+                    <label className="form-label" style={{ fontWeight: 800, color: 'var(--accent-primary)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Nomor Surat PDS (Resmi BKI) *</span>
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: 500 }}>
+                        Prefix & Nomor Terpisah
+                      </span>
                     </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      placeholder="A 0    /SV.XXX/PK/KI-26"
-                      value={formData.nomor}
-                      onChange={(e) => setFormData({ ...formData, nomor: cleanDocNumber(e.target.value) })}
-                      required
-                      style={{ fontWeight: 800, letterSpacing: '0.02em' }}
-                    />
+                    {(() => {
+                      const cleanNomor = cleanDocNumber(formData.nomor || '').trim();
+                      const slashIdx = cleanNomor.indexOf('/');
+                      const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : (cleanNomor || 'A 0');
+                      const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : `/SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`;
+
+                      return (
+                        <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.5rem' }}>
+                          <div>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="A 0"
+                              value={prefix}
+                              onChange={(e) => {
+                                const newPrefix = e.target.value;
+                                const currentSuffix = suffix.startsWith('/') ? suffix : '/' + suffix;
+                                const combined = `${newPrefix}    ${currentSuffix}`;
+                                setFormData({ ...formData, nomor: cleanDocNumber(combined) });
+                              }}
+                              required
+                              style={{ fontWeight: 800, textAlign: 'center', color: 'var(--accent-primary)', letterSpacing: '0.05em' }}
+                              title="Prefix Nomor Surat (Contoh: A 0, A0, B 0, dll)"
+                            />
+                          </div>
+                          <div>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="/SV.XXX/PK/KI-26"
+                              value={suffix}
+                              onChange={(e) => {
+                                let newSuffix = e.target.value;
+                                if (newSuffix && !newSuffix.startsWith('/')) {
+                                  newSuffix = '/' + newSuffix;
+                                }
+                                const combined = `${prefix}    ${newSuffix}`;
+                                setFormData({ ...formData, nomor: cleanDocNumber(combined) });
+                              }}
+                              required
+                              style={{ fontWeight: 800, letterSpacing: '0.02em' }}
+                              title="Nomor Surat & Klasifikasi (Contoh: /SV.691/PK/KI-26)"
+                            />
+                          </div>
+                        </div>
+                      );
+                    })()}
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
@@ -1634,9 +1675,21 @@ export const DayDetailModal = ({
                               <td style={{ padding: '6px 8px', fontWeight: 600 }}>{idx + 1}</td>
                               <td style={{ padding: '6px 8px', fontWeight: 800, color: 'var(--text-primary)' }}>🚢 {sh.namaKapal}</td>
                               <td style={{ padding: '6px 8px' }}>
-                                <span style={{ background: 'rgba(2, 132, 199, 0.1)', color: 'var(--accent-primary)', fontWeight: 700, padding: '2px 6px', borderRadius: '4px' }}>
-                                  {sh.noAgenda || '-'}
-                                </span>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '28px', fontWeight: 700, color: 'var(--accent-primary)', maxWidth: '140px' }}
+                                  value={sh.noAgenda || ''}
+                                  placeholder="No. Agenda..."
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    const updated = shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s));
+                                    setShipsDetail(updated);
+                                    if (idx === 0) {
+                                      setFormData((prev) => ({ ...prev, noAgenda: val, agenda: val }));
+                                    }
+                                  }}
+                                />
                               </td>
                               <td style={{ padding: '6px 8px', color: 'var(--text-muted)', fontSize: '0.75rem' }}>{sh.noOrder || formData.noOrder}</td>
                               {shipsDetail.length > 1 && (

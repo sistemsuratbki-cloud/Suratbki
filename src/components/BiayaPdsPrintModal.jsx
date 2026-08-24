@@ -11,10 +11,13 @@ export const BiayaPdsPrintModal = ({
   suratTugas = null
 }) => {
   const { adminSettings, gradeTariffs } = useData();
-  const { usersList } = useAuth();
+  const { usersList, role } = useAuth();
   const [withSignature, setWithSignature] = useState(true);
 
   if (!isOpen || !suratTugas) return null;
+
+  const isSurveyor = role === 'surveyor';
+  const canPrint = !isSurveyor;
 
   const isLuarKota = (suratTugas.kategoriPerjalanan || '').toLowerCase().includes('luar') || suratTugas.kategoriPerjalanan === 'Luar Kota';
 
@@ -144,7 +147,7 @@ export const BiayaPdsPrintModal = ({
               <Calculator size={20} color="#003366" />
               <div>
                 <h3 className="modal-title" style={{ color: '#0f172a', fontSize: '1.05rem', fontWeight: 800 }}>
-                  Preview & Cetak PDF Rincian Biaya Perjalanan Dinas (PDS)
+                  {isSurveyor ? 'Preview Rincian Biaya Perjalanan Dinas (PDS)' : 'Preview & Cetak PDF Rincian Biaya Perjalanan Dinas (PDS)'}
                 </h3>
                 <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
                   Kapal: {kapalStr} | Surveyor: {petugasStr} | Total: {formatRupiah(jumlah)}
@@ -431,14 +434,16 @@ export const BiayaPdsPrintModal = ({
           `}</style>
 
           {/* Modal Footer */}
-          <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc' }}>
+          <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
             <button className="btn btn-secondary" onClick={onClose}>
               Tutup
             </button>
-            <button className="btn btn-primary" onClick={handlePrint}>
-              <Printer size={16} />
-              <span>Cetak / Download PDF</span>
-            </button>
+            {canPrint && (
+              <button className="btn btn-primary" onClick={handlePrint}>
+                <Printer size={16} />
+                <span>Cetak / Download PDF</span>
+              </button>
+            )}
           </div>
         </div>
       </div>

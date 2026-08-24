@@ -251,7 +251,7 @@ export default function MultiSurveySelect({
             top: 'calc(100% + 4px)',
             left: 0,
             right: 0,
-            zIndex: 120,
+            zIndex: 500,
             background: 'var(--bg-modal)',
             border: '1.5px solid var(--border-color-strong)',
             borderRadius: 'var(--radius-md)',

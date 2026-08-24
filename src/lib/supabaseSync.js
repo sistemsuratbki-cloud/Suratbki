@@ -13,6 +13,22 @@ const mapFromDb = (row) => {
   const raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
   const merged = { ...raw, ...row };
   delete merged.raw_data;
+
+  // Normalisasi field-field kunci agar camelCase selalu sinkron
+  if (row.no_so !== undefined && row.no_so !== null) merged.noSo = row.no_so;
+  else if (raw.noSo !== undefined && raw.noSo !== null) merged.noSo = raw.noSo;
+  else merged.noSo = '';
+
+  if (row.no_order !== undefined && row.no_order !== null) merged.noOrder = row.no_order;
+  else if (raw.noOrder !== undefined && raw.noOrder !== null) merged.noOrder = raw.noOrder;
+  else merged.noOrder = '';
+
+  if (row.no_wbs !== undefined && row.no_wbs !== null) merged.noWbs = row.no_wbs;
+  else if (raw.noWbs !== undefined) merged.noWbs = raw.noWbs;
+
+  if (row.no_cda !== undefined && row.no_cda !== null) merged.noCda = row.no_cda;
+  else if (raw.noCda !== undefined) merged.noCda = raw.noCda;
+
   return merged;
 };
 
