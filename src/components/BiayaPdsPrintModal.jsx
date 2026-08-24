@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { X, Printer, Calculator } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { X, Printer, Calculator, Maximize2, Minimize2 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
@@ -15,11 +15,22 @@ export const BiayaPdsPrintModal = ({
   const { adminSettings, gradeTariffs } = useData();
   const { usersList, role } = useAuth();
   const [withSignature, setWithSignature] = useState(true);
+  const [mobileFit, setMobileFit] = useState(true);
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
 
   if (!isOpen || !suratTugas) return null;
 
   const isSurveyor = role === 'surveyor';
   const canPrint = !isSurveyor;
+  const isMobileScreen = windowWidth <= 768;
+  const targetDocWidth = 980;
+  const fitScale = isMobileScreen ? Math.min(Math.max((windowWidth - 20) / targetDocWidth, 0.28), 1) : 1;
 
   const isLuarKota = (suratTugas.kategoriPerjalanan || '').toLowerCase().includes('luar') || suratTugas.kategoriPerjalanan === 'Luar Kota';
 
@@ -140,55 +151,151 @@ export const BiayaPdsPrintModal = ({
       <div className="modal-overlay print-only-modal-overlay" onClick={onClose} style={{ zIndex: 1100 }}>
         <div
           className="modal-content"
-          style={{ maxWidth: '1150px', width: '98vw', maxHeight: '92vh', background: '#ffffff', color: '#000000' }}
+          style={{
+            maxWidth: isMobileScreen ? '100vw' : '1150px',
+            width: isMobileScreen ? '100vw' : '98vw',
+            maxHeight: isMobileScreen ? '100dvh' : '92vh',
+            height: isMobileScreen ? '100dvh' : 'auto',
+            background: '#ffffff',
+            color: '#000000',
+            borderRadius: isMobileScreen ? '0' : '12px',
+            margin: isMobileScreen ? '0' : 'auto'
+          }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Modal Header Toolbar */}
-          <div className="modal-header" style={{ borderBottom: '1px solid #e2e8f0', background: '#ffffff' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-              <Calculator size={20} color="#003366" />
-              <div>
-                <h3 className="modal-title" style={{ color: '#0f172a', fontSize: '1.05rem', fontWeight: 800 }}>
-                  {isSurveyor ? 'Preview Rincian Biaya Perjalanan Dinas (PDS)' : 'Preview & Cetak PDF Rincian Biaya Perjalanan Dinas (PDS)'}
+          <div
+            className="modal-header"
+            style={{
+              borderBottom: '1px solid #e2e8f0',
+              background: '#ffffff',
+              padding: isMobileScreen ? '0.65rem 0.75rem' : '0.875rem 1.25rem',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '0.5rem',
+              flexWrap: isMobileScreen ? 'wrap' : 'nowrap'
+            }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0 }}>
+              <Calculator size={isMobileScreen ? 18 : 20} color="#003366" style={{ flexShrink: 0 }} />
+              <div style={{ minWidth: 0 }}>
+                <h3 className="modal-title" style={{ color: '#0f172a', fontSize: isMobileScreen ? '0.9rem' : '1.05rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  {isSurveyor ? 'Preview Rincian Biaya (PDS)' : 'Preview & Cetak Rincian Biaya (PDS)'}
                 </h3>
-                <div style={{ fontSize: '0.75rem', color: '#64748b' }}>
-                  Kapal: {kapalStr} | Surveyor: {petugasStr} | Total: {formatRupiah(jumlah)}
+                <div style={{ fontSize: isMobileScreen ? '0.7rem' : '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                  Kapal: {kapalStr} | Total: {formatRupiah(jumlah)}
                 </div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+              {/* Mobile Zoom Mode Toggle */}
+              {isMobileScreen && (
+                <button
+                  type="button"
+                  className={`btn btn-sm ${mobileFit ? 'btn-outline-primary' : 'btn-primary'}`}
+                  onClick={() => setMobileFit(!mobileFit)}
+                  style={{ fontSize: '0.72rem', fontWeight: 700, padding: '0.3rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                  title={mobileFit ? 'Perbesar ke ukuran asli' : 'Kecilkan agar pas layar'}
+                >
+                  {mobileFit ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
+                  <span>{mobileFit ? 'Ukuran Penuh' : 'Pas Layar'}</span>
+                </button>
+              )}
+
               {/* Toggle Versi TTD */}
               <button
                 type="button"
                 className={`btn btn-sm ${withSignature ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setWithSignature(!withSignature)}
-                style={{ fontSize: '0.75rem', fontWeight: 700 }}
+                style={{ fontSize: isMobileScreen ? '0.72rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.3rem 0.5rem' : '0.35rem 0.75rem' }}
               >
-                {withSignature ? '✍️ Versi: DENGAN TTD' : '📄 Versi: TANPA TTD (Manual)'}
+                {withSignature ? '✍️ Dgn TTD' : '📄 Tanpa TTD'}
               </button>
 
-              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup">
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup" style={{ padding: isMobileScreen ? '0.3rem 0.45rem' : '0.35rem 0.6rem' }}>
                 <X size={16} />
               </button>
             </div>
           </div>
 
           {/* Document Body */}
-          <div className="modal-body" style={{ padding: '1.5rem 2rem', overflowY: 'auto', flex: '1 1 auto', minHeight: 0 }}>
+          <div
+            className="modal-body print-modal-body"
+            style={{
+              padding: isMobileScreen ? '0.5rem' : '1.5rem 2rem',
+              overflow: 'auto',
+              flex: '1 1 auto',
+              minHeight: 0,
+              WebkitOverflowScrolling: 'touch',
+              background: isMobileScreen ? '#f8fafc' : '#ffffff'
+            }}
+          >
+            {/* Mobile Guidance Banner */}
+            {isMobileScreen && (
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '0.5rem',
+                  padding: '0.35rem 0.6rem',
+                  background: '#e2e8f0',
+                  borderRadius: '6px',
+                  marginBottom: '0.5rem',
+                  fontSize: '0.72rem',
+                  color: '#1e293b'
+                }}
+              >
+                <span>
+                  {mobileFit ? '📱 Seluruh 18 kolom terlihat utuh (Pas Layar)' : '👉 Geser layar ke samping kanan untuk cek kolom lainnya'}
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setMobileFit(!mobileFit)}
+                  style={{
+                    border: 'none',
+                    background: '#003366',
+                    color: '#ffffff',
+                    padding: '0.15rem 0.45rem',
+                    borderRadius: '4px',
+                    fontSize: '0.68rem',
+                    fontWeight: 700,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {mobileFit ? 'Perbesar' : 'Kecilkan'}
+                </button>
+              </div>
+            )}
+
             <div
-              className="printable-sheet"
+              className="printable-sheet-wrapper"
               style={{
-                border: 'none',
-                padding: '2.5rem 2rem 2rem 2rem',
-                borderRadius: '4px',
-                fontFamily: "'Arial', 'Segoe UI', sans-serif",
-                lineHeight: '1.35',
-                fontSize: '9pt',
-                background: '#ffffff',
-                color: '#000000',
-                boxSizing: 'border-box'
+                width: '100%',
+                display: 'flex',
+                justifyContent: isMobileScreen && mobileFit ? 'center' : 'flex-start',
+                overflowX: isMobileScreen && !mobileFit ? 'auto' : 'visible'
               }}
             >
+              <div
+                className="printable-sheet"
+                style={{
+                  border: isMobileScreen ? '1px solid #cbd5e1' : 'none',
+                  padding: isMobileScreen ? '1.5rem 1rem 1rem 1rem' : '2.5rem 2rem 2rem 2rem',
+                  borderRadius: '4px',
+                  fontFamily: "'Arial', 'Segoe UI', sans-serif",
+                  lineHeight: '1.35',
+                  fontSize: '9pt',
+                  background: '#ffffff',
+                  color: '#000000',
+                  boxSizing: 'border-box',
+                  width: isMobileScreen ? `${targetDocWidth}px` : '100%',
+                  minWidth: isMobileScreen ? `${targetDocWidth}px` : 'auto',
+                  zoom: isMobileScreen && mobileFit ? fitScale : 1,
+                  boxShadow: isMobileScreen ? '0 2px 8px rgba(0,0,0,0.06)' : 'none'
+                }}
+              >
               {/* Document Header with BKI Logo on Top-Right */}
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
                 <div style={{ fontSize: '10pt', fontWeight: 'bold' }}>
@@ -438,11 +545,35 @@ export const BiayaPdsPrintModal = ({
                     {pembuatDesc}
                   </div>
                 </div>
+                </div>
               </div>
             </div>
           </div>
 
           <style>{`
+            @media screen and (max-width: 768px) {
+              .print-only-modal-overlay {
+                padding: 0 !important;
+                align-items: stretch !important;
+              }
+              .print-only-modal-overlay .modal-content {
+                max-width: 100vw !important;
+                width: 100vw !important;
+                height: 100dvh !important;
+                max-height: 100dvh !important;
+                border-radius: 0 !important;
+                margin: 0 !important;
+                display: flex !important;
+                flex-direction: column !important;
+              }
+              .print-only-modal-overlay .modal-header {
+                padding: 0.6rem 0.75rem !important;
+              }
+              .print-only-modal-overlay .modal-footer {
+                padding: 0.6rem 0.75rem !important;
+              }
+            }
+
             @media print {
               @page { size: A4 landscape !important; margin: 16mm 10mm 8mm 10mm !important; }
               body { background: #ffffff !important; color: #000000 !important; }
@@ -450,7 +581,16 @@ export const BiayaPdsPrintModal = ({
               .modal-content { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
               .modal-header, .modal-footer { display: none !important; }
               .modal-body { padding: 0 !important; overflow: visible !important; }
-              .printable-sheet { padding: 6px 0 0 0 !important; width: 100% !important; }
+              .printable-sheet-wrapper { display: block !important; width: 100% !important; overflow: visible !important; }
+              .printable-sheet { 
+                padding: 6px 0 0 0 !important; 
+                width: 100% !important; 
+                min-width: 0 !important; 
+                zoom: 1 !important; 
+                transform: none !important; 
+                box-shadow: none !important;
+                border: none !important;
+              }
             }
           `}</style>
 
