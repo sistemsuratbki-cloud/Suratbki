@@ -431,10 +431,11 @@ export const fetchMasterKapalFromCloud = async () => {
     return (data || []).map((row) => {
       const raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
       return {
-        id:        row.id        || raw.id,
-        namaKapal: row.nama_kapal || raw.namaKapal || '',
-        noAgenda:  row.no_agenda  || raw.noAgenda  || '',
-        createdAt: row.created_at || raw.createdAt || null,
+        id:          row.id          || raw.id,
+        namaKapal:   row.nama_kapal   || raw.namaKapal   || '',
+        noAgenda:    row.no_agenda    || raw.noAgenda    || '',
+        jenisSurvey: row.jenis_survey || raw.jenisSurvey || '',
+        createdAt:   row.created_at   || raw.createdAt   || null,
       };
     });
   }).catch(() => null);

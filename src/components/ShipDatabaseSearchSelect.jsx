@@ -224,6 +224,20 @@ export default function ShipDatabaseSearchSelect({
                   </div>
 
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+                    {ship.jenisSurvey && (
+                      <span
+                        style={{
+                          fontSize: '0.7rem',
+                          fontWeight: 700,
+                          background: 'rgba(16, 185, 129, 0.12)',
+                          color: '#059669',
+                          padding: '0.15rem 0.45rem',
+                          borderRadius: '4px'
+                        }}
+                      >
+                        {ship.jenisSurvey}
+                      </span>
+                    )}
                     <span
                       style={{
                         fontSize: '0.72rem',

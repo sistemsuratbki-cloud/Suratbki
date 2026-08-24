@@ -1,10 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Ship, Plus, Search, Pencil, Trash2, X, Check, Anchor } from 'lucide-react';
+import { Ship, Plus, Search, Pencil, Trash2, X, Check, Anchor, ClipboardList } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
+import { DEFAULT_SURVEY_TYPES } from './MultiSurveySelect';
 
-const EMPTY_FORM = { namaKapal: '', noAgenda: '' };
+const EMPTY_FORM = { namaKapal: '', noAgenda: '', jenisSurvey: '' };
 
 const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEdit = false }) => {
   const [form, setForm] = useState(initialData);
@@ -25,6 +26,17 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
     onClose();
   };
 
+  const handleSelectQuickSurvey = (surveyType) => {
+    setForm(prev => {
+      const current = prev.jenisSurvey ? prev.jenisSurvey.split(',').map(s => s.trim()).filter(Boolean) : [];
+      if (current.includes(surveyType)) {
+        return { ...prev, jenisSurvey: current.filter(s => s !== surveyType).join(', ') };
+      } else {
+        return { ...prev, jenisSurvey: [...current, surveyType].join(', ') };
+      }
+    });
+  };
+
   return (
     <ModalPortal>
       <div
@@ -40,7 +52,7 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
           style={{
             background: 'var(--bg-card,#fff)', borderRadius: '14px',
             border: '1px solid var(--border-color,#e2e8f0)',
-            width: '100%', maxWidth: '440px',
+            width: '100%', maxWidth: '480px',
             boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
             overflow: 'hidden'
           }}
@@ -83,10 +95,50 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
               <input
                 className="form-input"
                 type="text"
-                placeholder="Contoh: 2025-001"
+                placeholder="Contoh: 01001PK26"
                 value={form.noAgenda}
                 onChange={(e) => setForm((p) => ({ ...p, noAgenda: e.target.value }))}
               />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" style={{ fontWeight: 700 }}>Jenis Survei</label>
+              <input
+                className="form-input"
+                type="text"
+                placeholder="Contoh: PEMBAHARUAN, PENGEDOKAN, TAHUNAN"
+                value={form.jenisSurvey}
+                onChange={(e) => setForm((p) => ({ ...p, jenisSurvey: e.target.value.toUpperCase() }))}
+                style={{ textTransform: 'uppercase', marginBottom: '0.4rem' }}
+              />
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
+                Pilihan Cepat Jenis Survei:
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '100px', overflowY: 'auto' }}>
+                {DEFAULT_SURVEY_TYPES.map((type) => {
+                  const isSelected = form.jenisSurvey && form.jenisSurvey.toUpperCase().includes(type);
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSelectQuickSurvey(type)}
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.68rem',
+                        borderRadius: '5px',
+                        border: isSelected ? '1px solid #0284c7' : '1px solid var(--border-color, #e2e8f0)',
+                        background: isSelected ? 'rgba(2,132,199,0.15)' : 'var(--bg-main, #f8fafc)',
+                        color: isSelected ? '#0284c7' : 'var(--text-secondary, #64748b)',
+                        fontWeight: isSelected ? 700 : 500,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {isSelected && '✓ '} {type}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'flex-end', paddingTop: '0.5rem' }}>
@@ -117,7 +169,10 @@ export const ShipDatabaseManagementTable = () => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return masterKapal;
     return masterKapal.filter(
-      (k) => k.namaKapal.toLowerCase().includes(q) || (k.noAgenda || '').toLowerCase().includes(q)
+      (k) =>
+        k.namaKapal.toLowerCase().includes(q) ||
+        (k.noAgenda || '').toLowerCase().includes(q) ||
+        (k.jenisSurvey || '').toLowerCase().includes(q)
     );
   }, [masterKapal, searchTerm]);
 
@@ -189,7 +244,7 @@ export const ShipDatabaseManagementTable = () => {
             <input
               className="form-input"
               type="text"
-              placeholder="Cari nama kapal atau no. agenda..."
+              placeholder="Cari nama kapal, no. agenda, atau jenis survei..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '2.1rem', height: '36px', fontSize: '0.85rem' }}
@@ -207,14 +262,15 @@ export const ShipDatabaseManagementTable = () => {
               <tr>
                 <th style={{ width: '50px', textAlign: 'center' }}>No.</th>
                 <th>Nama Kapal</th>
-                <th style={{ width: '180px' }}>No. Agenda</th>
+                <th style={{ width: '160px' }}>No. Agenda</th>
+                <th style={{ minWidth: '200px' }}>Jenis Survei</th>
                 <th style={{ width: '160px', textAlign: 'center' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={5} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                       <Anchor size={36} color="#cbd5e1" />
                       <div>
@@ -257,6 +313,30 @@ export const ShipDatabaseManagementTable = () => {
                         }}>
                           {kapal.noAgenda}
                         </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {kapal.jenisSurvey ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                          {kapal.jenisSurvey.split(',').map((s, i) => (
+                            <span
+                              key={i}
+                              style={{
+                                background: 'rgba(56, 189, 248, 0.12)',
+                                color: '#0284c7',
+                                border: '1px solid rgba(2, 132, 199, 0.25)',
+                                borderRadius: '5px',
+                                padding: '0.15rem 0.5rem',
+                                fontSize: '0.72rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              {s.trim()}
+                            </span>
+                          ))}
+                        </div>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>—</span>
                       )}
@@ -336,3 +416,4 @@ export const ShipDatabaseManagementTable = () => {
     </div>
   );
 };
+

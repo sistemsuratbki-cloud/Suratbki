@@ -415,8 +415,9 @@ export const DataProvider = ({ children }) => {
   const addMasterKapal = (data) => {
     const newKapal = {
       id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`,
-      namaKapal: (data.namaKapal || '').trim().toUpperCase(),
-      noAgenda:  (data.noAgenda  || '').trim(),
+      namaKapal:   (data.namaKapal   || '').trim().toUpperCase(),
+      noAgenda:    (data.noAgenda    || '').trim(),
+      jenisSurvey: (data.jenisSurvey || '').trim(),
       createdAt: new Date().toISOString()
     };
     setMasterKapal((prev) => [...prev, newKapal]);
@@ -430,8 +431,9 @@ export const DataProvider = ({ children }) => {
         if (item.id === id) {
           const updated = {
             ...item,
-            namaKapal: (updatedData.namaKapal || item.namaKapal).trim().toUpperCase(),
-            noAgenda:  (updatedData.noAgenda  !== undefined ? updatedData.noAgenda : item.noAgenda).trim()
+            namaKapal:   (updatedData.namaKapal   || item.namaKapal).trim().toUpperCase(),
+            noAgenda:    (updatedData.noAgenda    !== undefined ? updatedData.noAgenda : item.noAgenda).trim(),
+            jenisSurvey: (updatedData.jenisSurvey !== undefined ? updatedData.jenisSurvey : (item.jenisSurvey || '')).trim()
           };
           saveMasterKapalToCloud(updated);
           return updated;
@@ -521,6 +523,7 @@ export const DataProvider = ({ children }) => {
               id: `kapal-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 9000 + 1000)}`,
               namaKapal: shipName,
               noAgenda: s.noAgenda || '',
+              jenisSurvey: (cleaned.jenisSurvey || '').trim(),
               createdAt: new Date().toISOString()
             };
             saveMasterKapalToCloud(newKapal);
