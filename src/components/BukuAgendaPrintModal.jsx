@@ -175,22 +175,24 @@ export const BukuAgendaPrintModal = ({
                 <thead>
                   <tr style={{ background: '#4f81bd', color: '#ffffff', textAlign: 'center', fontWeight: 'bold' }}>
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px 3px', width: '4%' }}>NO</th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '15%' }}>NOMOR SURAT</th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '22%' }}>OBJEK/SURVEY</th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '15%' }}>LOKASI SURVEY</th>
-                    <th colSpan={2} style={{ border: '1px solid black', padding: '4px', width: '18%' }}>TANGGAL PENGUASAAN</th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '13%' }}>BIAYA</th>
-                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '13%' }}>SURVEYOR</th>
+                    <th colSpan={2} style={{ border: '1px solid black', padding: '6px', width: '18%' }}>NOMOR SURAT</th>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '20%' }}>OBJEK/SURVEY</th>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '14%' }}>LOKASI SURVEY</th>
+                    <th colSpan={2} style={{ border: '1px solid black', padding: '4px', width: '16%' }}>TANGGAL PENGUASAAN</th>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '14%' }}>BIAYA</th>
+                    <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '14%' }}>SURVEYOR</th>
                   </tr>
                   <tr style={{ background: '#4f81bd', color: '#ffffff', textAlign: 'center', fontWeight: 'bold', fontSize: '8pt' }}>
-                    <th style={{ border: '1px solid black', padding: '3px', width: '9%' }}>MULAI</th>
-                    <th style={{ border: '1px solid black', padding: '3px', width: '9%' }}>SELESAI</th>
+                    <th style={{ border: '1px solid black', padding: '3px', width: '5%' }}>SERI</th>
+                    <th style={{ border: '1px solid black', padding: '3px', width: '13%' }}>NOMOR</th>
+                    <th style={{ border: '1px solid black', padding: '3px', width: '8%' }}>MULAI</th>
+                    <th style={{ border: '1px solid black', padding: '3px', width: '8%' }}>SELESAI</th>
                   </tr>
                 </thead>
                 <tbody>
                   {data.length === 0 ? (
                     <tr>
-                      <td colSpan={8} style={{ border: '1px solid black', padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
+                      <td colSpan={9} style={{ border: '1px solid black', padding: '1.5rem', textAlign: 'center', color: '#64748b' }}>
                         Tidak ada data buku agenda untuk periode ini.
                       </td>
                     </tr>
@@ -200,14 +202,21 @@ export const BukuAgendaPrintModal = ({
                       const tglSelesaiFormatted = formatDateDMY(item.tglSelesai || item.tglMulai);
                       const biaya = calculateBiayaItem(item);
                       const lokasi = item.tempatSurvey || item.lokasi || '-';
+                      const cleanNomor = cleanDocNumber(item.nomor || '').trim();
+                      const slashIdx = cleanNomor.indexOf('/');
+                      const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : cleanNomor || '-';
+                      const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : '-';
 
                       return (
                         <tr key={item.id || idx}>
                           <td style={{ border: '1px solid black', padding: '4px 3px', textAlign: 'center', fontWeight: 600 }}>
                             {idx + 1}
                           </td>
+                          <td style={{ border: '1px solid black', padding: '4px 4px', textAlign: 'center', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                            {prefix}
+                          </td>
                           <td style={{ border: '1px solid black', padding: '4px 6px', fontWeight: 600, whiteSpace: 'nowrap' }}>
-                            {cleanDocNumber(item.nomor) || '-'}
+                            {suffix}
                           </td>
                           <td style={{ border: '1px solid black', padding: '4px 6px', fontWeight: 600 }}>
                             {Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0
@@ -247,12 +256,13 @@ export const BukuAgendaPrintModal = ({
                       <td style={{ border: '1px solid black', padding: '3px' }}></td>
                       <td style={{ border: '1px solid black', padding: '3px' }}></td>
                       <td style={{ border: '1px solid black', padding: '3px' }}></td>
+                      <td style={{ border: '1px solid black', padding: '3px' }}></td>
                     </tr>
                   ))}
                 </tbody>
                 <tfoot>
                   <tr style={{ fontWeight: 'bold', background: '#f8fafc' }}>
-                    <td colSpan={6} style={{ border: '1px solid black', padding: '5px 8px', textAlign: 'center' }}>
+                    <td colSpan={7} style={{ border: '1px solid black', padding: '5px 8px', textAlign: 'center' }}>
                       TOTAL BIAYA
                     </td>
                     <td style={{ border: '1px solid black', padding: '5px 6px', textAlign: 'right', color: '#059669', fontSize: '9pt' }}>

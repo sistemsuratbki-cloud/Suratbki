@@ -448,13 +448,14 @@ export const BukuAgendaTable = () => {
 
     ws.columns = [
       { width: 6 },   // A: NO
-      { width: 18 },  // B: NOMOR SURAT
-      { width: 28 },  // C: OBJEK/SURVEY
-      { width: 20 },  // D: LOKASI SURVEY
-      { width: 15 },  // E: TANGGAL PENGUASAAN - MULAI
-      { width: 15 },  // F: TANGGAL PENGUASAAN - SELESAI
-      { width: 18 },  // G: BIAYA
-      { width: 20 },  // H: SURVEYOR
+      { width: 8 },   // B: SERI (A 0)
+      { width: 22 },  // C: NOMOR SURAT (/SV...)
+      { width: 28 },  // D: OBJEK/SURVEY
+      { width: 20 },  // E: LOKASI SURVEY
+      { width: 15 },  // F: TANGGAL PENGUASAAN - MULAI
+      { width: 15 },  // G: TANGGAL PENGUASAAN - SELESAI
+      { width: 18 },  // H: BIAYA
+      { width: 20 },  // I: SURVEYOR
     ];
 
     const PRIMARY_BLUE = '4F81BD';
@@ -472,7 +473,7 @@ export const BukuAgendaTable = () => {
     };
 
     // Title Block
-    ws.mergeCells('A1:H1');
+    ws.mergeCells('A1:I1');
     const titleCell = ws.getCell('A1');
     titleCell.value = 'BUKU AGENDA';
     titleCell.font = { name: 'Calibri', size: 14, bold: true, color: { argb: '1E3A8A' } };
@@ -483,29 +484,32 @@ export const BukuAgendaTable = () => {
     ws.mergeCells('A3:A4');
     ws.getCell('A3').value = 'NO';
 
-    ws.mergeCells('B3:B4');
+    ws.mergeCells('B3:C3');
     ws.getCell('B3').value = 'NOMOR SURAT';
 
-    ws.mergeCells('C3:C4');
-    ws.getCell('C3').value = 'OBJEK/SURVEY';
+    ws.getCell('B4').value = 'SERI';
+    ws.getCell('C4').value = 'NOMOR';
 
     ws.mergeCells('D3:D4');
-    ws.getCell('D3').value = 'LOKASI SURVEY';
+    ws.getCell('D3').value = 'OBJEK/SURVEY';
 
-    ws.mergeCells('E3:F3');
-    ws.getCell('E3').value = 'TANGGAL PENGUASAAN';
+    ws.mergeCells('E3:E4');
+    ws.getCell('E3').value = 'LOKASI SURVEY';
 
-    ws.getCell('E4').value = 'MULAI';
-    ws.getCell('F4').value = 'SELESAI';
+    ws.mergeCells('F3:G3');
+    ws.getCell('F3').value = 'TANGGAL PENGUASAAN';
 
-    ws.mergeCells('G3:G4');
-    ws.getCell('G3').value = 'BIAYA';
+    ws.getCell('F4').value = 'MULAI';
+    ws.getCell('G4').value = 'SELESAI';
 
     ws.mergeCells('H3:H4');
-    ws.getCell('H3').value = 'SURVEYOR';
+    ws.getCell('H3').value = 'BIAYA';
+
+    ws.mergeCells('I3:I4');
+    ws.getCell('I3').value = 'SURVEYOR';
 
     // Apply header styles
-    ['A3', 'B3', 'C3', 'D3', 'E3', 'F3', 'G3', 'H3', 'A4', 'B4', 'C4', 'D4', 'E4', 'F4', 'G4', 'H4'].forEach(pos => {
+    ['A3', 'B3', 'C3', 'D3', 'E3', 'F3', 'G3', 'H3', 'I3', 'A4', 'B4', 'C4', 'D4', 'E4', 'F4', 'G4', 'H4', 'I4'].forEach(pos => {
       const c = ws.getCell(pos);
       c.fill = HEADER_FILL;
       c.font = HEADER_FONT;
@@ -523,11 +527,16 @@ export const BukuAgendaTable = () => {
       const tglSelesai = formatDateDMY(item.tglSelesai || item.tglMulai);
       const biaya = calculateBiayaItem(item);
       const lokasi = item.tempatSurvey || item.lokasi || '-';
+      const cleanNomor = cleanDocNumber(item.nomor || '').trim();
+      const slashIdx = cleanNomor.indexOf('/');
+      const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : (cleanNomor || '-');
+      const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : '-';
 
       const row = ws.getRow(rowNum);
       row.values = [
         idx + 1,
-        cleanDocNumber(item.nomor) || '-',
+        prefix,
+        suffix,
         item.namaKapal || '-',
         lokasi,
         tglMulai,
@@ -537,16 +546,17 @@ export const BukuAgendaTable = () => {
       ];
 
       row.getCell(1).alignment = { horizontal: 'center', vertical: 'middle' };
-      row.getCell(2).alignment = { horizontal: 'left', vertical: 'middle' };
+      row.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
       row.getCell(3).alignment = { horizontal: 'left', vertical: 'middle' };
       row.getCell(4).alignment = { horizontal: 'left', vertical: 'middle' };
-      row.getCell(5).alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell(5).alignment = { horizontal: 'left', vertical: 'middle' };
       row.getCell(6).alignment = { horizontal: 'center', vertical: 'middle' };
-      row.getCell(7).alignment = { horizontal: 'right', vertical: 'middle' };
-      row.getCell(7).numFmt = '#,##0';
-      row.getCell(8).alignment = { horizontal: 'left', vertical: 'middle' };
+      row.getCell(7).alignment = { horizontal: 'center', vertical: 'middle' };
+      row.getCell(8).alignment = { horizontal: 'right', vertical: 'middle' };
+      row.getCell(8).numFmt = '#,##0';
+      row.getCell(9).alignment = { horizontal: 'left', vertical: 'middle' };
 
-      for (let c = 1; c <= 8; c++) {
+      for (let c = 1; c <= 9; c++) {
         row.getCell(c).border = THIN_BORDER;
         row.getCell(c).font = { name: 'Calibri', size: 10 };
       }
@@ -555,19 +565,19 @@ export const BukuAgendaTable = () => {
 
     // Total Row
     const totalRowNum = filteredData.length + 5;
-    ws.mergeCells(`A${totalRowNum}:F${totalRowNum}`);
+    ws.mergeCells(`A${totalRowNum}:G${totalRowNum}`);
     const totLabel = ws.getCell(`A${totalRowNum}`);
     totLabel.value = 'TOTAL BIAYA';
     totLabel.font = { name: 'Calibri', size: 10, bold: true };
     totLabel.alignment = { horizontal: 'center', vertical: 'middle' };
 
-    const totBiaya = ws.getCell(`G${totalRowNum}`);
+    const totBiaya = ws.getCell(`H${totalRowNum}`);
     totBiaya.value = totalBiayaAkumulasi;
     totBiaya.font = { name: 'Calibri', size: 10, bold: true };
     totBiaya.numFmt = '#,##0';
     totBiaya.alignment = { horizontal: 'right', vertical: 'middle' };
 
-    for (let c = 1; c <= 8; c++) {
+    for (let c = 1; c <= 9; c++) {
       ws.getCell(totalRowNum, c).border = THIN_BORDER;
     }
 

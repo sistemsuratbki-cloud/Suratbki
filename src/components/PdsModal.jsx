@@ -167,7 +167,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
       setFormData({
         ...editItem,
-        nomor: cleanDocNumber(editItem.nomor || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`),
+        nomor: cleanDocNumber(editItem.nomor || 'A 0    /SV.201/PK/KI-26'),
         namaKapal: editItem.namaKapal || '',
         pemohon: editItem.pemohon || '',
         jenisSurvey: (editItem.jenisSurvey || 'DINAS SURVEY KLAS').toUpperCase(),
@@ -202,7 +202,6 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tembusan: editItem.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
     } else {
-      const nextNum = String(Math.floor(Math.random() * 900) + 100);
       const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
       const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
       const todayDate = new Date().toISOString().split('T')[0];
@@ -216,7 +215,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       setShipsDetail([]);
 
       setFormData({
-        nomor: `A 0    /SV.${nextNum}/PK/KI-26`,
+        nomor: 'A 0    /SV.201/PK/KI-26',
         namaKapal: '',
         pemohon: '',
         jenisSurvey: 'DINAS SURVEY KLAS',
@@ -776,7 +775,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     const cleanNomor = cleanDocNumber(formData.nomor || '').trim();
                     const slashIdx = cleanNomor.indexOf('/');
                     const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : (cleanNomor || 'A 0');
-                    const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : `/SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`;
+                    const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : '/SV.201/PK/KI-26';
 
                     return (
                       <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.5rem' }}>
@@ -801,7 +800,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                           <input
                             type="text"
                             className="form-input"
-                            placeholder="/SV.XXX/PK/KI-26"
+                            placeholder="/SV.201/PK/KI-26"
                             value={suffix}
                             onChange={(e) => {
                               let newSuffix = e.target.value;
@@ -813,7 +812,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                             }}
                             required
                             style={{ fontWeight: 800, letterSpacing: '0.02em' }}
-                            title="Nomor Surat & Klasifikasi (Contoh: /SV.691/PK/KI-26)"
+                            title="Nomor Surat & Klasifikasi (Contoh: /SV.201/PK/KI-26)"
                           />
                         </div>
                       </div>

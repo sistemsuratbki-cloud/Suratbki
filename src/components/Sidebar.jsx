@@ -22,9 +22,22 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
   });
   const filteredLaporan = filterDataByRole(activePdsAsLaporan, currentUser, role, 'petugas');
 
-  const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS').length;
+  const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS' && !st.isPds).length;
   const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
-  const parafCount = filteredSurat.filter((item) => item.visit === '1' || item.visit === 1 || item.visit === true).length;
+  
+  // Laporan Paraf Terkirim count (SPS visit 1 yang terkirim)
+  const parafCount = filteredSurat.filter((item) => {
+    if (item.docType === 'PDS' || item.isPds) return false;
+    const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
+    if (!isVisit1) return false;
+    return item.isParafSent === true || (item.isParafSent === undefined && item.status === 'Selesai');
+  }).length;
+
+  // Buku Agenda count (khusus PDS)
+  const bukuAgendaCount = filteredSurat.filter((st) =>
+    st.docType === 'PDS' || st.isPds === true || (!st.docType && st.status !== 'Menunggu Survei' && !st.isSps)
+  ).length;
+
   const unpaidCount = filteredKwitansi.filter((item) => item.status === 'Belum Dibayar').length;
   const draftCount = filteredLaporan.filter((item) => item.status === 'Draf').length;
 
@@ -91,7 +104,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
         {
           id: 'buku_agenda',
           label: 'Buku Agenda',
-          badge: filteredSurat.length > 0 ? filteredSurat.length : null,
+          badge: bukuAgendaCount > 0 ? bukuAgendaCount : null,
           badgeColor: '#059669'
         }
       ]

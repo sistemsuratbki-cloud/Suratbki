@@ -25,7 +25,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
         namaKapal: String(s.namaKapal || `Kapal ${idx + 1}`).toUpperCase(),
         noAgenda: s.noAgenda || '-',
         noOrder: s.noOrder || '-',
-        nomor: cleanDocNumber(suratTugas.nomor || `A 0    /SV.${787 + idx}/PK/KI-26`),
+        nomor: cleanDocNumber(suratTugas.nomor || 'A 0    /SV.201/PK/KI-26'),
         lokasi: String(suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase()
       }));
     }
@@ -38,7 +38,7 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
           namaKapal: String(s.namaKapal || `Kapal ${idx + 1}`).toUpperCase(),
           noAgenda: s.noAgenda || s.agenda || '-',
           noOrder: s.noOrder || '-',
-          nomor: cleanDocNumber(suratTugas.nomor || `A 0    /SV.${787 + idx}/PK/KI-26`),
+          nomor: cleanDocNumber(suratTugas.nomor || 'A 0    /SV.201/PK/KI-26'),
           lokasi: String(s.tempatSurvey || s.lokasi || suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase()
         }));
       }
@@ -51,13 +51,8 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
       .filter(Boolean);
 
     if (names.length > 1) {
-      return names.map((name, idx) => {
-        let itemNomor = String(suratTugas.nomor || 'A 0    /SV.787/PK/KI-26');
-        const match = itemNomor.match(/SV\.(\d+)/i);
-        if (match) {
-          const baseSeq = parseInt(match[1], 10);
-          itemNomor = itemNomor.replace(/SV\.\d+/i, `SV.${baseSeq + idx}`);
-        }
+      return names.map((name) => {
+        const itemNomor = String(suratTugas.nomor || 'A 0    /SV.201/PK/KI-26');
         return {
           namaKapal: String(name).toUpperCase(),
           nomor: cleanDocNumber(itemNomor),
@@ -69,14 +64,14 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
     // 3. Single ship fallback
     return [{
       namaKapal: String(suratTugas.namaKapal || 'KAPAL').toUpperCase(),
-      nomor: cleanDocNumber(suratTugas.nomor || 'A 0    /SV.787/PK/KI-26'),
+      nomor: cleanDocNumber(suratTugas.nomor || 'A 0    /SV.201/PK/KI-26'),
       lokasi: String(suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase()
     }];
   }, [suratTugas, allSuratTugas]);
 
   const resolvedShipList = shipList && shipList.length > 0 ? shipList : [{
     namaKapal: String(suratTugas?.namaKapal || 'KAPAL').toUpperCase(),
-    nomor: cleanDocNumber(suratTugas?.nomor || 'A 0    /SV.787/PK/KI-26'),
+    nomor: cleanDocNumber(suratTugas?.nomor || 'A 0    /SV.201/PK/KI-26'),
     lokasi: String(suratTugas?.tempatSurvey || suratTugas?.lokasi || 'PONTIANAK').toUpperCase()
   }];
 

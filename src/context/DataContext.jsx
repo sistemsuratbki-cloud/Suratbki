@@ -583,7 +583,7 @@ export const DataProvider = ({ children }) => {
       id: newPdsId,
       docType: 'PDS',
       isPds: true,
-      nomor: cleanDocNumber(cleaned.nomor || `A 0    /SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`),
+      nomor: cleanDocNumber(cleaned.nomor || 'A 0    /SV.201/PK/KI-26'),
       status: cleaned.status || 'Selesai',
       linkedSpsIds: Array.isArray(linkedSpsIds) ? linkedSpsIds : [linkedSpsIds].filter(Boolean),
       shipsDetail: resolvedShipsDetail,

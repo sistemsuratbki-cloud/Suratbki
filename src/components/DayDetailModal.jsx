@@ -226,11 +226,10 @@ export const DayDetailModal = ({
       const formatted = selectedDate.includes('T') ? selectedDate.split('T')[0] : selectedDate;
       const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
       const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
-      const nextNum = String(Math.floor(Math.random() * 900) + 100);
 
       setFormData((prev) => ({
         ...prev,
-        nomor: `A 0    /SV.${nextNum}/PK/KI-26`,
+        nomor: 'A 0    /SV.201/PK/KI-26',
         tglMulai: formatted,
         tglSelesai: formatted,
         petugas: defaultSurveyor,
@@ -245,7 +244,7 @@ export const DayDetailModal = ({
         namaKapal: '',
         jenisSurvey: 'DINAS SURVEY KLAS',
         noAgenda: '',
-        noOrder: `RFQ260${nextNum}`,
+        noOrder: 'RFQ260825',
         saranaTransportasi: 'DARAT DAN AIR'
       }));
       setSelectedSpsIds([]);
@@ -1259,7 +1258,7 @@ export const DayDetailModal = ({
                       const cleanNomor = cleanDocNumber(formData.nomor || '').trim();
                       const slashIdx = cleanNomor.indexOf('/');
                       const prefix = slashIdx !== -1 ? (cleanNomor.substring(0, slashIdx).trim() || 'A 0') : (cleanNomor || 'A 0');
-                      const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : `/SV.${Math.floor(Math.random() * 900) + 100}/PK/KI-26`;
+                      const suffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx) : '/SV.201/PK/KI-26';
 
                       return (
                         <div style={{ display: 'grid', gridTemplateColumns: '95px 1fr', gap: '0.5rem' }}>
@@ -1284,7 +1283,7 @@ export const DayDetailModal = ({
                             <input
                               type="text"
                               className="form-input"
-                              placeholder="/SV.XXX/PK/KI-26"
+                              placeholder="/SV.201/PK/KI-26"
                               value={suffix}
                               onChange={(e) => {
                                 let newSuffix = e.target.value;
@@ -1296,7 +1295,7 @@ export const DayDetailModal = ({
                               }}
                               required
                               style={{ fontWeight: 800, letterSpacing: '0.02em' }}
-                              title="Nomor Surat & Klasifikasi (Contoh: /SV.691/PK/KI-26)"
+                              title="Nomor Surat & Klasifikasi (Contoh: /SV.201/PK/KI-26)"
                             />
                           </div>
                         </div>
