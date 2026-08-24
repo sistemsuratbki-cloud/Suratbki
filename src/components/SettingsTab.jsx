@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
-import { KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User, FileCheck2, Upload, Trash2 } from 'lucide-react';
+import { KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User, FileCheck2, Upload, Trash2, Database } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ConfirmModal } from './ConfirmModal';
 import { validatePasswordStrength } from '../utils/security';
+import { toast } from 'react-hot-toast';
 
 export const SettingsTab = () => {
   const { currentUser, changePassword, verifyCurrentPassword, resetUsers, updateUser, usersList } = useAuth();
-  const { adminSettings, updateAdminSettings } = useData();
+  const { adminSettings, updateAdminSettings, clearAllDataKeepSettings } = useData();
 
   const [currentPassInput, setCurrentPassInput] = useState('');
   const [newPassInput, setNewPassInput] = useState('');
@@ -26,6 +27,7 @@ export const SettingsTab = () => {
   const [message, setMessage] = useState({ type: '', text: '' });
   const [adminMsg, setAdminMsg] = useState('');
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
+  const [isClearDataConfirmOpen, setIsClearDataConfirmOpen] = useState(false);
   const [isSubmittingPass, setIsSubmittingPass] = useState(false);
   const [isUploadingKacabTtd, setIsUploadingKacabTtd] = useState(false);
   const [isUploadingPembuatTtd, setIsUploadingPembuatTtd] = useState(false);
@@ -178,6 +180,20 @@ export const SettingsTab = () => {
     resetUsers();
     setIsResetConfirmOpen(false);
     alert('Seluruh data demo dan akun pengguna telah berhasil dikembalikan ke status awal.');
+  };
+
+  const handleConfirmClearData = async () => {
+    try {
+      await clearAllDataKeepSettings();
+      setIsClearDataConfirmOpen(false);
+      toast.success('Semua data berhasil dihapus! Tarif, Grade, dan Pengaturan Admin tetap tersimpan.');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
+    } catch (error) {
+      toast.error('Gagal menghapus data. Silakan coba lagi.');
+      console.error('Clear data error:', error);
+    }
   };
 
   const passValidation = validatePasswordStrength(newPassInput);
@@ -580,6 +596,28 @@ export const SettingsTab = () => {
             <RotateCcw size={16} />
             <span>Reset Seluruh Data & Akun Demo</span>
           </button>
+
+          <div style={{ marginTop: '0.75rem', padding: '1rem', background: '#fef3c7', border: '1.5px solid #fde68a', borderRadius: '8px' }}>
+            <div style={{ display: 'flex', alignItems: 'start', gap: '0.75rem', marginBottom: '0.75rem' }}>
+              <Database size={20} color="#b45309" style={{ flexShrink: 0, marginTop: '2px' }} />
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#92400e', marginBottom: '0.3rem' }}>
+                  Hapus Semua Data (Simpan Tarif & Settings)
+                </div>
+                <div style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: '1.4' }}>
+                  Menghapus semua Surat Tugas, Laporan, dan Kwitansi. Data Tarif, Grade, dan Pengaturan Admin TIDAK AKAN TERHAPUS.
+                </div>
+              </div>
+            </div>
+            <button 
+              className="btn btn-warning" 
+              onClick={() => setIsClearDataConfirmOpen(true)}
+              style={{ width: '100%', background: '#f59e0b', color: '#ffffff', borderColor: '#f59e0b' }}
+            >
+              <Trash2 size={16} />
+              <span>Hapus Data (Simpan Tarif & Settings)</span>
+            </button>
+          </div>
         </div>
       )}
 
@@ -592,6 +630,17 @@ export const SettingsTab = () => {
         confirmText="Ya, Reset Semua Data"
         type="danger"
         requirePassword={true}
+      />
+
+      <ConfirmModal
+        isOpen={isClearDataConfirmOpen}
+        onClose={() => setIsClearDataConfirmOpen(false)}
+        onConfirm={handleConfirmClearData}
+        title="Konfirmasi Hapus Semua Data"
+        message="Tindakan ini akan menghapus SEMUA Surat Tugas, Laporan Survei, dan Kwitansi dari sistem. Data Tarif, Grade Tariff, dan Pengaturan Admin TIDAK AKAN TERHAPUS. Apakah Anda yakin?"
+        confirmText="Ya, Hapus Semua Data"
+        type="danger"
+        requirePassword={false}
       />
     </div>
   );
