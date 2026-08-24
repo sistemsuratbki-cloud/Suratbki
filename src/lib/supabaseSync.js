@@ -465,7 +465,22 @@ export const deleteMasterKapalFromCloud = async (id) => {
 };
 
 // ==============================================================================
-// 9. REALTIME — per-tabel, callback spesifik per tabel
+// 9. CLEAR OPERATIONAL DATA (SPS, PDS, LAPORAN, KWITANSI)
+// ==============================================================================
+
+export const clearOperationalDataFromCloud = async () => {
+  if (!supabase) return;
+  return withRetry(async () => {
+    await Promise.all([
+      supabase.from('surat_tugas').delete().neq('id', '___safe_keep___'),
+      supabase.from('kwitansi_honor').delete().neq('id', '___safe_keep___'),
+      supabase.from('laporan_survei').delete().neq('id', '___safe_keep___')
+    ]);
+  }).catch((e) => console.warn('[DB] clear operational data failed:', e.message));
+};
+
+// ==============================================================================
+// 10. REALTIME — per-tabel, callback spesifik per tabel
 // ==============================================================================
 
 /**

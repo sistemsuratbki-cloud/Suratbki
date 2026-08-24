@@ -27,8 +27,10 @@ import {
   fetchMasterKapalFromCloud,
   saveMasterKapalToCloud,
   deleteMasterKapalFromCloud,
+  clearOperationalDataFromCloud,
   subscribeToRealtimeChanges
 } from '../lib/supabaseSync';
+import { supabase } from '../lib/supabase';
 
 const safeSetLocalStorage = (key, data) => {
   try {
@@ -1062,17 +1064,11 @@ export const DataProvider = ({ children }) => {
     localStorage.removeItem('st_laporan_survei');
 
     // 3. Clear from Supabase Cloud
-    if (supabase) {
-      try {
-        await Promise.all([
-          supabase.from('surat_tugas').delete().neq('id', '___safe_keep___'),
-          supabase.from('kwitansi_honor').delete().neq('id', '___safe_keep___'),
-          supabase.from('laporan_survei').delete().neq('id', '___safe_keep___')
-        ]);
-        console.log('[DataContext] Data SPS, PDS, Laporan, dan Kwitansi berhasil dihapus dari Supabase Cloud');
-      } catch (error) {
-        console.error('[DataContext] Error clearing Supabase operational data:', error);
-      }
+    try {
+      await clearOperationalDataFromCloud();
+      console.log('[DataContext] Data SPS, PDS, Laporan, dan Kwitansi berhasil dihapus dari Supabase Cloud');
+    } catch (error) {
+      console.error('[DataContext] Error clearing Supabase operational data:', error);
     }
   };
 
