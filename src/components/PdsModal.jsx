@@ -1164,20 +1164,28 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>{idx + 1}</td>
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', fontWeight: 800 }}>{sh.namaKapal}</td>
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', color: 'var(--accent-primary)', fontWeight: 700 }}>
-                              <input
-                                type="text"
-                                className="form-input"
-                                style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '26px' }}
-                                value={sh.noAgenda || ''}
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s)));
-                                  // Sync ke formData.noAgenda untuk kapal pertama
-                                  if (idx === 0) {
-                                    setFormData((prev) => ({ ...prev, noAgenda: val }));
-                                  }
-                                }}
-                              />
+                              {/* disabled={false} tidak override fieldset — pakai wrapper dengan pointerEvents */}
+                              <div style={{ pointerEvents: 'all' }}>
+                                <input
+                                  type="text"
+                                  className="form-input"
+                                  style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '26px', pointerEvents: 'all' }}
+                                  value={sh.noAgenda || ''}
+                                  onChange={(e) => {
+                                    const val = e.target.value;
+                                    setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s)));
+                                    if (idx === 0) {
+                                      setFormData((prev) => ({ ...prev, noAgenda: val }));
+                                    }
+                                  }}
+                                  onKeyDown={(e) => e.stopPropagation()}
+                                  onClick={(e) => {
+                                    e.currentTarget.removeAttribute('disabled');
+                                    e.currentTarget.focus();
+                                  }}
+                                  ref={(el) => { if (el) el.removeAttribute('disabled'); }}
+                                />
+                              </div>
                             </td>
                             <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>{sh.noOrder || '-'}</td>
                             {shipsDetail.length > 1 && (
