@@ -413,19 +413,39 @@ export const DataProvider = ({ children }) => {
 
   // ====== CRUD MASTER KAPAL ======
   const addMasterKapal = (data) => {
+    const noAgenda = (data.noAgenda || '').trim();
+    // Check for duplicate noAgenda
+    if (noAgenda) {
+      const duplicate = masterKapal.find(
+        (k) => (k.noAgenda || '').trim().toUpperCase() === noAgenda.toUpperCase()
+      );
+      if (duplicate) {
+        return { success: false, error: 'duplicate', existingKapal: duplicate.namaKapal, noAgenda };
+      }
+    }
     const newKapal = {
       id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`,
       namaKapal:   (data.namaKapal   || '').trim().toUpperCase(),
-      noAgenda:    (data.noAgenda    || '').trim(),
+      noAgenda:    noAgenda,
       jenisSurvey: (data.jenisSurvey || '').trim(),
       createdAt: new Date().toISOString()
     };
     setMasterKapal((prev) => [...prev, newKapal]);
     saveMasterKapalToCloud(newKapal);
-    return newKapal;
+    return { success: true, data: newKapal };
   };
 
   const updateMasterKapal = (id, updatedData) => {
+    const noAgenda = (updatedData.noAgenda !== undefined ? updatedData.noAgenda : '').trim();
+    // Check for duplicate noAgenda (exclude current item)
+    if (noAgenda) {
+      const duplicate = masterKapal.find(
+        (k) => k.id !== id && (k.noAgenda || '').trim().toUpperCase() === noAgenda.toUpperCase()
+      );
+      if (duplicate) {
+        return { success: false, error: 'duplicate', existingKapal: duplicate.namaKapal, noAgenda };
+      }
+    }
     setMasterKapal((prev) =>
       prev.map((item) => {
         if (item.id === id) {
@@ -441,6 +461,48 @@ export const DataProvider = ({ children }) => {
         return item;
       })
     );
+    return { success: true };
+  };
+
+  // Bulk import — skips duplicates and returns summary
+  const addMasterKapalBatch = (dataArray) => {
+    let added = 0;
+    let skipped = 0;
+    const skippedItems = [];
+    const newItems = [];
+
+    const currentAgendas = new Set(
+      masterKapal.map((k) => (k.noAgenda || '').trim().toUpperCase()).filter(Boolean)
+    );
+
+    let counter = 0;
+    for (const data of dataArray) {
+      counter++;
+      const noAgenda = (data.noAgenda || '').trim().toUpperCase();
+      if (noAgenda && currentAgendas.has(noAgenda)) {
+        skipped++;
+        skippedItems.push({ namaKapal: data.namaKapal, noAgenda: data.noAgenda });
+        continue;
+      }
+      const newKapal = {
+        id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000) + counter}`,
+        namaKapal:   (data.namaKapal   || '').trim().toUpperCase(),
+        noAgenda:    (data.noAgenda    || '').trim(),
+        jenisSurvey: (data.jenisSurvey || '').trim(),
+        createdAt: new Date().toISOString()
+      };
+      newItems.push(newKapal);
+      if (noAgenda) currentAgendas.add(noAgenda);
+      added++;
+    }
+
+    if (newItems.length > 0) {
+      setMasterKapal((prev) => [...prev, ...newItems]);
+      // Save all to cloud
+      newItems.forEach((item) => saveMasterKapalToCloud(item));
+    }
+
+    return { added, skipped, skippedItems, total: dataArray.length };
   };
 
   const deleteMasterKapal = (id) => {
@@ -1100,6 +1162,7 @@ export const DataProvider = ({ children }) => {
         addMasterKapal,
         updateMasterKapal,
         deleteMasterKapal,
+        addMasterKapalBatch,
         addSpsBatch,
         createPdsFromSurvey,
         addSuratTugas,

@@ -22,8 +22,10 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
       toast.error('Nama Kapal tidak boleh kosong');
       return;
     }
-    onSave(form);
-    onClose();
+    const result = onSave(form);
+    if (result !== false) {
+      onClose();
+    }
   };
 
   const handleSelectQuickSurvey = (surveyType) => {
@@ -158,7 +160,7 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
 };
 
 export const ShipDatabaseManagementTable = () => {
-  const { masterKapal, addMasterKapal, updateMasterKapal, deleteMasterKapal } = useData();
+  const { masterKapal, addMasterKapal, updateMasterKapal, deleteMasterKapal, addMasterKapalBatch } = useData();
 
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -177,14 +179,24 @@ export const ShipDatabaseManagementTable = () => {
   }, [masterKapal, searchTerm]);
 
   const handleAdd = (data) => {
-    addMasterKapal(data);
+    const result = addMasterKapal(data);
+    if (result && !result.success && result.error === 'duplicate') {
+      toast.error(`No. Agenda "${result.noAgenda}" sudah digunakan oleh kapal "${result.existingKapal}". Tidak dapat menyimpan data duplikat.`, { duration: 5000 });
+      return false;
+    }
     toast.success(`Kapal "${data.namaKapal.toUpperCase()}" berhasil ditambahkan ke database`);
+    return true;
   };
 
   const handleEdit = (data) => {
-    updateMasterKapal(editingKapal.id, data);
+    const result = updateMasterKapal(editingKapal.id, data);
+    if (result && !result.success && result.error === 'duplicate') {
+      toast.error(`No. Agenda "${result.noAgenda}" sudah digunakan oleh kapal "${result.existingKapal}". Tidak dapat menyimpan data duplikat.`, { duration: 5000 });
+      return false;
+    }
     toast.success('Data kapal berhasil diperbarui');
     setEditingKapal(null);
+    return true;
   };
 
   const handleDelete = (id) => {
