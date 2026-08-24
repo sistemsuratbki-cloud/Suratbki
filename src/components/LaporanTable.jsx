@@ -38,7 +38,8 @@ import { ConfirmModal } from './ConfirmModal';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
 export const LaporanTable = () => {
-  const { laporanSurvei, suratTugas, updateLaporanSurvei, deleteLaporanSurvei, requestEditApproval, approveEditRequest } = useData();
+  // UPDATED: Gunakan suratTugas (PDS) sebagai data source, bukan laporanSurvei
+  const { suratTugas, updateSuratTugas, deleteSuratTugas, requestEditApproval, approveEditRequest } = useData();
   const { role, usersList } = useAuth();
 
   // Search & Basic Filters
@@ -181,7 +182,7 @@ export const LaporanTable = () => {
 
   const handleConfirmDelete = () => {
     if (itemToDelete) {
-      deleteLaporanSurvei(itemToDelete.id);
+      deleteSuratTugas(itemToDelete.id);
       setItemToDelete(null);
     }
   };
@@ -192,36 +193,39 @@ export const LaporanTable = () => {
 
   // Filter & Sort Data
   const filteredData = useMemo(() => {
-    // 1. Filter
-    const result = laporanSurvei.filter((item) => {
-      const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-
-      // Hanya tampilkan laporan untuk dokumen PDS jika sudah di-ACC oleh Admin
-      if (linkedSurat && (linkedSurat.docType === 'PDS' || linkedSurat.isPds) && linkedSurat.approvalStatus !== 'ACC') {
+    // 1. Filter PDS items only (tidak include SPS yang pending)
+    const pdsItems = suratTugas.filter(
+      (item) => item.docType === 'PDS' || item.isPds === true || (!item.docType && item.status !== 'Menunggu Survei')
+    );
+    
+    const result = pdsItems.filter((item) => {
+      // Item sendiri adalah PDS, tidak perlu linkedSurat lagi
+      // Hanya tampilkan PDS yang sudah di-ACC oleh Admin
+      if (item.approvalStatus !== 'ACC') {
         return false;
       }
 
-      const dateStr = item.tglLapor || item.tanggal || linkedSurat?.tglMulai || '';
+      const dateStr = item.tglLapor || item.tanggal || item.tglMulai || '';
 
       // Month & Year Filter
       if (selectedMonth !== 'Semua') {
         if (dateStr) {
           const itemMonth = dateStr.substring(5, 7);
-          const endMonth = linkedSurat?.tglSelesai ? linkedSurat.tglSelesai.substring(5, 7) : itemMonth;
+          const endMonth = item.tglSelesai ? item.tglSelesai.substring(5, 7) : itemMonth;
           if (itemMonth !== selectedMonth && endMonth !== selectedMonth) return false;
         }
       }
       if (selectedYear !== 'Semua') {
         if (dateStr) {
           const itemYear = dateStr.substring(0, 4);
-          const endYear = linkedSurat?.tglSelesai ? linkedSurat.tglSelesai.substring(0, 4) : itemYear;
+          const endYear = item.tglSelesai ? item.tglSelesai.substring(0, 4) : itemYear;
           if (itemYear !== selectedYear && endYear !== selectedYear) return false;
         }
       }
 
       // Multi-Day / Custom Date Range Filter
       if (startDate) {
-        const itemEnd = linkedSurat?.tglSelesai || dateStr;
+        const itemEnd = item.tglSelesai || dateStr;
         if (itemEnd && itemEnd < startDate) return false;
       }
       if (endDate) {
@@ -230,17 +234,17 @@ export const LaporanTable = () => {
       }
 
       // Surveyor Filter
-      const surveyorName = item.petugas || linkedSurat?.petugas || '';
+      const surveyorName = item.petugas || '';
       if (surveyorFilter !== 'Semua' && surveyorName !== surveyorFilter) {
         return false;
       }
 
       // Search Filter
       const searchLower = searchTerm.toLowerCase();
-      const namaKapal = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '');
-      const noAgenda = cleanDocNumber(item.noAgenda || item.nomor || (linkedSurat ? linkedSurat.nomor : ''));
-      const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : '');
-      const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '');
+      const namaKapal = item.namaKapal || '';
+      const noAgenda = cleanDocNumber(item.noAgenda || item.nomor || '');
+      const namaSurvey = item.namaSurvey || item.jenisSurvey || item.perihal || '';
+      const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || '';
 
       const matchesSearch =
         !searchTerm ||
@@ -302,7 +306,7 @@ export const LaporanTable = () => {
     });
 
     return result;
-  }, [laporanSurvei, suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm, sortBy]);
+  }, [suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm, sortBy]);
 
   // Pecah / Pisahkan nama kapal dan nominal untuk PDS multi-kapal
   const flattenedData = useMemo(() => {
@@ -378,17 +382,19 @@ export const LaporanTable = () => {
   /* Helper to prepare export rows */
   const getPreparedRows = () => {
     return flattenedData.map((item, index) => {
-      const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-      const dateVal = item.tglLapor || item.tanggal || linkedSurat?.tglMulai || '';
+      // Item sudah PDS langsung
+      const dateVal = item.tglLapor || item.tanggal || item.tglMulai || '';
       const dateFormatted = dateVal ? formatDateIndo(dateVal) : '-';
       const vesselName = (item.namaKapal || '-').toUpperCase();
-      const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
-      const nilaiNum = Number(item.nilai) || 0;
-      const namaSurveyor = (item.petugas || (linkedSurat ? linkedSurat.petugas : '-')).toUpperCase();
-      const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
+      const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || '-';
+      const nilaiNum = Number(item.nilai) || Number(item.jumlahEstimasi) || 0;
+      const namaSurveyor = (item.petugas || '-').toUpperCase();
+      const noAgendaRaw = cleanDocNumber(item.noAgenda || item.nomor || '-');
       const noAgenda = extractAgendaNumber(noAgendaRaw);
       const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
-      const noSo = item.noSo || (linkedSurat ? linkedSurat.noSo : '-');
+      const noSo = item.noSo && !item.noSo.startsWith('RFQ') && !item.noSo.startsWith('SO-') && item.noSo !== '3000255955'
+        ? item.noSo
+        : '-';
       const noWbs = item.noWbs || '-';
 
       return {
@@ -1235,16 +1241,18 @@ export const LaporanTable = () => {
               </tr>
             ) : (
               flattenedData.map((item, index) => {
-                const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-                const dateVal = item.tglLapor || item.tanggal || linkedSurat?.tglMulai;
-                const vesselName = item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-');
-                const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
-                const nilaiNum = Number(item.nilai) || 0;
-                const namaSurvey = item.namaSurvey || item.jenisSurvey || (linkedSurat ? linkedSurat.jenisSurvey : 'DINAS SURVEY KLAS');
-                const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
+                // Item sudah PDS langsung, tidak perlu linkedSurat
+                const dateVal = item.tglLapor || item.tanggal || item.tglMulai;
+                const vesselName = item.namaKapal || '-';
+                const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || '-';
+                const nilaiNum = Number(item.nilai) || Number(item.jumlahEstimasi) || 0;
+                const namaSurvey = item.namaSurvey || item.jenisSurvey || item.perihal || 'DINAS SURVEY KLAS';
+                const noAgendaRaw = cleanDocNumber(item.noAgenda || item.nomor || '-');
                 const noAgenda = extractAgendaNumber(noAgendaRaw);
                 const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
-                const noSo = item.noSo || (linkedSurat ? linkedSurat.noSo : '-');
+                const noSo = item.noSo && !item.noSo.startsWith('RFQ') && !item.noSo.startsWith('SO-') && item.noSo !== '3000255955' 
+                  ? item.noSo 
+                  : '-';
                 const noWbs = item.noWbs || '-';
 
                 return (
@@ -1273,7 +1281,7 @@ export const LaporanTable = () => {
                     </td>
                     <td>
                       <div style={{ fontWeight: 600, textTransform: 'uppercase' }}>
-                        {item.petugas || (linkedSurat ? linkedSurat.petugas : '-')}
+                        {item.petugas || '-'}
                       </div>
                     </td>
                     <td>

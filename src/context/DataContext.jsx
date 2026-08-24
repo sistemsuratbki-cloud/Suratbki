@@ -82,7 +82,7 @@ export const DataProvider = ({ children }) => {
         if (!cleaned.noCda || cleaned.noCda.startsWith('CDA-')) {
           cleaned.noCda = '5100010';
         }
-        if (cleaned.noSo === '3000255955' || cleaned.noSo?.startsWith('SO-') || cleaned.noSo?.startsWith('RFQ-')) {
+        if (cleaned.noSo === '3000255955' || cleaned.noSo?.startsWith('SO-') || cleaned.noSo?.startsWith('RFQ')) {
           cleaned.noSo = '';
         }
         if (cleaned.noWbs === '00578-PK-Z4-0426' || cleaned.noWbs?.startsWith('WBS.')) {
@@ -244,7 +244,9 @@ export const DataProvider = ({ children }) => {
           kwitansiUpdated = true;
         }
 
-        // 2. Check Laporan Survei (HANYA masuk jika sudah di-ACC oleh Admin)
+        // 2. Check Laporan Survei (DISABLED - PDS sekarang include NO.SO/NO.WBS)
+        // Laporan tidak lagi di-generate otomatis, semua data ada di PDS
+        /*
         const isAcc = st.approvalStatus === 'ACC';
         const existingLap = updatedLaporanList.find((l) => l.suratId === st.id);
 
@@ -285,14 +287,18 @@ export const DataProvider = ({ children }) => {
             laporanUpdated = true;
           }
         }
+        */
       });
 
       if (kwitansiUpdated) {
         setKwitansiHonor(updatedKwitansiList.map(cleanEntityObject));
       }
+      // laporanUpdated disabled - tidak lagi auto-sync Laporan
+      /*
       if (laporanUpdated) {
         setLaporanSurvei(updatedLaporanList.map(cleanEntityObject));
       }
+      */
     }
   }, [suratTugas]);
 
@@ -508,6 +514,9 @@ export const DataProvider = ({ children }) => {
     setKwitansiHonor((prev) => [autoKwitansi, ...prev]);
     saveKwitansiToCloud(autoKwitansi);
 
+    // ====== AUTO-GENERATE LAPORAN DISABLED ======
+    // PDS sekarang sudah include NO.SO/NO.WBS, tidak perlu generate Laporan terpisah
+    /*
     const autoLaporan = cleanEntityObject({
       id: `LAP-${Date.now().toString().slice(-6)}`,
       suratId: newId,
@@ -537,6 +546,7 @@ export const DataProvider = ({ children }) => {
 
     setLaporanSurvei((prev) => [autoLaporan, ...prev]);
     saveLaporanToCloud(autoLaporan);
+    */
 
     return newSurat;
   };
@@ -630,6 +640,9 @@ export const DataProvider = ({ children }) => {
     setKwitansiHonor((prev) => [newKwitansi, ...prev]);
     saveKwitansiToCloud(newKwitansi);
 
+    // ====== AUTO-GENERATE LAPORAN DISABLED ======
+    // PDS sekarang sudah include NO.SO/NO.WBS, tidak perlu generate Laporan terpisah
+    /*
     // 2. Generate 1 Laporan Perjalanan Dinas for the combined PDS HANYA jika sudah di-ACC
     if (newPds.approvalStatus === 'ACC') {
       const newLaporan = cleanEntityObject({
@@ -662,6 +675,7 @@ export const DataProvider = ({ children }) => {
       setLaporanSurvei((prev) => [newLaporan, ...prev]);
       saveLaporanToCloud(newLaporan);
     }
+    */
 
     return newPds;
   };
@@ -746,6 +760,9 @@ export const DataProvider = ({ children }) => {
       }
     });
 
+    // ====== AUTO-UPDATE LAPORAN DISABLED ======
+    // PDS sekarang sudah include NO.SO/NO.WBS, tidak perlu sync ke Laporan terpisah
+    /*
     // Auto-update or create linked Laporan Survei ONLY if PDS is ACC
     const currentItem = suratTugas.find((s) => s.id === id) || {};
     const effectiveApproval = cleanedData.approvalStatus !== undefined ? cleanedData.approvalStatus : currentItem.approvalStatus;
@@ -847,6 +864,7 @@ export const DataProvider = ({ children }) => {
         return prev;
       }
     });
+    */
   };
 
   const deleteSuratTugas = (id) => {
@@ -890,7 +908,8 @@ export const DataProvider = ({ children }) => {
     deleteKwitansiFromCloud(id);
   };
 
-  // CRUD Actions for Laporan Survei
+  // ====== DEPRECATED: Laporan Functions (Keep for backward compatibility) ======
+  // NOTE: Sekarang PDS = Laporan. Functions ini hanya untuk edit data lama.
   const addLaporanSurvei = (data) => {
     const cleaned = cleanEntityObject(data);
     const newLaporan = {

@@ -65,7 +65,7 @@ export const extractShipDatabase = (suratTugas = [], laporanSurvei = []) => {
           namaKapal: name,
           noAgenda: lap.noAgenda || prev.noAgenda || '',
           lokasi: lap.lokasi || lap.lokasiSurvey || prev.lokasi || 'WAJOK',
-          noOrder: lap.noSo || lap.noOrder || prev.noOrder || '',
+          noOrder: lap.noOrder || prev.noOrder || '',
           jenisSurvey: lap.namaSurvey || prev.jenisSurvey || '',
           petugas: lap.petugas || prev.petugas || '',
           spsId: prev.spsId || null

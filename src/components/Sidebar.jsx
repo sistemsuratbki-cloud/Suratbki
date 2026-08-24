@@ -13,14 +13,14 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas');
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima');
-  const activeLaporan = (laporanSurvei || []).filter((lap) => {
-    const linkedSurat = (suratTugas || []).find((s) => s.id === lap.suratId);
-    if (linkedSurat && (linkedSurat.docType === 'PDS' || linkedSurat.isPds)) {
-      return linkedSurat.approvalStatus === 'ACC';
-    }
-    return true;
+  
+  // UPDATED: Gunakan PDS yang sudah ACC sebagai Laporan (bukan laporanSurvei terpisah)
+  const activePdsAsLaporan = (suratTugas || []).filter((st) => {
+    // Filter hanya PDS yang sudah ACC
+    const isPds = st.docType === 'PDS' || st.isPds === true || (!st.docType && st.status !== 'Menunggu Survei');
+    return isPds && st.approvalStatus === 'ACC';
   });
-  const filteredLaporan = filterDataByRole(activeLaporan, currentUser, role, 'petugas');
+  const filteredLaporan = filterDataByRole(activePdsAsLaporan, currentUser, role, 'petugas');
 
   const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS').length;
   const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
