@@ -4,7 +4,7 @@ import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, Map
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { isEditWindowExpired, formatRupiah, cleanDocNumber, formatDateIndo } from '../utils/formatters';
+import { isEditWindowExpired, formatRupiah, cleanDocNumber, formatDateIndo, extractAgendaNumber } from '../utils/formatters';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiShipInput from './MultiShipInput';
@@ -14,7 +14,7 @@ import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
 export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTugas = null }) => {
   const { suratTugas, addLaporanSurvei, updateLaporanSurvei, updateSuratTugas, tariffs } = useData();
-  const { role, currentUser } = useAuth();
+  const { role, currentUser, usersList } = useAuth();
   const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
   const isFinance = role === 'finance' || role === 'keuangan';
   const activeTariffs = tariffs && tariffs.length > 0 ? tariffs : [];
@@ -137,7 +137,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         fileKwitansiHotelData: defaultSurat?.fileKwitansiHotelData || ''
       });
     }
-  }, [editItem, isOpen, suratTugas, currentUser, defaultLoc, defaultRate]);
+  }, [editItem, isOpen, suratTugas, currentUser, usersList, defaultLoc, defaultRate, role]);
 
   if (!isOpen) return null;
 
