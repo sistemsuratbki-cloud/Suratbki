@@ -444,6 +444,9 @@ export const DataProvider = ({ children }) => {
         createdAt: new Date().toISOString()
       });
 
+      console.log(`[DataContext] Created SPS item ${idx}:`, item);
+      console.log(`[DataContext] SPS item ${idx} petugas:`, item.petugas);
+
       saveSuratTugasToCloud(item);
       return item;
     });
