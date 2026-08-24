@@ -55,6 +55,7 @@ import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import { extractShipDatabase } from '../utils/shipDatabase';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
+import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
 export const DayDetailModal = ({
   isOpen,
@@ -435,10 +436,10 @@ export const DayDetailModal = ({
     }));
   };
 
-  // Date & Weekend Calculation
-  const { totalDays, totalNights, autoHolidays } = useMemo(() => {
+  // Date & Weekend/Holiday Calculation
+  const { totalDays, totalNights, autoHolidays, holidayDetails } = useMemo(() => {
     if (!formData.tglMulai || !formData.tglSelesai) {
-      return { totalDays: 1, totalNights: 0, autoHolidays: 0 };
+      return { totalDays: 1, totalNights: 0, autoHolidays: 0, holidayDetails: [] };
     }
     const start = new Date(formData.tglMulai);
     const end = new Date(formData.tglSelesai);
@@ -447,19 +448,19 @@ export const DayDetailModal = ({
     if (days < 1 || isNaN(days)) days = 1;
     const nights = Math.max(0, days - 1);
 
-    let countLibur = 0;
-    if (!isNaN(start) && !isNaN(end)) {
-      const cur = new Date(start);
-      while (cur <= end) {
-        const d = cur.getDay();
-        if (d === 0 || d === 6) countLibur++;
-        cur.setDate(cur.getDate() + 1);
-      }
-    }
-    return { totalDays: days, totalNights: nights, autoHolidays: countLibur };
+    const { count, details } = countHolidaysAndWeekendsInRange(formData.tglMulai, formData.tglSelesai);
+    return { totalDays: days, totalNights: nights, autoHolidays: count, holidayDetails: details };
   }, [formData.tglMulai, formData.tglSelesai]);
 
-  const effectiveHolidays = formData.jumlahHariLibur !== undefined ? Number(formData.jumlahHariLibur) : autoHolidays;
+  // Sync automatic holidays count when dates change
+  useEffect(() => {
+    setFormData((prev) => ({
+      ...prev,
+      jumlahHariLibur: autoHolidays
+    }));
+  }, [autoHolidays]);
+
+  const effectiveHolidays = formData.jumlahHariLibur !== undefined && formData.jumlahHariLibur !== '' ? Number(formData.jumlahHariLibur) : autoHolidays;
 
   // Real-time Tariff & Cost Calculation
   const calculations = useMemo(() => {
@@ -1881,6 +1882,41 @@ export const DayDetailModal = ({
                     </div>
                   </div>
 
+                  {/* Keterangan Otomatis Hari Libur / Akhir Pekan (+50% Uang Harian) */}
+                  {effectiveHolidays > 0 && (
+                    <div
+                      style={{
+                        background: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)',
+                        border: '1.5px solid #fecdd3',
+                        borderRadius: '10px',
+                        padding: '0.75rem 1rem',
+                        marginBottom: '1rem',
+                        display: 'flex',
+                        alignItems: 'flex-start',
+                        gap: '0.75rem',
+                        boxShadow: '0 2px 6px rgba(225, 29, 72, 0.06)'
+                      }}
+                    >
+                      <span style={{ fontSize: '1.35rem', lineHeight: 1 }}>🎉</span>
+                      <div style={{ fontSize: '0.8rem', color: '#9f1239', lineHeight: 1.5, flex: 1 }}>
+                        <div style={{ fontWeight: 800, fontSize: '0.85rem', marginBottom: '0.2rem', color: '#881337', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <span>Survei pada Hari Libur / Akhir Pekan ({effectiveHolidays} Hari Terdeteksi)</span>
+                          <span style={{ fontSize: '0.7rem', background: '#be123c', color: '#ffffff', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 800 }}>
+                            UANG HARIAN NAIK +50%
+                          </span>
+                        </div>
+                        <div>
+                          Uang harian per hari libur mendapat tambahan <strong>+50% (+{formatRupiah(calculations.uangHarianPerHari * 0.5)})</strong> → Total Uang Harian per hari libur menjadi <strong>{formatRupiah(calculations.uangHarianPerHari * 1.5)}</strong>.
+                        </div>
+                        {holidayDetails && holidayDetails.length > 0 && (
+                          <div style={{ marginTop: '0.35rem', fontSize: '0.74rem', background: 'rgba(255, 255, 255, 0.7)', padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px dashed #fda4af', color: '#4c0519', fontWeight: 600 }}>
+                            📅 <strong>Rincian Hari Libur:</strong> {holidayDetails.map((h, i) => `${h.date} - ${h.reason}`).join(' • ')}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
                   {/* Option Tanpa Uang Harian (Pindahan & Rapi) */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', cursor: 'pointer', margin: 0 }}>
@@ -1957,8 +1993,16 @@ export const DayDetailModal = ({
                       placeholder="0"
                       value={formData.tiketPesawatTaxi || ''}
                       onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
-                      style={{ fontWeight: 700, marginBottom: '0.5rem' }}
+                      style={{ fontWeight: 700, marginBottom: '0.35rem' }}
                     />
+                    {/* Format Rupiah Preview */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(2, 132, 199, 0.08)', borderRadius: '4px', border: '1px solid rgba(2, 132, 199, 0.18)', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
+                      <span style={{ fontSize: '0.82rem', color: '#0284c7', fontWeight: 800 }}>
+                        {formatRupiah(Number(formData.tiketPesawatTaxi) || 0)}
+                      </span>
+                    </div>
+
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                       Bukti Tiket / Boarding Pass (Maks. 3 MB):
                     </div>
@@ -2032,8 +2076,16 @@ export const DayDetailModal = ({
                       placeholder="0"
                       value={formData.tiketHotel || ''}
                       onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
-                      style={{ fontWeight: 700, marginBottom: '0.5rem' }}
+                      style={{ fontWeight: 700, marginBottom: '0.35rem' }}
                     />
+                    {/* Format Rupiah Preview */}
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(5, 150, 105, 0.08)', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.18)', marginBottom: '0.5rem' }}>
+                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
+                      <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 800 }}>
+                        {formatRupiah(Number(formData.tiketHotel) || 0)}
+                      </span>
+                    </div>
+
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                       Unggah Kwitansi Hotel / Penginapan (Maks. 3 MB):
                     </div>
@@ -2168,11 +2220,16 @@ export const DayDetailModal = ({
                     {/* Row 4 */}
                     <div>
                       <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>
-                        Uang Harian ({totalDays} Hari{effectiveHolidays > 0 ? ` + ${effectiveHolidays} Libur` : ''}):
+                        Uang Harian ({totalDays} Hari{effectiveHolidays > 0 ? ` • Termasuk ${effectiveHolidays} Libur` : ''}):
                       </div>
                       <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#9333ea' }}>
                         {formatRupiah(calculations.totalUangHarian || 0)}
                       </div>
+                      {effectiveHolidays > 0 && !formData.tanpaUangHarian && (
+                        <div style={{ fontSize: '0.7rem', color: '#be123c', fontWeight: 600, marginTop: '0.2rem' }}>
+                          *Termasuk bonus +50% hari libur ({formatRupiah(calculations.tambahanLibur)})
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
 import { filterDataByRole } from '../utils/filterData';
+import { checkHolidayOrWeekend } from '../utils/holidays';
 import { DayDetailModal } from './DayDetailModal';
 
 export const CalendarView = ({ surveyorFilter }) => {
@@ -172,22 +173,48 @@ export const CalendarView = ({ surveyorFilter }) => {
 
         {daysArray.map((cell, index) => {
           const { stList } = getEventsForDate(cell.dateStr);
+          const holInfo = checkHolidayOrWeekend(cell.dateStr);
+
+          let cellStyle = {};
+          if (cell.isToday) {
+            cellStyle = { border: '2px solid var(--accent-primary)', background: 'var(--accent-light)', position: 'relative' };
+          } else if (holInfo.isHoliday) {
+            cellStyle = { background: 'rgba(239, 68, 68, 0.04)' };
+          } else if (holInfo.isWeekend) {
+            cellStyle = { background: 'rgba(241, 245, 249, 0.5)' };
+          }
 
           return (
             <div
               key={index}
-              className={`calendar-cell-v2 ${!cell.isCurrentMonth ? 'other-month' : ''} ${cell.isToday ? 'is-today' : ''}`}
+              className={`calendar-cell-v2 ${!cell.isCurrentMonth ? 'other-month' : ''} ${cell.isToday ? 'is-today' : ''} ${holInfo.isHolidayOrWeekend ? 'is-holiday' : ''}`}
               onClick={() => handleCellClick(cell)}
-              style={cell.isToday ? { border: '2px solid var(--accent-primary)', background: 'var(--accent-light)', position: 'relative' } : {}}
+              style={cellStyle}
+              title={
+                holInfo.isHolidayOrWeekend
+                  ? `${holInfo.holidayName ? holInfo.holidayName + ' • ' : ''}Hari Libur / Akhir Pekan (${holInfo.dayName}) — Uang Harian Naik +50%`
+                  : ''
+              }
             >
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.2rem', gap: '0.25rem' }}>
                 <div
                   className="calendar-date-number-v2"
-                  style={cell.isToday ? { color: 'var(--accent-primary)', fontWeight: 800, margin: 0 } : { margin: 0 }}
+                  style={{
+                    margin: 0,
+                    fontWeight: 800,
+                    color: cell.isToday
+                      ? 'var(--accent-primary)'
+                      : holInfo.isHoliday
+                      ? '#dc2626'
+                      : holInfo.isWeekend
+                      ? '#e11d48'
+                      : 'inherit'
+                  }}
                 >
                   {cell.dayNumber}
                 </div>
-                {cell.isToday && (
+                
+                {cell.isToday ? (
                   <span
                     style={{
                       fontSize: '0.6rem',
@@ -202,7 +229,39 @@ export const CalendarView = ({ surveyorFilter }) => {
                   >
                     Hari Ini
                   </span>
-                )}
+                ) : holInfo.isHoliday ? (
+                  <span
+                    style={{
+                      fontSize: '0.525rem',
+                      fontWeight: 800,
+                      background: '#fee2e2',
+                      color: '#dc2626',
+                      padding: '0.05rem 0.3rem',
+                      borderRadius: '3px',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      maxWidth: '85px'
+                    }}
+                    title={`${holInfo.holidayName}: Uang Harian +50%`}
+                  >
+                    🎉 Libur (+50%)
+                  </span>
+                ) : holInfo.isWeekend ? (
+                  <span
+                    style={{
+                      fontSize: '0.525rem',
+                      fontWeight: 700,
+                      color: '#e11d48',
+                      background: 'rgba(225, 29, 72, 0.08)',
+                      padding: '0.05rem 0.25rem',
+                      borderRadius: '3px'
+                    }}
+                    title="Akhir Pekan: Uang Harian +50%"
+                  >
+                    +50% U.HR
+                  </span>
+                ) : null}
               </div>
 
               <div className="calendar-chips-wrapper">

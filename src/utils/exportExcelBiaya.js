@@ -1,5 +1,6 @@
 import * as ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { formatDateIndo } from './formatters';
+import { countHolidaysAndWeekendsInRange } from './holidays';
 
 export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTariffs = []) => {
   try {
@@ -14,13 +15,13 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
     let mlm = hr - 1;
     if (mlm < 0) mlm = 0;
 
-    // Calculate Weekends (Hari Libur) automatically
+    // Calculate Weekends & National Holidays (Hari Libur) automatically
     let hrLbr = 0;
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-      const day = currentDate.getDay();
-      if (day === 0 || day === 6) hrLbr++;
-      currentDate.setDate(currentDate.getDate() + 1);
+    if (item.jumlahHariLibur !== undefined && item.jumlahHariLibur !== '' && !isNaN(Number(item.jumlahHariLibur))) {
+      hrLbr = Number(item.jumlahHariLibur);
+    } else {
+      const { count } = countHolidaysAndWeekendsInRange(item.tglMulai, item.tglSelesai);
+      hrLbr = count;
     }
 
     // Get Surveyor Data

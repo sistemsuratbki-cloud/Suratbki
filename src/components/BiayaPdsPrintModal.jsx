@@ -3,6 +3,7 @@ import { X, Printer, Calculator } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
+import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { ModalPortal } from './ModalPortal';
 
 export const BiayaPdsPrintModal = ({
@@ -28,19 +29,13 @@ export const BiayaPdsPrintModal = ({
   const hr = timeDiff > 0 ? timeDiff : 1;
   const mlm = Math.max(0, hr - 1);
 
-  // Weekends (Hari Libur) - prioritise explicit user input
+  // Weekends & National Holidays (Hari Libur) - prioritise explicit user input
   let hrLbr = 0;
   if (suratTugas.jumlahHariLibur !== undefined && suratTugas.jumlahHariLibur !== '' && !isNaN(Number(suratTugas.jumlahHariLibur))) {
     hrLbr = Number(suratTugas.jumlahHariLibur);
-  } else if (!isNaN(startDate.getTime()) && !isNaN(endDate.getTime())) {
-    let cur = new Date(startDate);
-    let countLibur = 0;
-    while (cur <= endDate) {
-      const day = cur.getDay();
-      if (day === 0 || day === 6) countLibur++;
-      cur.setDate(cur.getDate() + 1);
-    }
-    hrLbr = countLibur;
+  } else {
+    const { count } = countHolidaysAndWeekendsInRange(suratTugas.tglMulai, suratTugas.tglSelesai);
+    hrLbr = count;
   }
 
   // Get Surveyor Data

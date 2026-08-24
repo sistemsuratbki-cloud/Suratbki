@@ -40,6 +40,7 @@ import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
 import { extractShipDatabase } from '../utils/shipDatabase';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
+import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
 export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
   const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs } = useData();
@@ -491,10 +492,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     }
   };
 
-  // Date Calculation: Days, Nights, Weekend holidays
-  const { totalDays, totalNights, autoHolidays } = useMemo(() => {
+  // Date Calculation: Days, Nights, Weekend & National Holidays
+  const { totalDays, totalNights, autoHolidays, holidayDetails } = useMemo(() => {
     if (!formData.tglMulai || !formData.tglSelesai) {
-      return { totalDays: 1, totalNights: 0, autoHolidays: 0 };
+      return { totalDays: 1, totalNights: 0, autoHolidays: 0, holidayDetails: [] };
     }
     const start = new Date(formData.tglMulai);
     const end = new Date(formData.tglSelesai);
@@ -502,17 +503,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     const hr = diff > 0 ? diff : 1;
     const mlm = Math.max(0, hr - 1);
 
-    let hLibur = 0;
-    if (!isNaN(start) && !isNaN(end)) {
-      const cur = new Date(start);
-      while (cur <= end) {
-        const day = cur.getDay();
-        if (day === 0 || day === 6) hLibur++;
-        cur.setDate(cur.getDate() + 1);
-      }
-    }
-
-    return { totalDays: hr, totalNights: mlm, autoHolidays: hLibur };
+    const { count, details } = countHolidaysAndWeekendsInRange(formData.tglMulai, formData.tglSelesai);
+    return { totalDays: hr, totalNights: mlm, autoHolidays: count, holidayDetails: details };
   }, [formData.tglMulai, formData.tglSelesai]);
 
   // Sync automatic holidays count when dates change if not edited
@@ -1571,7 +1563,42 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   </div>
                 </div>
 
-                  {/* Option Tanpa Uang Harian (Pindahan & Rapi) */}
+                {/* Keterangan Otomatis Hari Libur / Akhir Pekan (+50% Uang Harian) */}
+                {calculations.hrLibur > 0 && (
+                  <div
+                    style={{
+                      background: 'linear-gradient(135deg, #fff1f2 0%, #ffe4e6 100%)',
+                      border: '1.5px solid #fecdd3',
+                      borderRadius: '10px',
+                      padding: '0.75rem 1rem',
+                      marginBottom: '1rem',
+                      display: 'flex',
+                      alignItems: 'flex-start',
+                      gap: '0.75rem',
+                      boxShadow: '0 2px 6px rgba(225, 29, 72, 0.06)'
+                    }}
+                  >
+                    <span style={{ fontSize: '1.35rem', lineHeight: 1 }}>🎉</span>
+                    <div style={{ fontSize: '0.8rem', color: '#9f1239', lineHeight: 1.5, flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.85rem', marginBottom: '0.2rem', color: '#881337', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span>Survei pada Hari Libur / Akhir Pekan ({calculations.hrLibur} Hari Terdeteksi)</span>
+                        <span style={{ fontSize: '0.7rem', background: '#be123c', color: '#ffffff', padding: '0.1rem 0.45rem', borderRadius: '4px', fontWeight: 800 }}>
+                          UANG HARIAN NAIK +50%
+                        </span>
+                      </div>
+                      <div>
+                        Uang harian per hari libur mendapat tambahan <strong>+50% (+{formatRupiah(calculations.uangHarianRate * 0.5)})</strong> → Total Uang Harian per hari libur menjadi <strong>{formatRupiah(calculations.uangHarianRate * 1.5)}</strong>.
+                      </div>
+                      {holidayDetails && holidayDetails.length > 0 && (
+                        <div style={{ marginTop: '0.35rem', fontSize: '0.74rem', background: 'rgba(255, 255, 255, 0.7)', padding: '0.35rem 0.6rem', borderRadius: '6px', border: '1px dashed #fda4af', color: '#4c0519', fontWeight: 600 }}>
+                          📅 <strong>Rincian Hari Libur:</strong> {holidayDetails.map((h, i) => `${h.date} - ${h.reason}`).join(' • ')}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Option Tanpa Uang Harian (Pindahan & Rapi) */}
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'var(--bg-card)', padding: '0.65rem 0.85rem', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-color)', flexWrap: 'wrap', gap: '0.75rem' }}>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.82rem', cursor: 'pointer', margin: 0 }}>
                       <input
@@ -1645,10 +1672,17 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     min="0"
                     className="form-input"
                     placeholder="0"
-                    value={formData.tiketPesawatTaxi}
+                    value={formData.tiketPesawatTaxi || ''}
                     onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
-                    style={{ fontWeight: 700, marginBottom: '0.5rem' }}
+                    style={{ fontWeight: 700, marginBottom: '0.35rem' }}
                   />
+                  {/* Format Rupiah Preview */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(2, 132, 199, 0.08)', borderRadius: '4px', border: '1px solid rgba(2, 132, 199, 0.18)', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
+                    <span style={{ fontSize: '0.82rem', color: '#0284c7', fontWeight: 800 }}>
+                      {formatRupiah(Number(formData.tiketPesawatTaxi) || 0)}
+                    </span>
+                  </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
                     Bukti Tiket / Boarding Pass (Maks. 3 MB):
                   </div>
@@ -1720,12 +1754,19 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     min="0"
                     className="form-input"
                     placeholder="0"
-                    value={formData.tiketHotel}
+                    value={formData.tiketHotel || ''}
                     onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
-                    style={{ fontWeight: 700, marginBottom: '0.5rem' }}
+                    style={{ fontWeight: 700, marginBottom: '0.35rem' }}
                   />
+                  {/* Format Rupiah Preview */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(5, 150, 105, 0.08)', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.18)', marginBottom: '0.5rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
+                    <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 800 }}>
+                      {formatRupiah(Number(formData.tiketHotel) || 0)}
+                    </span>
+                  </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
-                    Total Hotel ({calculations.mlm} Malam): <strong>{formatRupiah(calculations.uangHotelTotal)}</strong> • (Maks. 3 MB)
+                    Unggah Kwitansi Hotel / Penginapan (Maks. 3 MB):
                   </div>
                   {isAdmin ? (
                     formData.fileKwitansiHotelName ? (
@@ -1858,11 +1899,16 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   {/* Row 4 */}
                   <div>
                     <div style={{ fontSize: '0.8rem', color: '#64748b', marginBottom: '0.2rem' }}>
-                      Uang Harian ({calculations.hr} Hari{calculations.hrLibur > 0 ? ` + ${calculations.hrLibur} Libur` : ''}):
+                      Uang Harian ({calculations.hr} Hari{calculations.hrLibur > 0 ? ` • Termasuk ${calculations.hrLibur} Libur` : ''}):
                     </div>
                     <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#9333ea' }}>
                       {formatRupiah(calculations.uangHarianTotal + (calculations.hrLbrTotal || 0))}
                     </div>
+                    {calculations.hrLibur > 0 && !formData.tanpaUangHarian && (
+                      <div style={{ fontSize: '0.7rem', color: '#be123c', fontWeight: 600, marginTop: '0.2rem' }}>
+                        *Termasuk bonus +50% hari libur ({formatRupiah(calculations.hrLbrTotal)})
+                      </div>
+                    )}
                   </div>
                 </div>
 

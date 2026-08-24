@@ -24,6 +24,7 @@ import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber, formatRupiah } from '../utils/formatters';
+import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { ModalPortal } from './ModalPortal';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { BukuAgendaPrintModal } from './BukuAgendaPrintModal';
@@ -234,15 +235,9 @@ export const BukuAgendaTable = () => {
     let hrLbr = 0;
     if (item.jumlahHariLibur !== undefined && item.jumlahHariLibur !== '' && !isNaN(Number(item.jumlahHariLibur))) {
       hrLbr = Number(item.jumlahHariLibur);
-    } else if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-      let cur = new Date(start);
-      let countLibur = 0;
-      while (cur <= end) {
-        const day = cur.getDay();
-        if (day === 0 || day === 6) countLibur++;
-        cur.setDate(cur.getDate() + 1);
-      }
-      hrLbr = countLibur;
+    } else {
+      const { count } = countHolidaysAndWeekendsInRange(item.tglMulai, item.tglSelesai);
+      hrLbr = count;
     }
 
     const surveyor = usersList?.find(u => u.name === item.petugas) || {};
