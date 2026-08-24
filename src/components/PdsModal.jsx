@@ -672,16 +672,17 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose}>
+      <div className="modal-overlay" onClick={onClose} style={{ padding: '0.5rem' }}>
         <div
           className="modal-content"
           style={{ 
-            maxWidth: '95vw', 
-            width: '95vw', 
-            height: '95vh',
-            maxHeight: '95vh',
+            maxWidth: '100%', 
+            width: '100%', 
+            height: 'calc(100vh - 1rem)',
+            maxHeight: 'calc(100vh - 1rem)',
             display: 'flex',
-            flexDirection: 'column'
+            flexDirection: 'column',
+            margin: '0'
           }}
           onClick={(e) => e.stopPropagation()}
         >
