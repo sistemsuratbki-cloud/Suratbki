@@ -1172,6 +1172,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                                 onChange={(e) => {
                                   const val = e.target.value;
                                   setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s)));
+                                  // Sync ke formData.noAgenda untuk kapal pertama
+                                  if (idx === 0) {
+                                    setFormData((prev) => ({ ...prev, noAgenda: val }));
+                                  }
                                 }}
                               />
                             </td>
