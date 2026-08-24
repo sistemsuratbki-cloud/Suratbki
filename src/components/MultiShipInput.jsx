@@ -8,7 +8,7 @@ export default function MultiShipInput({
   placeholder = 'Ketik nama kapal lalu tekan Enter atau koma (,)...',
   required = false
 }) {
-  const { suratTugas = [], laporanPerjalanan = [] } = useData();
+  const { suratTugas = [], laporanSurvei = [], masterKapal = [] } = useData();
   const [inputValue, setInputValue] = useState('');
   const [isOpenSuggestions, setIsOpenSuggestions] = useState(false);
   const containerRef = useRef(null);
@@ -26,13 +26,13 @@ export default function MultiShipInput({
     return [];
   }, [value]);
 
-  // Extract unique ship names from existing database for auto-suggestions
+  // Extract unique ship names from masterKapal and existing database for auto-suggestions
   const knownShips = useMemo(() => {
     const list = new Set();
-    // Default common vessels
-    ['KAPUAS BAHARI XXII', 'TB. SAMUDRA 01', 'BG. SAMUDRA 02', 'MV. TANJUNG PURA', 'TB. MITRA JAYA', 'TK. MARITIM 08'].forEach(
-      (v) => list.add(v)
-    );
+
+    (masterKapal || []).forEach((k) => {
+      if (k.namaKapal) list.add(String(k.namaKapal).trim().toUpperCase());
+    });
 
     suratTugas.forEach((st) => {
       if (st.namaKapal) {
@@ -44,7 +44,7 @@ export default function MultiShipInput({
       }
     });
 
-    laporanPerjalanan.forEach((lp) => {
+    (laporanSurvei || []).forEach((lp) => {
       if (lp.namaKapal) {
         lp.namaKapal
           .split(',')
@@ -55,7 +55,7 @@ export default function MultiShipInput({
     });
 
     return Array.from(list);
-  }, [suratTugas, laporanPerjalanan]);
+  }, [masterKapal, suratTugas, laporanSurvei]);
 
   // Filtered suggestions based on user typing
   const filteredSuggestions = useMemo(() => {
