@@ -122,7 +122,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         noCda: defaultSurat?.noCda || '5100010',
         noSo: defaultSurat?.noSo || '',
         noWbs: defaultSurat?.noWbs || '',
-        petugas: defaultSurat?.petugas || currentUser?.name || 'ALFIAN BONE PUTRA',
+        petugas: defaultSurat?.petugas || (role === 'surveyor' ? (currentUser?.name || '') : ((usersList?.filter(u => u.role === 'surveyor')[0]?.name) || 'ALFIAN BONE PUTRA')),
 
         hasil: defaultSurat?.catatan || '',
         status: 'Draf',

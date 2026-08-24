@@ -55,9 +55,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     if (editItem) {
       const editLoc = editItem.lokasi || editItem.tempatSurvey || defaultLocation;
       const initialAgenda = editItem.noAgenda || editItem.agenda || '';
-      const initialPetugas = role === 'surveyor'
+      const initialPetugas = (role === 'surveyor' || role === 'kacab')
         ? (editItem.petugas || currentUser?.name || '')
-        : (editItem.petugas || '');
+        : (editItem.petugas || surveyorUsers[0]?.name || '');
 
       setFormData({
         namaKapal: editItem.namaKapal || '',
@@ -75,9 +75,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
         status: editItem.status || 'Menunggu Survei'
       });
     } else {
-      const defaultSurveyor = role === 'surveyor'
-        ? (currentUser?.name || 'ALFIAN BONE PUTRA')
-        : (currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA');
+      const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
+        ? (currentUser?.name || surveyorUsers[0]?.name || '')
+        : (surveyorUsers[0]?.name || '');
       const todayDate = new Date().toISOString().split('T')[0];
       const initialLoc = defaultLocation || 'WAJOK';
 

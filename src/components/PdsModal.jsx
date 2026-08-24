@@ -203,7 +203,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tembusan: editItem.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
       });
     } else {
-      const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
+      const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
+        ? (currentUser?.name || surveyorUsers[0]?.name || '')
+        : (surveyorUsers[0]?.name || '');
       const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
       const todayDate = new Date().toISOString().split('T')[0];
 

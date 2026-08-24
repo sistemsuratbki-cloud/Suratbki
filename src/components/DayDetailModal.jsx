@@ -225,7 +225,9 @@ export const DayDetailModal = ({
   useEffect(() => {
     if (isOpen && selectedDate) {
       const formatted = selectedDate.includes('T') ? selectedDate.split('T')[0] : selectedDate;
-      const defaultSurveyor = currentUser?.name || surveyorUsers[0]?.name || 'ALFIAN BONE PUTRA';
+      const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
+        ? (currentUser?.name || surveyorUsers[0]?.name || '')
+        : (surveyorUsers[0]?.name || '');
       const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
 
       setFormData((prev) => ({
