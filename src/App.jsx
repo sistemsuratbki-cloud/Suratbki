@@ -17,6 +17,7 @@ import { GradeTariffManagementTable } from './components/GradeTariffManagementTa
 import { SettingsTab } from './components/SettingsTab';
 import { LoginScreen } from './components/LoginScreen';
 import { TvDisplay } from './components/TvDisplay';
+import { ShipDatabaseManagementTable } from './components/ShipDatabaseManagementTable';
 
 function AppContent() {
   const { isAuthenticated, role, logout, usersList } = useAuth();
@@ -121,6 +122,7 @@ function AppContent() {
             </div>
           )}
           {activeTab === 'users' && <UserManagementTable />}
+          {activeTab === 'ship_database' && <ShipDatabaseManagementTable />}
           {activeTab === 'settings' && <SettingsTab />}
         </main>
       </div>

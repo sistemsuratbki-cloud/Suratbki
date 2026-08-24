@@ -24,6 +24,9 @@ import {
   deleteGradeTariffFromCloud,
   fetchAdminSettingsFromCloud,
   saveAdminSettingsToCloud,
+  fetchMasterKapalFromCloud,
+  saveMasterKapalToCloud,
+  deleteMasterKapalFromCloud,
   subscribeToRealtimeChanges
 } from '../lib/supabaseSync';
 
@@ -104,6 +107,11 @@ export const DataProvider = ({ children }) => {
     return saved ? JSON.parse(saved) : INITIAL_GRADE_TARIFFS;
   });
 
+  const [masterKapal, setMasterKapal] = useState(() => {
+    const saved = localStorage.getItem('st_master_kapal');
+    return saved ? JSON.parse(saved) : [];
+  });
+
   const [adminSettings, setAdminSettings] = useState(() => {
     const saved = localStorage.getItem('st_admin_settings');
     const parsed = saved ? JSON.parse(saved) : {};
@@ -122,13 +130,14 @@ export const DataProvider = ({ children }) => {
   // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
   const refreshAllFromCloud = useCallback(async () => {
     try {
-      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings] = await Promise.all([
+      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings, cloudKapal] = await Promise.all([
         fetchSuratTugasFromCloud(),
         fetchKwitansiFromCloud(),
         fetchLaporanFromCloud(),
         fetchTariffsFromCloud(),
         fetchGradeTariffsFromCloud(),
-        fetchAdminSettingsFromCloud()
+        fetchAdminSettingsFromCloud(),
+        fetchMasterKapalFromCloud()
       ]);
 
       if (Array.isArray(cloudSurat) && cloudSurat.length > 0) {
@@ -148,6 +157,9 @@ export const DataProvider = ({ children }) => {
       }
       if (cloudSettings && typeof cloudSettings === 'object') {
         setAdminSettings((prev) => ({ ...prev, ...cloudSettings }));
+      }
+      if (Array.isArray(cloudKapal)) {
+        setMasterKapal(cloudKapal);
       }
     } catch (e) {
       console.warn('Cloud sync load warning:', e);
@@ -190,6 +202,10 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     safeSetLocalStorage('st_grade_tariffs', gradeTariffs);
   }, [gradeTariffs]);
+
+  useEffect(() => {
+    safeSetLocalStorage('st_master_kapal', masterKapal);
+  }, [masterKapal]);
 
   useEffect(() => {
     safeSetLocalStorage('st_admin_settings', adminSettings);
@@ -393,6 +409,41 @@ export const DataProvider = ({ children }) => {
     localStorage.setItem('st_grade_tariffs', JSON.stringify(INITIAL_GRADE_TARIFFS));
   };
 
+  // ====== CRUD MASTER KAPAL ======
+  const addMasterKapal = (data) => {
+    const newKapal = {
+      id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`,
+      namaKapal: (data.namaKapal || '').trim().toUpperCase(),
+      noAgenda:  (data.noAgenda  || '').trim(),
+      createdAt: new Date().toISOString()
+    };
+    setMasterKapal((prev) => [...prev, newKapal]);
+    saveMasterKapalToCloud(newKapal);
+    return newKapal;
+  };
+
+  const updateMasterKapal = (id, updatedData) => {
+    setMasterKapal((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          const updated = {
+            ...item,
+            namaKapal: (updatedData.namaKapal || item.namaKapal).trim().toUpperCase(),
+            noAgenda:  (updatedData.noAgenda  !== undefined ? updatedData.noAgenda : item.noAgenda).trim()
+          };
+          saveMasterKapalToCloud(updated);
+          return updated;
+        }
+        return item;
+      })
+    );
+  };
+
+  const deleteMasterKapal = (id) => {
+    setMasterKapal((prev) => prev.filter((item) => item.id !== id));
+    deleteMasterKapalFromCloud(id);
+  };
+
   // ====== 1. ADMIN INPUT SPS (Batch or Single Ship) ======
   const addSpsBatch = (baseData) => {
     console.log('[DataContext] addSpsBatch received baseData:', baseData);
@@ -455,6 +506,27 @@ export const DataProvider = ({ children }) => {
 
       saveSuratTugasToCloud(item);
       return item;
+    });
+
+    // Auto-sync new ships to masterKapal
+    shipEntries.forEach((s) => {
+      const shipName = s.namaKapal.trim().toUpperCase();
+      if (shipName) {
+        setMasterKapal((prev) => {
+          const exists = prev.some((k) => (k.namaKapal || '').trim().toUpperCase() === shipName);
+          if (!exists) {
+            const newKapal = {
+              id: `kapal-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 9000 + 1000)}`,
+              namaKapal: shipName,
+              noAgenda: s.noAgenda || '',
+              createdAt: new Date().toISOString()
+            };
+            saveMasterKapalToCloud(newKapal);
+            return [...prev, newKapal];
+          }
+          return prev;
+        });
+      }
     });
 
     setSuratTugas((prev) => [...createdSpsItems, ...prev]);
@@ -1027,6 +1099,7 @@ export const DataProvider = ({ children }) => {
         laporanSurvei,
         tariffs,
         gradeTariffs,
+        masterKapal,
         adminSettings,
         updateAdminSettings,
         addTariff,
@@ -1037,6 +1110,9 @@ export const DataProvider = ({ children }) => {
         updateGradeTariff,
         deleteGradeTariff,
         resetGradeTariffs,
+        addMasterKapal,
+        updateMasterKapal,
+        deleteMasterKapal,
         addSpsBatch,
         createPdsFromSurvey,
         addSuratTugas,

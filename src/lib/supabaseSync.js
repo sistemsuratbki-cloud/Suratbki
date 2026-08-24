@@ -417,7 +417,55 @@ export const deleteUserFromCloud = async (id) => {
 };
 
 // ==============================================================================
-// 8. REALTIME — per-tabel, callback spesifik per tabel
+// 8. MASTER KAPAL
+// ==============================================================================
+
+export const fetchMasterKapalFromCloud = async () => {
+  if (!supabase) return null;
+  return withRetry(async () => {
+    const { data, error } = await supabase
+      .from('master_kapal')
+      .select('*')
+      .order('created_at', { ascending: true });
+    if (error) { console.warn('[DB] fetch master_kapal:', error.message); return null; }
+    return (data || []).map((row) => {
+      const raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
+      return {
+        id:        row.id        || raw.id,
+        namaKapal: row.nama_kapal || raw.namaKapal || '',
+        noAgenda:  row.no_agenda  || raw.noAgenda  || '',
+        createdAt: row.created_at || raw.createdAt || null,
+      };
+    });
+  }).catch(() => null);
+};
+
+export const saveMasterKapalToCloud = async (item) => {
+  if (!supabase || !item?.id) return;
+  const payload = {
+    id:         String(item.id),
+    nama_kapal: item.namaKapal || '',
+    no_agenda:  item.noAgenda  || '',
+    raw_data:   item,
+  };
+  return withRetry(async () => {
+    const { error } = await supabase
+      .from('master_kapal')
+      .upsert(payload, { onConflict: 'id' });
+    if (error) console.warn('[DB] save master_kapal:', error.message);
+  }).catch((e) => console.warn('[DB] save master_kapal retry failed:', e.message));
+};
+
+export const deleteMasterKapalFromCloud = async (id) => {
+  if (!supabase || !id) return;
+  return withRetry(async () => {
+    const { error } = await supabase.from('master_kapal').delete().eq('id', String(id));
+    if (error) console.warn('[DB] delete master_kapal:', error.message);
+  }).catch(() => {});
+};
+
+// ==============================================================================
+// 9. REALTIME — per-tabel, callback spesifik per tabel
 // ==============================================================================
 
 /**
@@ -425,7 +473,7 @@ export const deleteUserFromCloud = async (id) => {
  * Menerima object callbacks per tabel:
  * {
  *   onSuratTugas, onKwitansi, onLaporan,
- *   onTariffs, onGradeTariffs, onAdminSettings, onUsers
+ *   onTariffs, onGradeTariffs, onAdminSettings, onUsers, onMasterKapal
  * }
  * Masing-masing dipanggil dengan (eventType, newRow, oldRow).
  * Jika hanya ingin satu callback global, gunakan onAny.
@@ -441,6 +489,7 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
     onGradeTariffs,
     onAdminSettings,
     onUsers,
+    onMasterKapal,
     onAny,
   } = callbacks;
 
@@ -466,6 +515,8 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
         handle('admin_settings', onAdminSettings))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'users' },
         handle('users', onUsers))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'master_kapal' },
+        handle('master_kapal', onMasterKapal))
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         console.log('[Realtime] Connected ✓');
@@ -478,3 +529,4 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
     supabase.removeChannel(channel);
   };
 };
+

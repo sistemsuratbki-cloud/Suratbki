@@ -26,7 +26,8 @@ import {
   Check,
   Lock,
   Unlock,
-  Eye
+  Eye,
+  Pencil
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
@@ -44,7 +45,7 @@ import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
 export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
-  const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs } = useData();
+  const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs, masterKapal, updateMasterKapal } = useData();
   const { usersList, currentUser, role } = useAuth();
 
   const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
@@ -1189,56 +1190,101 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                         </tr>
                       </thead>
                       <tbody>
-                        {shipsDetail.map((sh, idx) => (
-                          <tr key={sh.spsId || idx}>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>{idx + 1}</td>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', fontWeight: 800 }}>{sh.namaKapal}</td>
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>
-                              <input
-                                type="text"
-                                className="form-input"
-                                style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '28px', fontWeight: 700, color: 'var(--accent-primary)', maxWidth: '140px' }}
-                                value={sh.noAgenda || ''}
-                                placeholder="No. Agenda..."
-                                onChange={(e) => {
-                                  const val = e.target.value;
-                                  const updated = shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s));
-                                  setShipsDetail(updated);
-                                  if (idx === 0) {
-                                    setFormData((prev) => ({ ...prev, noAgenda: val, agenda: val }));
-                                  }
-                                }}
-                              />
-                            </td>
-                            {shipsDetail.length > 1 && (
-                              <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>
-                                <input
-                                  type="number"
-                                  min="0"
-                                  className="form-input"
-                                  style={{ padding: '0.15rem 0.4rem', fontSize: '0.8rem', height: '28px', fontWeight: 800, color: '#0284c7' }}
-                                  value={sh.biayaSurvei !== undefined ? sh.biayaSurvei : ''}
-                                  placeholder="0"
-                                  onChange={(e) => {
-                                    const val = Number(e.target.value) || 0;
-                                    setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, biayaSurvei: val } : s)));
-                                  }}
-                                />
-                              </td>
-                            )}
-                            <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', textAlign: 'center' }}>
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-icon btn-sm"
-                                style={{ padding: '2px 6px' }}
-                                onClick={() => handleRemoveShipFromDetail(sh.namaKapal)}
-                                title="Hapus kapal ini dari daftar"
-                              >
-                                <Trash2 size={13} />
-                              </button>
-                            </td>
-                          </tr>
-                        ))}
+                        {(() => {
+                          const ShipRow = ({ sh, idx }) => {
+                            const [editingNamaKapal, setEditingNamaKapal] = React.useState(false);
+                            const [editNamaKapalVal, setEditNamaKapalVal] = React.useState(sh.namaKapal || '');
+                            const saveEdit = (val) => {
+                              const trimmed = val.trim().toUpperCase();
+                              const updated = shipsDetail.map((s, i) => i === idx ? { ...s, namaKapal: trimmed } : s);
+                              setShipsDetail(updated);
+                              const mk = (masterKapal || []).find(k => k.namaKapal === sh.namaKapal);
+                              if (mk && updateMasterKapal) updateMasterKapal(mk.id, { namaKapal: trimmed, noAgenda: sh.noAgenda || mk.noAgenda });
+                              setEditingNamaKapal(false);
+                            };
+                            return (
+                              <tr key={sh.spsId || idx}>
+                                <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>{idx + 1}</td>
+                                <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', fontWeight: 800 }}>
+                                  {editingNamaKapal ? (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                      <input
+                                        type="text"
+                                        className="form-input"
+                                        autoFocus
+                                        style={{ padding: '0.15rem 0.4rem', fontSize: '0.82rem', height: '28px', fontWeight: 700, maxWidth: '180px', textTransform: 'uppercase' }}
+                                        value={editNamaKapalVal}
+                                        onChange={(e) => setEditNamaKapalVal(e.target.value.toUpperCase())}
+                                        onKeyDown={(e) => {
+                                          if (e.key === 'Enter') saveEdit(editNamaKapalVal);
+                                          if (e.key === 'Escape') setEditingNamaKapal(false);
+                                        }}
+                                      />
+                                      <button type="button" onClick={() => saveEdit(editNamaKapalVal)} style={{ background: '#10b981', color: '#fff', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                        ✓
+                                      </button>
+                                      <button type="button" onClick={() => setEditingNamaKapal(false)} style={{ background: '#e2e8f0', color: '#334155', border: 'none', borderRadius: '4px', padding: '2px 6px', cursor: 'pointer', fontSize: '0.72rem' }}>
+                                        ✕
+                                      </button>
+                                    </div>
+                                  ) : (
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                                      <span>{sh.namaKapal}</span>
+                                      <button type="button" onClick={() => { setEditNamaKapalVal(sh.namaKapal || ''); setEditingNamaKapal(true); }}
+                                        style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '2px', color: '#94a3b8', display: 'inline-flex' }}
+                                        title="Edit nama kapal">
+                                        <Pencil size={12} />
+                                      </button>
+                                    </div>
+                                  )}
+                                </td>
+                                <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>
+                                  <input
+                                    type="text"
+                                    className="form-input"
+                                    style={{ padding: '0.15rem 0.4rem', fontSize: '0.78rem', height: '28px', fontWeight: 700, color: 'var(--accent-primary)', maxWidth: '140px' }}
+                                    value={sh.noAgenda || ''}
+                                    placeholder="No. Agenda..."
+                                    onChange={(e) => {
+                                      const val = e.target.value;
+                                      const updated = shipsDetail.map((s, i) => (i === idx ? { ...s, noAgenda: val } : s));
+                                      setShipsDetail(updated);
+                                      if (idx === 0) setFormData((prev) => ({ ...prev, noAgenda: val, agenda: val }));
+                                    }}
+                                  />
+                                </td>
+                                {shipsDetail.length > 1 && (
+                                  <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      className="form-input"
+                                      style={{ padding: '0.15rem 0.4rem', fontSize: '0.8rem', height: '28px', fontWeight: 800, color: '#0284c7' }}
+                                      value={sh.biayaSurvei !== undefined ? sh.biayaSurvei : ''}
+                                      placeholder="0"
+                                      onChange={(e) => {
+                                        const val = Number(e.target.value) || 0;
+                                        setShipsDetail(shipsDetail.map((s, i) => (i === idx ? { ...s, biayaSurvei: val } : s)));
+                                      }}
+                                    />
+                                  </td>
+                                )}
+                                <td style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)', textAlign: 'center' }}>
+                                  <button
+                                    type="button"
+                                    className="btn btn-danger btn-icon btn-sm"
+                                    style={{ padding: '2px 6px' }}
+                                    onClick={() => handleRemoveShipFromDetail(sh.namaKapal)}
+                                    title="Hapus kapal ini dari daftar"
+                                  >
+                                    <Trash2 size={13} />
+                                  </button>
+                                </td>
+                              </tr>
+                            );
+                          };
+                          return shipsDetail.map((sh, idx) => <ShipRow key={sh.spsId || idx} sh={sh} idx={idx} />);
+                        })()}
                       </tbody>
                     </table>
 

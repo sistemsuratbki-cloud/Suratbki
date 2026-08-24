@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass, Monitor, ChevronDown, ChevronUp } from 'lucide-react';
+import { LayoutDashboard, FileCheck, Receipt, BarChart2, Users, Settings, LogOut, Compass, Monitor, ChevronDown, ChevronUp, Anchor } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { filterDataByRole } from '../utils/filterData';
@@ -129,6 +129,13 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       icon: Users,
       badge: usersList ? usersList.length : null,
       badgeColor: '#1e3a8a'
+    });
+
+    menuItems.push({
+      id: 'ship_database',
+      label: 'Database Kapal',
+      icon: Anchor,
+      badge: null
     });
   }
 
