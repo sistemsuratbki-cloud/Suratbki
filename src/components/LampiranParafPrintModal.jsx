@@ -82,18 +82,33 @@ export const LampiranParafPrintModal = ({
               }}
             >
               {/* Document Title Header with Logo */}
-              <div style={{ position: 'relative', marginBottom: '2rem', marginTop: '1rem' }}>
+              <div style={{ position: 'relative', marginBottom: '2rem', marginTop: '1rem', minHeight: '90px' }}>
                 {/* Logo BKI - Positioned at top right */}
-                <div style={{ position: 'absolute', top: '-0.5rem', right: '0', width: '80px', height: '80px' }}>
+                <div style={{ 
+                  position: 'absolute', 
+                  top: '0', 
+                  right: '20px', 
+                  width: '100px', 
+                  height: '100px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center'
+                }}>
                   <img 
                     src={bkiLogo} 
                     alt="Logo BKI" 
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                    style={{ 
+                      width: '100px', 
+                      height: 'auto',
+                      maxHeight: '100px',
+                      objectFit: 'contain',
+                      display: 'block'
+                    }}
                   />
                 </div>
 
                 {/* Title Text - Centered */}
-                <div style={{ textAlign: 'center', textTransform: 'uppercase', paddingTop: '0.5rem' }}>
+                <div style={{ textAlign: 'center', textTransform: 'uppercase', paddingTop: '0.5rem', paddingRight: '120px' }}>
                   <div style={{ fontSize: '12pt', fontWeight: 'bold', letterSpacing: '0.03em' }}>
                     LAMPIRAN PERMOHONAN PARAF PADA SURAT PENUGASAN
                   </div>
@@ -208,7 +223,15 @@ export const LampiranParafPrintModal = ({
               .printable-sheet { padding: 0 !important; margin: 0 !important; width: 100% !important; max-width: 100% !important; box-sizing: border-box !important; }
               table { width: 100% !important; max-width: 100% !important; table-layout: fixed !important; border-collapse: collapse !important; border: 1.5px solid #000000 !important; box-sizing: border-box !important; }
               th, td { border: 1px solid #000000 !important; box-sizing: border-box !important; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
-              img { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+              img { 
+                -webkit-print-color-adjust: exact !important; 
+                print-color-adjust: exact !important; 
+                display: block !important;
+                opacity: 1 !important;
+              }
+            }
+            @media screen {
+              img { display: block; }
             }
           `}</style>
 
