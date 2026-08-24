@@ -8,8 +8,8 @@ import { isEditWindowExpired, formatRupiah, cleanDocNumber, formatDateIndo } fro
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiShipInput from './MultiShipInput';
-import MultiSurveySelect from './MultiSurveySelect';
 import MultiPhotoUpload from './MultiPhotoUpload';
+import { MultiDocUpload } from './MultiDocUpload';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
 export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTugas = null }) => {
@@ -725,66 +725,18 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       <Plane size={16} color="#7c3aed" />
                       <span>3. Upload Tiket Transport (Maks. 3 MB)</span>
                     </label>
-                    {isAdmin ? (
-                      formData.fileTiketTransportName || formData.fileTiketTransportData ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Check size={13} color="#059669" /> Tiket transport terlampir
-                          </span>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Bukti Tiket Transportasi',
-                              fileData: formData.fileTiketTransportData || formData.fileTiketTransportName,
-                              fileName: formData.fileTiketTransportName || 'Bukti_Tiket_Transportasi'
-                            })}
-                          >
-                            <Eye size={12} />
-                            <span>Cek Lampiran</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                          Belum ada lampiran dari surveyor
-                        </div>
-                      )
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="form-input"
-                          onChange={(e) => handleFileUpload('fileTiketTransportName', e)}
-                          style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                        />
-                        {formData.fileTiketTransportName && (
-                          <div style={{ fontSize: '0.75rem', color: '#7c3aed', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(124, 58, 237, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>✈️ {formData.fileTiketTransportName}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                                onClick={() => setPreviewAttachment({
-                                  isOpen: true,
-                                  title: 'Bukti Tiket Transportasi',
-                                  fileData: formData.fileTiketTransportData || formData.fileTiketTransportName,
-                                  fileName: formData.fileTiketTransportName || 'Bukti_Tiket_Transportasi'
-                                })}
-                              >
-                                <Eye size={11} /> Cek
-                              </button>
-                              <button type="button" onClick={() => handleRemoveFile('fileTiketTransportName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                                <X size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    <MultiDocUpload
+                      value={formData.fileTiketTransportData || formData.fileTiketTransportName}
+                      onChange={(val) => setFormData((prev) => ({ ...prev, fileTiketTransportName: val, fileTiketTransportData: val }))}
+                      onPreview={setPreviewAttachment}
+                      title="Bukti Tiket Transportasi"
+                      label="Tiket Transport"
+                      icon={Plane}
+                      color="#7c3aed"
+                      isAdmin={isAdmin}
+                      bucketName="lampiran"
+                      maxFileSize={3 * 1024 * 1024}
+                    />
                   </div>
 
                   {/* 4. Kwitansi Hotel */}
@@ -793,66 +745,18 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       <Receipt size={16} color="#d97706" />
                       <span>4. Kwitansi Hotel (Maks. 3 MB)</span>
                     </label>
-                    {isAdmin ? (
-                      formData.fileKwitansiHotelName || formData.fileKwitansiHotelData ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Check size={13} color="#059669" /> Kwitansi hotel terlampir
-                          </span>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Bukti Kwitansi Hotel / Penginapan',
-                              fileData: formData.fileKwitansiHotelData || formData.fileKwitansiHotelName,
-                              fileName: formData.fileKwitansiHotelName || 'Kwitansi_Hotel'
-                            })}
-                          >
-                            <Eye size={12} />
-                            <span>Cek Lampiran</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                          Belum ada lampiran dari surveyor
-                        </div>
-                      )
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="form-input"
-                          onChange={(e) => handleFileUpload('fileKwitansiHotelName', e)}
-                          style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                        />
-                        {formData.fileKwitansiHotelName && (
-                          <div style={{ fontSize: '0.75rem', color: '#d97706', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(217, 119, 6, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏨 {formData.fileKwitansiHotelName}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                                onClick={() => setPreviewAttachment({
-                                  isOpen: true,
-                                  title: 'Bukti Kwitansi Hotel / Penginapan',
-                                  fileData: formData.fileKwitansiHotelData || formData.fileKwitansiHotelName,
-                                  fileName: formData.fileKwitansiHotelName || 'Kwitansi_Hotel'
-                                })}
-                              >
-                                <Eye size={11} /> Cek
-                              </button>
-                              <button type="button" onClick={() => handleRemoveFile('fileKwitansiHotelName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                                <X size={13} />
-                              </button>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
+                    <MultiDocUpload
+                      value={formData.fileKwitansiHotelData || formData.fileKwitansiHotelName}
+                      onChange={(val) => setFormData((prev) => ({ ...prev, fileKwitansiHotelName: val, fileKwitansiHotelData: val }))}
+                      onPreview={setPreviewAttachment}
+                      title="Bukti Kwitansi Hotel / Penginapan"
+                      label="Kwitansi Hotel"
+                      icon={Receipt}
+                      color="#d97706"
+                      isAdmin={isAdmin}
+                      bucketName="lampiran"
+                      maxFileSize={3 * 1024 * 1024}
+                    />
                   </div>
                 </div>
               </div>

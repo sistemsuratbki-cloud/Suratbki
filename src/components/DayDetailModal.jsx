@@ -55,6 +55,7 @@ import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import { extractShipDatabase } from '../utils/shipDatabase';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
+import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
 export const DayDetailModal = ({
@@ -2005,149 +2006,57 @@ export const DayDetailModal = ({
                       </span>
                     </div>
 
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
-                      Bukti Tiket / Boarding Pass (Maks. 3 MB):
-                    </div>
-                    {isAdmin ? (
-                      formData.fileTiketTransportName ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Check size={13} color="#059669" /> Bukti tiket terlampir
-                          </span>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Bukti Tiket Transportasi / Boarding Pass',
-                              fileData: formData.fileTiketTransportName,
-                              fileName: 'Bukti_Tiket_Transportasi'
-                            })}
-                          >
-                            <Eye size={12} />
-                            <span>Cek Lampiran</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                          Belum ada lampiran dari surveyor
-                        </div>
-                      )
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          className="form-input"
-                          accept="image/*,.pdf"
-                          onChange={(e) => handleFileUpload(e, 'tiketTransport')}
-                          style={{ fontSize: '0.75rem' }}
-                        />
-                        {formData.fileTiketTransportName && (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-                            <span style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ Bukti tiket terlampir</span>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                              onClick={() => setPreviewAttachment({
-                                isOpen: true,
-                                title: 'Bukti Tiket Transportasi / Boarding Pass',
-                                fileData: formData.fileTiketTransportName,
-                                fileName: 'Bukti_Tiket_Transportasi'
-                              })}
-                            >
-                              <Eye size={11} /> Cek
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-
-                  {/* Hotel / Penginapan */}
-                  <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Receipt size={15} color="var(--accent-primary)" />
-                      <span>Biaya Hotel / Penginapan (Rp) /malam</span>
-                    </label>
-                    <input
-                      type="number"
-                      min="0"
-                      className="form-input"
-                      placeholder="0"
-                      value={formData.tiketHotel || ''}
-                      onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
-                      style={{ fontWeight: 700, marginBottom: '0.35rem' }}
+                    <MultiDocUpload
+                      value={formData.fileTiketTransportName}
+                      onChange={(val) => setFormData((prev) => ({ ...prev, fileTiketTransportName: val }))}
+                      onPreview={setPreviewAttachment}
+                      title="Bukti Tiket Transportasi / Boarding Pass"
+                      label="Tiket Pesawat / Transport"
+                      icon={Plane}
+                      color="#0284c7"
+                      isAdmin={isAdmin}
+                      bucketName="surat-tugas"
+                      maxFileSize={3 * 1024 * 1024}
                     />
-                    {/* Format Rupiah Preview */}
-                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(5, 150, 105, 0.08)', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.18)', marginBottom: '0.5rem' }}>
-                      <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
-                      <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 800 }}>
-                        {formatRupiah(Number(formData.tiketHotel) || 0)}
-                      </span>
-                    </div>
-
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.3rem' }}>
-                      Unggah Kwitansi Hotel / Penginapan (Maks. 3 MB):
-                    </div>
-                    {isAdmin ? (
-                      formData.fileKwitansiHotelName ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Check size={13} color="#059669" /> Kwitansi hotel terlampir
-                          </span>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Bukti Kwitansi Hotel / Penginapan',
-                              fileData: formData.fileKwitansiHotelName,
-                              fileName: 'Kwitansi_Hotel'
-                            })}
-                          >
-                            <Eye size={12} />
-                            <span>Cek Lampiran</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                          Belum ada lampiran dari surveyor
-                        </div>
-                      )
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          className="form-input"
-                          accept="image/*,.pdf"
-                          onChange={(e) => handleFileUpload(e, 'kwitansiHotel')}
-                          style={{ fontSize: '0.75rem' }}
-                        />
-                        {formData.fileKwitansiHotelName && (
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.25rem' }}>
-                            <span style={{ fontSize: '0.72rem', color: '#10b981' }}>✓ Kwitansi hotel terlampir</span>
-                            <button
-                              type="button"
-                              className="btn btn-secondary btn-sm"
-                              style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                              onClick={() => setPreviewAttachment({
-                                isOpen: true,
-                                title: 'Bukti Kwitansi Hotel / Penginapan',
-                                fileData: formData.fileKwitansiHotelName,
-                                fileName: 'Kwitansi_Hotel'
-                              })}
-                            >
-                              <Eye size={11} /> Cek
-                            </button>
-                          </div>
-                        )}
-                      </>
-                    )}
                   </div>
+
+                {/* Hotel / Penginapan */}
+                <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
+                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <Receipt size={15} color="var(--accent-primary)" />
+                    <span>Biaya Hotel / Penginapan (Rp) /malam</span>
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    className="form-input"
+                    placeholder="0"
+                    value={formData.tiketHotel || ''}
+                    onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
+                    style={{ fontWeight: 700, marginBottom: '0.35rem' }}
+                  />
+                  {/* Format Rupiah Preview */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(5, 150, 105, 0.08)', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.18)', marginBottom: '0.6rem' }}>
+                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
+                    <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 800 }}>
+                      {formatRupiah(Number(formData.tiketHotel) || 0)}
+                    </span>
+                  </div>
+
+                  <MultiDocUpload
+                    value={formData.fileKwitansiHotelName}
+                    onChange={(val) => setFormData((prev) => ({ ...prev, fileKwitansiHotelName: val }))}
+                    onPreview={setPreviewAttachment}
+                    title="Bukti Kwitansi Hotel / Penginapan"
+                    label="Kwitansi Hotel"
+                    icon={Receipt}
+                    color="#059669"
+                    isAdmin={isAdmin}
+                    bucketName="surat-tugas"
+                    maxFileSize={3 * 1024 * 1024}
+                  />
                 </div>
+              </div>
 
                 {/* Section 5: Kalkulasi Otomatis Biaya Lokasi & Honorarium */}
                 <div

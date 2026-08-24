@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Calculator, Maximize2, Minimize2 } from 'lucide-react';
+import { X, Printer, Calculator, Maximize2, Minimize2, Monitor, Smartphone } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
@@ -17,6 +17,12 @@ export const BiayaPdsPrintModal = ({
   const [withSignature, setWithSignature] = useState(true);
   const [isFitToScreen, setIsFitToScreen] = useState(true);
   const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1024);
+  const [printMode, setPrintMode] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return (window.innerWidth <= 768 || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)) ? 'mobile' : 'windows';
+    }
+    return 'windows';
+  });
 
   useEffect(() => {
     const handleResize = () => setWindowWidth(window.innerWidth);
@@ -190,12 +196,58 @@ export const BiayaPdsPrintModal = ({
               </div>
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexShrink: 0 }}>
+              {/* Mode Cetak Switcher: Windows vs Mobile */}
+              <div style={{ display: 'inline-flex', background: '#f1f5f9', padding: '2px', borderRadius: '6px', border: '1px solid #cbd5e1' }}>
+                <button
+                  type="button"
+                  onClick={() => setPrintMode('windows')}
+                  style={{
+                    border: 'none',
+                    background: printMode === 'windows' ? '#003366' : 'transparent',
+                    color: printMode === 'windows' ? '#ffffff' : '#475569',
+                    padding: isMobileScreen ? '0.25rem 0.45rem' : '0.3rem 0.6rem',
+                    borderRadius: '4px',
+                    fontSize: isMobileScreen ? '0.68rem' : '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}
+                  title="Format Cetak Windows / Desktop PC (Standar Rapi)"
+                >
+                  <Monitor size={12} />
+                  <span>Windows</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setPrintMode('mobile')}
+                  style={{
+                    border: 'none',
+                    background: printMode === 'mobile' ? '#0284c7' : 'transparent',
+                    color: printMode === 'mobile' ? '#ffffff' : '#475569',
+                    padding: isMobileScreen ? '0.25rem 0.45rem' : '0.3rem 0.6rem',
+                    borderRadius: '4px',
+                    fontSize: isMobileScreen ? '0.68rem' : '0.72rem',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '3px'
+                  }}
+                  title="Format Cetak Mobile / HP"
+                >
+                  <Smartphone size={12} />
+                  <span>Mobile</span>
+                </button>
+              </div>
+
               {/* Zoom Mode Toggle */}
               <button
                 type="button"
                 className={`btn btn-sm ${isFitToScreen ? 'btn-outline-primary' : 'btn-primary'}`}
                 onClick={() => setIsFitToScreen(!isFitToScreen)}
-                style={{ fontSize: isMobileScreen ? '0.72rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.3rem 0.5rem' : '0.35rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
+                style={{ fontSize: isMobileScreen ? '0.7rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.25rem 0.45rem' : '0.35rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
                 title={isFitToScreen ? 'Perbesar ke ukuran penuh (100%)' : 'Kecilkan agar pas layar'}
               >
                 {isFitToScreen ? <Maximize2 size={13} /> : <Minimize2 size={13} />}
@@ -207,12 +259,12 @@ export const BiayaPdsPrintModal = ({
                 type="button"
                 className={`btn btn-sm ${withSignature ? 'btn-primary' : 'btn-secondary'}`}
                 onClick={() => setWithSignature(!withSignature)}
-                style={{ fontSize: isMobileScreen ? '0.72rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.3rem 0.5rem' : '0.35rem 0.75rem' }}
+                style={{ fontSize: isMobileScreen ? '0.7rem' : '0.75rem', fontWeight: 700, padding: isMobileScreen ? '0.25rem 0.45rem' : '0.35rem 0.75rem' }}
               >
                 {withSignature ? '✍️ Dgn TTD' : '📄 Tanpa TTD'}
               </button>
 
-              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup" style={{ padding: isMobileScreen ? '0.3rem 0.45rem' : '0.35rem 0.6rem' }}>
+              <button className="btn btn-secondary btn-sm" onClick={onClose} title="Tutup" style={{ padding: isMobileScreen ? '0.25rem 0.45rem' : '0.35rem 0.6rem' }}>
                 <X size={16} />
               </button>
             </div>
@@ -574,7 +626,10 @@ export const BiayaPdsPrintModal = ({
             }
 
             @media print {
-              @page { size: A4 landscape !important; margin: 16mm 10mm 8mm 10mm !important; }
+              @page { 
+                size: A4 landscape !important; 
+                margin: ${printMode === 'mobile' ? '4mm 6mm 4mm 6mm' : '16mm 10mm 8mm 10mm'} !important; 
+              }
               body { background: #ffffff !important; color: #000000 !important; }
               .no-print, .guidance-banner { display: none !important; }
               .modal-overlay { position: static !important; background: transparent !important; padding: 0 !important; }
@@ -583,7 +638,7 @@ export const BiayaPdsPrintModal = ({
               .modal-body { padding: 0 !important; overflow: visible !important; }
               .printable-sheet-wrapper { display: block !important; width: 100% !important; overflow: visible !important; }
               .printable-sheet { 
-                padding: 6px 0 0 0 !important; 
+                padding: ${printMode === 'mobile' ? '4px 0 0 0' : '6px 0 0 0'} !important; 
                 width: 100% !important; 
                 min-width: 0 !important; 
                 zoom: 1 !important; 

@@ -23,7 +23,7 @@ import {
 import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { formatDateIndo, cleanDocNumber, formatRupiah } from '../utils/formatters';
+import { formatDateIndo, cleanDocNumber, formatRupiah, parseAttachmentFiles } from '../utils/formatters';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { ModalPortal } from './ModalPortal';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
@@ -134,22 +134,36 @@ export const BukuAgendaTable = () => {
     }
 
     // General travel attachments
-    if (pds.fileTiketTransportData || pds.fileTiketTransportName || pds.fileTiketName) {
-      generalAttachments.push({
-        type: 'tiket',
-        label: 'Bukti Tiket Transportasi (Pesawat/Taxi/BBM)',
-        fileName: pds.fileTiketTransportName || pds.fileTiketName || 'Tiket_Transport',
-        fileData: pds.fileTiketTransportData || pds.fileTiketTransportName || pds.fileTiketName
-      });
+    const rawTiket = pds.fileTiketTransportData || pds.fileTiketTransportName || pds.fileTiketName;
+    if (rawTiket) {
+      const parsedTiket = parseAttachmentFiles(rawTiket, 'Tiket_Transport');
+      if (parsedTiket.length > 0) {
+        parsedTiket.forEach((t, tIdx) => {
+          generalAttachments.push({
+            type: 'tiket',
+            label: parsedTiket.length > 1 ? `Bukti Tiket Transportasi #${tIdx + 1}` : 'Bukti Tiket Transportasi (Pesawat/Taxi/BBM)',
+            fileName: t.name || 'Tiket_Transport',
+            fileData: t.url || t.data,
+            files: parsedTiket
+          });
+        });
+      }
     }
 
-    if (pds.fileKwitansiHotelData || pds.fileKwitansiHotelName) {
-      generalAttachments.push({
-        type: 'hotel',
-        label: 'Bukti Kwitansi Hotel / Penginapan',
-        fileName: pds.fileKwitansiHotelName || 'Kwitansi_Hotel',
-        fileData: pds.fileKwitansiHotelData || pds.fileKwitansiHotelName
-      });
+    const rawHotel = pds.fileKwitansiHotelData || pds.fileKwitansiHotelName;
+    if (rawHotel) {
+      const parsedHotel = parseAttachmentFiles(rawHotel, 'Kwitansi_Hotel');
+      if (parsedHotel.length > 0) {
+        parsedHotel.forEach((h, hIdx) => {
+          generalAttachments.push({
+            type: 'hotel',
+            label: parsedHotel.length > 1 ? `Bukti Kwitansi Hotel #${hIdx + 1}` : 'Bukti Kwitansi Hotel / Penginapan',
+            fileName: h.name || 'Kwitansi_Hotel',
+            fileData: h.url || h.data,
+            files: parsedHotel
+          });
+        });
+      }
     }
 
     if (Array.isArray(pds.fotoList) && pds.fotoList.length > 0) {

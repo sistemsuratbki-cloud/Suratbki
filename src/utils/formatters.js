@@ -113,3 +113,69 @@ export const terbilang = (angka) => {
   
   return result.trim();
 };
+
+export const parseAttachmentFiles = (fileDataOrName, fallbackName = 'Lampiran') => {
+  if (!fileDataOrName) return [];
+  if (Array.isArray(fileDataOrName)) {
+    return fileDataOrName.filter(Boolean).map((f, idx) => {
+      if (typeof f === 'string') {
+        const cleanStr = f.split('?')[0];
+        const decoded = decodeURIComponent(cleanStr.split('/').pop() || `${fallbackName}_${idx + 1}`);
+        return { name: decoded, url: f, data: f };
+      }
+      return {
+        name: f.name || `${fallbackName}_${idx + 1}`,
+        url: f.url || f.data || '',
+        data: f.data || f.url || ''
+      };
+    });
+  }
+  if (typeof fileDataOrName === 'string') {
+    const trimmed = fileDataOrName.trim();
+    if (!trimmed) return [];
+    if (trimmed.startsWith('[') && trimmed.endsWith(']')) {
+      try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) {
+          return parsed.filter(Boolean).map((f, idx) => {
+            if (typeof f === 'string') {
+              const cleanStr = f.split('?')[0];
+              const decoded = decodeURIComponent(cleanStr.split('/').pop() || `${fallbackName}_${idx + 1}`);
+              return { name: decoded, url: f, data: f };
+            }
+            return {
+              name: f.name || `${fallbackName}_${idx + 1}`,
+              url: f.url || f.data || '',
+              data: f.data || f.url || ''
+            };
+          });
+        }
+      } catch (e) {
+        // Fallback to string
+      }
+    }
+    if (trimmed.includes('|||')) {
+      const parts = trimmed.split('|||').map(p => p.trim()).filter(Boolean);
+      return parts.map((part, idx) => ({
+        name: `${fallbackName}_${idx + 1}`,
+        url: part,
+        data: part
+      }));
+    }
+    const cleanStr = trimmed.split('?')[0];
+    const decoded = decodeURIComponent(cleanStr.split('/').pop() || fallbackName);
+    return [{ name: decoded, url: trimmed, data: trimmed }];
+  }
+  return [];
+};
+
+export const serializeAttachmentFiles = (files) => {
+  if (!Array.isArray(files) || files.length === 0) return '';
+  const cleanFiles = files.filter(f => f && (f.url || f.data || f.name));
+  if (cleanFiles.length === 0) return '';
+  if (cleanFiles.length === 1) {
+    return cleanFiles[0].url || cleanFiles[0].data || cleanFiles[0].name || '';
+  }
+  return JSON.stringify(cleanFiles);
+};
+
