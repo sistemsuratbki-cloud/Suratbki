@@ -672,17 +672,25 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
   return (
     <ModalPortal>
-      <div className="modal-overlay" onClick={onClose} style={{ padding: '0.5rem' }}>
+      <div 
+        className="modal-overlay" 
+        onClick={onClose} 
+        style={{ 
+          padding: '0.5rem',
+          alignItems: 'flex-start',
+          paddingTop: '2vh'
+        }}
+      >
         <div
           className="modal-content"
           style={{ 
-            maxWidth: '100%', 
-            width: '100%', 
-            height: 'calc(100vh - 1rem)',
-            maxHeight: 'calc(100vh - 1rem)',
-            display: 'flex',
-            flexDirection: 'column',
-            margin: '0'
+            maxWidth: '1200px !important', 
+            width: '98vw !important', 
+            height: 'auto !important',
+            maxHeight: '96vh !important',
+            display: 'flex !important',
+            flexDirection: 'column !important',
+            margin: '0 auto !important'
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -705,7 +713,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
           </div>
 
           {/* Modal Body */}
-          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.5rem' }}>
+          <div className="modal-body" style={{ flex: '1 1 auto', overflowY: 'auto', padding: '1.5rem', minHeight: 0 }}>
             <form onSubmit={handleSubmit}>
               {/* Lock Warning Banner */}
               {isLocked && (
