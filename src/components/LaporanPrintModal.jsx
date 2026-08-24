@@ -137,7 +137,7 @@ export const LaporanPrintModal = ({
                         const noAgendaRaw = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
                         const noAgenda = extractAgendaNumber(noAgendaRaw);
                         const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
-                        const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
+                        const noSo = item.noSo || (linkedSurat ? linkedSurat.noSo : '-');
                         const noWbs = item.noWbs || '-';
 
                         return (
@@ -251,7 +251,7 @@ export const LaporanPrintModal = ({
                       <tr>
                         <td style={{ fontWeight: 700 }}>NO.SO</td>
                         <td>:</td>
-                        <td style={{ fontWeight: 700 }}>{laporan.noSo || laporan.noOrder || '-'}</td>
+                        <td style={{ fontWeight: 700 }}>{laporan.noSo || '-'}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>NO.WBS</td>

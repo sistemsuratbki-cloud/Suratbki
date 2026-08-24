@@ -769,7 +769,7 @@ export const DataProvider = ({ children }) => {
                   namaSurvey: cleanedData.jenisSurvey || cleanedData.perihal || l.namaSurvey,
                   noAgenda: cleanDocNumber(cleanedData.noAgenda || cleanedData.nomor || l.noAgenda),
                   noCda: cleanedData.noCda || l.noCda || '5100010',
-                  noSo: cleanedData.noSo || cleanedData.noOrder || l.noSo,
+                  noSo: cleanedData.noSo || l.noSo || '',
                   petugas: cleanedData.petugas || l.petugas,
                   isCito: !!cleanedData.isCito,
                   tglLapor: cleanedData.tglMulai || l.tglLapor,

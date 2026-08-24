@@ -329,7 +329,7 @@ export const LaporanTable = () => {
             namaKapal: (sh.namaKapal || item.namaKapal || '-').toUpperCase(),
             nilai: splitNilai,
             noAgenda: sh.noAgenda || item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'),
-            noSo: sh.noOrder || item.noSo || (linkedSurat ? linkedSurat.noOrder : '-'),
+            noSo: sh.noOrder || item.noSo || (linkedSurat ? linkedSurat.noSo : '-'),
             originalItem: item,
             isSplitChild: shipsDetail.length > 1,
             splitIndex: sIdx,
@@ -388,7 +388,7 @@ export const LaporanTable = () => {
       const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
       const noAgenda = extractAgendaNumber(noAgendaRaw);
       const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
-      const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
+      const noSo = item.noSo || (linkedSurat ? linkedSurat.noSo : '-');
       const noWbs = item.noWbs || '-';
 
       return {
@@ -1244,7 +1244,7 @@ export const LaporanTable = () => {
                 const noAgendaRaw = cleanDocNumber(item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-'));
                 const noAgenda = extractAgendaNumber(noAgendaRaw);
                 const noCda = (!item.noCda || item.noCda === '-' || item.noCda.startsWith('CDA-')) ? '5100010' : item.noCda;
-                const noSo = item.noSo || (linkedSurat ? linkedSurat.noOrder : '-');
+                const noSo = item.noSo || (linkedSurat ? linkedSurat.noSo : '-');
                 const noWbs = item.noWbs || '-';
 
                 return (
