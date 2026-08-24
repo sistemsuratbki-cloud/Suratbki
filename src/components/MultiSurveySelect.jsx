@@ -393,51 +393,73 @@ export default function MultiSurveySelect({
               paddingTop: '0.5rem',
               borderTop: '1px solid var(--border-color)',
               display: 'flex',
-              gap: '0.4rem',
-              alignItems: 'center'
+              flexDirection: 'column',
+              gap: '0.5rem'
             }}
           >
-            <input
-              type="text"
-              value={customInput}
-              onChange={(e) => setCustomInput(e.target.value)}
-              placeholder="Tambah jenis survei custom / lainnya..."
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  handleAddCustom(e);
-                }
-              }}
-              style={{
-                flex: 1,
-                padding: '0.35rem 0.5rem',
-                fontSize: '0.78rem',
-                borderRadius: 'var(--radius-sm)',
-                border: '1px solid var(--border-color)',
-                background: 'var(--bg-card-solid)',
-                color: 'var(--text-primary)',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="button"
-              onClick={handleAddCustom}
-              disabled={!customInput.trim()}
-              style={{
-                padding: '0.35rem 0.6rem',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                borderRadius: 'var(--radius-sm)',
-                background: customInput.trim() ? 'var(--accent-primary)' : 'var(--bg-card)',
-                color: customInput.trim() ? '#ffffff' : 'var(--text-muted)',
-                border: 'none',
-                cursor: customInput.trim() ? 'pointer' : 'not-allowed',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.2rem'
-              }}
-            >
-              <Plus size={12} /> Tambah
-            </button>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>
+              <Plus size={13} color="var(--accent-primary)" />
+              <span>Input Manual / Custom:</span>
+            </div>
+            <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+              <input
+                type="text"
+                value={customInput}
+                onChange={(e) => setCustomInput(e.target.value)}
+                placeholder="Ketik jenis survei lainnya... (misal: PERBAIKAN MESIN)"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    handleAddCustom(e);
+                  }
+                }}
+                style={{
+                  flex: 1,
+                  padding: '0.4rem 0.55rem',
+                  fontSize: '0.8rem',
+                  borderRadius: 'var(--radius-sm)',
+                  border: customInput.trim() ? '1.5px solid var(--accent-primary)' : '1px solid var(--border-color)',
+                  background: 'var(--bg-card-solid)',
+                  color: 'var(--text-primary)',
+                  outline: 'none',
+                  transition: 'border 0.15s ease'
+                }}
+              />
+              <button
+                type="button"
+                onClick={handleAddCustom}
+                disabled={!customInput.trim()}
+                title="Tambahkan jenis survei custom"
+                style={{
+                  padding: '0.4rem 0.7rem',
+                  fontSize: '0.75rem',
+                  fontWeight: 700,
+                  borderRadius: 'var(--radius-sm)',
+                  background: customInput.trim() ? 'var(--accent-primary)' : 'var(--bg-card)',
+                  color: customInput.trim() ? '#ffffff' : 'var(--text-muted)',
+                  border: 'none',
+                  cursor: customInput.trim() ? 'pointer' : 'not-allowed',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.3rem',
+                  transition: 'all 0.15s ease',
+                  boxShadow: customInput.trim() ? 'var(--shadow-sm)' : 'none'
+                }}
+                onMouseEnter={(e) => {
+                  if (customInput.trim()) {
+                    e.currentTarget.style.background = 'var(--accent-dark)';
+                    e.currentTarget.style.transform = 'scale(1.02)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (customInput.trim()) {
+                    e.currentTarget.style.background = 'var(--accent-primary)';
+                    e.currentTarget.style.transform = 'scale(1)';
+                  }
+                }}
+              >
+                <Plus size={13} /> Tambah
+              </button>
+            </div>
           </div>
         </div>
       )}
