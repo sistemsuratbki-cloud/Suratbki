@@ -147,6 +147,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const [isUploadingTiket, setIsUploadingTiket] = useState(false);
   const [isUploadingHotel, setIsUploadingHotel] = useState(false);
   const [isUploadingVisit, setIsUploadingVisit] = useState(false);
+  const [isManualLokasi, setIsManualLokasi] = useState(false);
 
   // Initialize or load editItem
   useEffect(() => {
@@ -414,7 +415,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     }));
   };
 
-  // Location Change
+  // Location Change (dari dropdown tariff)
   const handleLocationChange = (locName) => {
     const matched = findTariffByLocation(locName, activeTariffs);
     const newRate = matched ? Number(matched.rate) : formData.tarifDasar;
@@ -433,6 +434,38 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
     // Re-adjust split fees evenly if multiple ships exist
     if (shipsDetail.length > 1) {
+      const count = shipsDetail.length;
+      const perShip = Math.floor(newRate / count);
+      const remainder = newRate - (perShip * count);
+      setShipsDetail(shipsDetail.map((s, idx) => ({
+        ...s,
+        biayaSurvei: idx === count - 1 ? perShip + remainder : perShip
+      })));
+    }
+  };
+
+  // Location Change Manual (input bebas, tarif diisi sendiri)
+  const handleManualLocationChange = (field, value) => {
+    setFormData((prev) => {
+      const newLokasi = field === 'lokasi' ? String(value).toUpperCase() : prev.lokasi;
+      const newKategori = field === 'kategoriPerjalanan' ? value : prev.kategoriPerjalanan;
+      const newTarif = field === 'tarifDasar' ? Number(value) || 0 : prev.tarifDasar;
+      const tat = newKategori === 'Luar Kota' && !prev.tanpaTAT ? Number(adminSettings?.tatLuarKota || 750000) : 0;
+
+      return {
+        ...prev,
+        lokasi: newLokasi,
+        tempatSurvey: newLokasi,
+        kategoriPerjalanan: newKategori,
+        tarifDasar: newTarif,
+        biayaTAT: field === 'kategoriPerjalanan' ? tat : prev.biayaTAT,
+        saranaTransportasi: newKategori === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR'
+      };
+    });
+
+    // Re-split biaya kapal jika ada perubahan tarif
+    if (field === 'tarifDasar' && shipsDetail.length > 1) {
+      const newRate = Number(value) || 0;
       const count = shipsDetail.length;
       const perShip = Math.floor(newRate / count);
       const remainder = newRate - (perShip * count);
@@ -1247,35 +1280,134 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   <div className="form-group" style={{ margin: 0 }}>
                     <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <span style={{ fontWeight: 700 }}>Tempat Survey & Tarif SK *</span>
-                      <span className={`badge ${formData.kategoriPerjalanan === 'Luar Kota' ? 'badge-primary' : 'badge-success'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
-                        {formData.kategoriPerjalanan || 'Dalam Kota'}
-                      </span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <span className={`badge ${formData.kategoriPerjalanan === 'Luar Kota' ? 'badge-primary' : 'badge-success'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
+                          {formData.kategoriPerjalanan || 'Dalam Kota'}
+                        </span>
+                        {/* Toggle Manual Input */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsManualLokasi((prev) => !prev);
+                            if (isManualLokasi) {
+                              // Saat kembali ke dropdown, reset ke tariff pertama yang cocok
+                              handleLocationChange(formData.lokasi);
+                            }
+                          }}
+                          style={{
+                            fontSize: '0.65rem',
+                            padding: '0.15rem 0.5rem',
+                            borderRadius: '6px',
+                            border: `1px solid ${isManualLokasi ? '#f59e0b' : 'var(--border-color)'}`,
+                            background: isManualLokasi ? '#fef3c7' : 'var(--bg-secondary)',
+                            color: isManualLokasi ? '#92400e' : 'var(--text-secondary)',
+                            cursor: 'pointer',
+                            fontWeight: 700,
+                            transition: 'all 0.15s'
+                          }}
+                        >
+                          {isManualLokasi ? '✏️ Mode Manual' : '+ Input Manual'}
+                        </button>
+                      </div>
                     </label>
-                    <select
-                      className="form-select"
-                      value={formData.lokasi}
-                      onChange={(e) => handleLocationChange(e.target.value)}
-                      required
-                    >
-                      <optgroup label="📍 DALAM KOTA (PONTIANAK & SEKITARNYA)">
-                        {activeTariffs
-                          .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota')
-                          .map((t, idx) => (
-                            <option key={`dk-${idx}`} value={t.tujuan || t.name}>
-                              {t.tujuan || t.name} - {formatRupiah(t.rate)}
-                            </option>
-                          ))}
-                      </optgroup>
-                      <optgroup label="✈️ LUAR KOTA">
-                        {activeTariffs
-                          .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Luar Kota')
-                          .map((t, idx) => (
-                            <option key={`lk-${idx}`} value={t.tujuan || t.name}>
-                              {t.tujuan || t.name} - {formatRupiah(t.rate)}
-                            </option>
-                          ))}
-                      </optgroup>
-                    </select>
+
+                    {/* Dropdown Mode (default) */}
+                    {!isManualLokasi && (
+                      <select
+                        className="form-select"
+                        value={formData.lokasi}
+                        onChange={(e) => handleLocationChange(e.target.value)}
+                        required
+                      >
+                        <optgroup label="📍 DALAM KOTA (PONTIANAK & SEKITARNYA)">
+                          {activeTariffs
+                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota')
+                            .map((t, idx) => (
+                              <option key={`dk-${idx}`} value={t.tujuan || t.name}>
+                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
+                              </option>
+                            ))}
+                        </optgroup>
+                        <optgroup label="✈️ LUAR KOTA">
+                          {activeTariffs
+                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Luar Kota')
+                            .map((t, idx) => (
+                              <option key={`lk-${idx}`} value={t.tujuan || t.name}>
+                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
+                              </option>
+                            ))}
+                        </optgroup>
+                      </select>
+                    )}
+
+                    {/* Manual Input Mode */}
+                    {isManualLokasi && (
+                      <div
+                        style={{
+                          border: '1.5px dashed #f59e0b',
+                          borderRadius: '10px',
+                          padding: '0.85rem 1rem',
+                          background: 'rgba(254, 243, 199, 0.4)',
+                          display: 'flex',
+                          flexDirection: 'column',
+                          gap: '0.75rem'
+                        }}
+                      >
+                        <div style={{ fontSize: '0.72rem', color: '#92400e', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                          ✏️ Input lokasi dan tarif secara manual — tidak terikat daftar tarif baku
+                        </div>
+
+                        {/* Baris 1: Nama Lokasi + Kategori */}
+                        <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '0.75rem' }}>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem' }}>Nama Lokasi / Tujuan *</label>
+                            <input
+                              type="text"
+                              className="form-input"
+                              value={formData.lokasi}
+                              onChange={(e) => handleManualLocationChange('lokasi', e.target.value)}
+                              placeholder="Contoh: PELABUHAN KHUSUS PERTAMINA"
+                              style={{ textTransform: 'uppercase' }}
+                              required
+                            />
+                          </div>
+                          <div className="form-group" style={{ margin: 0 }}>
+                            <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem' }}>Kategori Perjalanan *</label>
+                            <select
+                              className="form-select"
+                              value={formData.kategoriPerjalanan || 'Dalam Kota'}
+                              onChange={(e) => handleManualLocationChange('kategoriPerjalanan', e.target.value)}
+                            >
+                              <option value="Dalam Kota">📍 Dalam Kota</option>
+                              <option value="Luar Kota">✈️ Luar Kota</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        {/* Baris 2: Tarif Honorarium */}
+                        <div className="form-group" style={{ margin: 0 }}>
+                          <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between' }}>
+                            <span>Tarif Honorarium SK (Rp) *</span>
+                            <span style={{ fontWeight: 800, color: '#0284c7', fontSize: '0.82rem' }}>
+                              {formatRupiah(Number(formData.tarifDasar) || 0)}
+                            </span>
+                          </label>
+                          <input
+                            type="number"
+                            className="form-input"
+                            value={formData.tarifDasar || ''}
+                            onChange={(e) => handleManualLocationChange('tarifDasar', e.target.value)}
+                            placeholder="Contoh: 750000"
+                            min={0}
+                            step={50000}
+                            style={{ fontWeight: 700 }}
+                          />
+                          <div style={{ fontSize: '0.7rem', color: '#64748b', marginTop: '0.25rem' }}>
+                            Nilai ini akan langsung masuk ke kalkulasi biaya di bawah
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
