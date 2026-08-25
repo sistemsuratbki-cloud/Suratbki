@@ -130,8 +130,30 @@ export const LaporanPrintModal = ({
                       </tr>
                     ) : (
                       allData.map((item, index) => {
-                        const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-                        const rawDate = item.tglLapor || item.tanggal || item.tglMulai || item.tglSelesai || item.tanggalMulai || item.tanggalBuat || linkedSurat?.tglMulai || linkedSurat?.tanggal || linkedSurat?.tglLapor || item.createdAt || '';
+                        const linkedSurat = (suratTugas || []).find((s) => s.id === item.suratId || s.id === item.suratTugasId || (Array.isArray(item.linkedSpsIds) && item.linkedSpsIds.includes(s.id)));
+                        const rawDate =
+                          item.tglLapor ||
+                          item.tanggal ||
+                          item.tglMulai ||
+                          item.tglSelesai ||
+                          item.tanggalMulai ||
+                          item.tanggalBuat ||
+                          item.tgl_mulai ||
+                          item.tgl_selesai ||
+                          item.tgl_lapor ||
+                          item.originalItem?.tglMulai ||
+                          item.originalItem?.tglSelesai ||
+                          item.originalItem?.tglLapor ||
+                          item.originalItem?.tanggal ||
+                          item.originalItem?.tgl_mulai ||
+                          item.originalItem?.tgl_selesai ||
+                          linkedSurat?.tglMulai ||
+                          linkedSurat?.tgl_mulai ||
+                          linkedSurat?.tanggal ||
+                          linkedSurat?.tglLapor ||
+                          item.createdAt ||
+                          item.created_at ||
+                          '';
                         const dateFormatted = rawDate ? formatDateIndo(rawDate) : '-';
                         const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();
                         const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
@@ -226,7 +248,7 @@ export const LaporanPrintModal = ({
                       <tr>
                         <td style={{ fontWeight: 700 }}>TANGGAL</td>
                         <td>:</td>
-                        <td>{formatDateIndo(laporan.tglLapor || laporan.tanggal || laporan.tglMulai || laporan.tglSelesai || laporan.tanggalMulai || laporan.createdAt)}</td>
+                        <td>{formatDateIndo(laporan.tglLapor || laporan.tanggal || laporan.tglMulai || laporan.tglSelesai || laporan.tgl_mulai || laporan.tgl_selesai || laporan.tanggalMulai || laporan.createdAt || laporan.created_at)}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>LOKASI SURVEY</td>

@@ -15,6 +15,42 @@ const mapFromDb = (row) => {
   delete merged.raw_data;
 
   // Normalisasi field-field kunci agar camelCase selalu sinkron
+  if (row.tgl_mulai !== undefined && row.tgl_mulai !== null) merged.tglMulai = row.tgl_mulai;
+  else if (raw.tglMulai !== undefined && raw.tglMulai !== null) merged.tglMulai = raw.tglMulai;
+
+  if (row.tgl_selesai !== undefined && row.tgl_selesai !== null) merged.tglSelesai = row.tgl_selesai;
+  else if (raw.tglSelesai !== undefined && raw.tglSelesai !== null) merged.tglSelesai = raw.tglSelesai;
+
+  if (row.tgl_lapor !== undefined && row.tgl_lapor !== null) merged.tglLapor = row.tgl_lapor;
+  else if (raw.tglLapor !== undefined && raw.tglLapor !== null) merged.tglLapor = raw.tglLapor;
+
+  if (row.nama_kapal !== undefined && row.nama_kapal !== null) merged.namaKapal = row.nama_kapal;
+  else if (raw.namaKapal !== undefined && raw.namaKapal !== null) merged.namaKapal = raw.namaKapal;
+
+  if (row.no_agenda !== undefined && row.no_agenda !== null) merged.noAgenda = row.no_agenda;
+  else if (raw.noAgenda !== undefined && raw.noAgenda !== null) merged.noAgenda = raw.noAgenda;
+
+  if (row.tempat_survey !== undefined && row.tempat_survey !== null) merged.tempatSurvey = row.tempat_survey;
+  else if (raw.tempatSurvey !== undefined && raw.tempatSurvey !== null) merged.tempatSurvey = raw.tempatSurvey;
+
+  if (row.jenis_survey !== undefined && row.jenis_survey !== null) merged.jenisSurvey = row.jenis_survey;
+  else if (raw.jenisSurvey !== undefined && raw.jenisSurvey !== null) merged.jenisSurvey = raw.jenisSurvey;
+
+  if (row.kategori_perjalanan !== undefined && row.kategori_perjalanan !== null) merged.kategoriPerjalanan = row.kategori_perjalanan;
+  else if (raw.kategoriPerjalanan !== undefined && raw.kategoriPerjalanan !== null) merged.kategoriPerjalanan = raw.kategoriPerjalanan;
+
+  if (row.tarif_dasar !== undefined && row.tarif_dasar !== null) merged.tarifDasar = row.tarif_dasar;
+  else if (raw.tarifDasar !== undefined && raw.tarifDasar !== null) merged.tarifDasar = raw.tarifDasar;
+
+  if (row.jumlah_estimasi !== undefined && row.jumlah_estimasi !== null) merged.jumlahEstimasi = row.jumlah_estimasi;
+  else if (raw.jumlahEstimasi !== undefined && raw.jumlahEstimasi !== null) merged.jumlahEstimasi = raw.jumlahEstimasi;
+
+  if (row.approval_status !== undefined && row.approval_status !== null) merged.approvalStatus = row.approval_status;
+  else if (raw.approvalStatus !== undefined && raw.approvalStatus !== null) merged.approvalStatus = raw.approvalStatus;
+
+  if (row.doc_type !== undefined && row.doc_type !== null) merged.docType = row.doc_type;
+  else if (raw.docType !== undefined && raw.docType !== null) merged.docType = raw.docType;
+
   if (row.no_so !== undefined && row.no_so !== null) merged.noSo = row.no_so;
   else if (raw.noSo !== undefined && raw.noSo !== null) merged.noSo = raw.noSo;
   else merged.noSo = '';

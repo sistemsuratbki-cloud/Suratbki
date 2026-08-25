@@ -29,8 +29,21 @@ export const formatRupiah = (number) => {
 
 export const formatDateIndo = (dateString) => {
   if (!dateString) return '-';
+  if (typeof dateString === 'string' && /^\d{4}-\d{2}-\d{2}/.test(dateString)) {
+    const parts = dateString.split('T')[0].split('-');
+    const year = parts[0];
+    const monthIndex = parseInt(parts[1], 10) - 1;
+    const day = parseInt(parts[2], 10);
+    const months = [
+      'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+      'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+    ];
+    if (months[monthIndex]) {
+      return `${day} ${months[monthIndex]} ${year}`;
+    }
+  }
   const date = new Date(dateString);
-  if (isNaN(date.getTime())) return dateString;
+  if (isNaN(date.getTime())) return String(dateString);
   return new Intl.DateTimeFormat('id-ID', {
     day: 'numeric',
     month: 'long',
