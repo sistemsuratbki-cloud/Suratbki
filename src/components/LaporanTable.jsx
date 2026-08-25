@@ -1404,66 +1404,6 @@ export const LaporanTable = () => {
                             </button>
                           );
                         })()}
-
-                        {((item.originalItem || item).fileVisitData || (item.originalItem || item).fileVisitName) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const targetItem = item.originalItem || item;
-                              setPreviewAttachment({
-                                isOpen: true,
-                                title: 'Formulir Kunjungan Lapangan (Visit Form)',
-                                fileData: targetItem.fileVisitData || targetItem.fileVisitName,
-                                fileName: targetItem.fileVisitName || 'Form_Visit'
-                              });
-                            }}
-                            className="btn btn-secondary btn-icon btn-sm"
-                            title={`Lihat Form Visit: ${(item.originalItem || item).fileVisitName || 'Terlampir'}`}
-                            style={{ borderColor: '#059669', color: '#059669' }}
-                          >
-                            <FileCheck2 size={14} />
-                          </button>
-                        )}
-
-                        {((item.originalItem || item).fileTiketTransportData || (item.originalItem || item).fileTiketTransportName) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const targetItem = item.originalItem || item;
-                              setPreviewAttachment({
-                                isOpen: true,
-                                title: 'Bukti Tiket Transportasi',
-                                fileData: targetItem.fileTiketTransportData || targetItem.fileTiketTransportName,
-                                fileName: targetItem.fileTiketTransportName || 'Tiket_Transport'
-                              });
-                            }}
-                            className="btn btn-secondary btn-icon btn-sm"
-                            title={`Lihat Tiket: ${(item.originalItem || item).fileTiketTransportName || 'Terlampir'}`}
-                            style={{ borderColor: '#7c3aed', color: '#7c3aed' }}
-                          >
-                            <Plane size={14} />
-                          </button>
-                        )}
-
-                        {((item.originalItem || item).fileKwitansiHotelData || (item.originalItem || item).fileKwitansiHotelName) && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              const targetItem = item.originalItem || item;
-                              setPreviewAttachment({
-                                isOpen: true,
-                                title: 'Bukti Kwitansi Hotel / Penginapan',
-                                fileData: targetItem.fileKwitansiHotelData || targetItem.fileKwitansiHotelName,
-                                fileName: targetItem.fileKwitansiHotelName || 'Kwitansi_Hotel'
-                              });
-                            }}
-                            className="btn btn-secondary btn-icon btn-sm"
-                            title={`Lihat Kwitansi Hotel: ${(item.originalItem || item).fileKwitansiHotelName || 'Terlampir'}`}
-                            style={{ borderColor: '#d97706', color: '#d97706' }}
-                          >
-                            <Receipt size={14} />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>
