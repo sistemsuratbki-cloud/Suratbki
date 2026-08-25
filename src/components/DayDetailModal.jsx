@@ -53,6 +53,7 @@ import { PdsModal } from './PdsModal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
+import SearchableLocationSelect from './SearchableLocationSelect';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
@@ -1983,31 +1984,15 @@ export const DayDetailModal = ({
                           {formData.kategoriPerjalanan || 'Dalam Kota'}
                         </span>
                       </label>
-                      <select
-                        className="form-select"
+                      <SearchableLocationSelect
+                        activeTariffs={activeTariffs}
                         value={formData.lokasi}
-                        onChange={(e) => handleLocationChange(e.target.value)}
+                        onChange={(val) => handleLocationChange(val)}
+                        getLocationCategory={getLocationCategory}
+                        showRate={true}
+                        formatRupiah={formatRupiah}
                         required
-                      >
-                        <optgroup label="📍 DALAM KOTA (PONTIANAK & SEKITARNYA)">
-                          {activeTariffs
-                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota')
-                            .map((t, idx) => (
-                              <option key={`dk-${idx}`} value={t.tujuan || t.name}>
-                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
-                              </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="✈️ LUAR KOTA">
-                          {activeTariffs
-                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Luar Kota')
-                            .map((t, idx) => (
-                              <option key={`lk-${idx}`} value={t.tujuan || t.name}>
-                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
-                              </option>
-                            ))}
-                        </optgroup>
-                      </select>
+                      />
                     </div>
                   </div>
 

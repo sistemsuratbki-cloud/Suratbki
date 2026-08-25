@@ -38,6 +38,7 @@ import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
+import SearchableLocationSelect from './SearchableLocationSelect';
 import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
@@ -1638,31 +1639,15 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
                     {/* Dropdown Mode (default) */}
                     {!isManualLokasi && (
-                      <select
-                        className="form-select"
+                      <SearchableLocationSelect
+                        activeTariffs={activeTariffs}
                         value={formData.lokasi}
-                        onChange={(e) => handleLocationChange(e.target.value)}
+                        onChange={(val) => handleLocationChange(val)}
+                        getLocationCategory={getLocationCategory}
+                        showRate={true}
+                        formatRupiah={formatRupiah}
                         required
-                      >
-                        <optgroup label="📍 DALAM KOTA (PONTIANAK & SEKITARNYA)">
-                          {activeTariffs
-                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota')
-                            .map((t, idx) => (
-                              <option key={`dk-${idx}`} value={t.tujuan || t.name}>
-                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
-                              </option>
-                            ))}
-                        </optgroup>
-                        <optgroup label="✈️ LUAR KOTA">
-                          {activeTariffs
-                            .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Luar Kota')
-                            .map((t, idx) => (
-                              <option key={`lk-${idx}`} value={t.tujuan || t.name}>
-                                {t.tujuan || t.name} - {formatRupiah(t.rate)}
-                              </option>
-                            ))}
-                        </optgroup>
-                      </select>
+                      />
                     )}
 
                     {/* Manual Input Mode */}

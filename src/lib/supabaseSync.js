@@ -29,6 +29,38 @@ const mapFromDb = (row) => {
   if (row.no_cda !== undefined && row.no_cda !== null) merged.noCda = row.no_cda;
   else if (raw.noCda !== undefined) merged.noCda = raw.noCda;
 
+  // Normalisasi field TTD / signature agar camelCase selalu sinkron
+  if (row.signature_url !== undefined && row.signature_url !== null) merged.signatureUrl = row.signature_url;
+  else if (raw.signatureUrl !== undefined && raw.signatureUrl !== null) merged.signatureUrl = raw.signatureUrl;
+
+  if (row.kacab_signature_url !== undefined && row.kacab_signature_url !== null) merged.kacabSignatureUrl = row.kacab_signature_url;
+  else if (raw.kacabSignatureUrl !== undefined && raw.kacabSignatureUrl !== null) merged.kacabSignatureUrl = raw.kacabSignatureUrl;
+
+  if (row.pembuat_signature_url !== undefined && row.pembuat_signature_url !== null) merged.pembuatSignatureUrl = row.pembuat_signature_url;
+  else if (raw.pembuatSignatureUrl !== undefined && raw.pembuatSignatureUrl !== null) merged.pembuatSignatureUrl = raw.pembuatSignatureUrl;
+
+  // Normalisasi field admin settings lainnya
+  if (row.role_label !== undefined && row.role_label !== null) merged.roleLabel = row.role_label;
+  else if (raw.roleLabel !== undefined) merged.roleLabel = raw.roleLabel;
+
+  if (row.avatar_bg !== undefined && row.avatar_bg !== null) merged.avatarBg = row.avatar_bg;
+  else if (raw.avatarBg !== undefined) merged.avatarBg = raw.avatarBg;
+
+  if (row.kepala_cabang !== undefined && row.kepala_cabang !== null) merged.kepalaCabang = row.kepala_cabang;
+  else if (raw.kepalaCabang !== undefined) merged.kepalaCabang = raw.kepalaCabang;
+
+  if (row.pembuat_daftar !== undefined && row.pembuat_daftar !== null) merged.pembuatDaftar = row.pembuat_daftar;
+  else if (raw.pembuatDaftar !== undefined) merged.pembuatDaftar = raw.pembuatDaftar;
+
+  if (row.nup_pembuat_daftar !== undefined && row.nup_pembuat_daftar !== null) merged.nupPembuatDaftar = row.nup_pembuat_daftar;
+  else if (raw.nupPembuatDaftar !== undefined) merged.nupPembuatDaftar = raw.nupPembuatDaftar;
+
+  if (row.nama_cabang !== undefined && row.nama_cabang !== null) merged.namaCabang = row.nama_cabang;
+  else if (raw.namaCabang !== undefined) merged.namaCabang = raw.namaCabang;
+
+  if (row.tat_luar_kota !== undefined && row.tat_luar_kota !== null) merged.tatLuarKota = row.tat_luar_kota;
+  else if (raw.tatLuarKota !== undefined) merged.tatLuarKota = raw.tatLuarKota;
+
   return merged;
 };
 

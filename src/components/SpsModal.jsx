@@ -16,6 +16,8 @@ import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
 import MultiSurveySelect from './MultiSurveySelect';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
+import SearchableLocationSelect from './SearchableLocationSelect';
+import { getLocationCategory } from '../utils/tariffData';
 
 
 export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
@@ -414,38 +416,20 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                     <MapPin size={15} color="var(--accent-primary)" />
                     <span>Lokasi / Tempat Survey *</span>
                   </label>
-                  <select
-                    className="form-select"
+                  <SearchableLocationSelect
+                    activeTariffs={activeTariffs}
                     value={formData.lokasi}
-                    onChange={(e) => {
-                      const val = e.target.value;
+                    onChange={(val) => {
                       setFormData({
                         ...formData,
                         lokasi: val.toUpperCase(),
                         tempatSurvey: val.toUpperCase()
                       });
                     }}
+                    getLocationCategory={getLocationCategory}
+                    showRate={false}
                     required
-                  >
-                    <optgroup label="📍 DALAM KOTA (PONTIANAK & SEKITARNYA)">
-                      {activeTariffs
-                        .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Dalam Kota')
-                        .map((t, idx) => (
-                          <option key={`dk-${idx}`} value={t.tujuan || t.name}>
-                            {t.tujuan || t.name} {t.rincian ? `(${t.rincian})` : ''}
-                          </option>
-                        ))}
-                    </optgroup>
-                    <optgroup label="✈️ LUAR KOTA">
-                      {activeTariffs
-                        .filter((t) => (t.kategori || getLocationCategory(t.name, activeTariffs)) === 'Luar Kota')
-                        .map((t, idx) => (
-                          <option key={`lk-${idx}`} value={t.tujuan || t.name}>
-                            {t.tujuan || t.name} {t.rincian ? `(${t.rincian})` : ''}
-                          </option>
-                        ))}
-                    </optgroup>
-                  </select>
+                  />
                 </div>
               </div>
 
