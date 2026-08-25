@@ -944,11 +944,49 @@ body {
   flex-shrink: 0;
 }
 
-/* V2 Calendar Grid */
+/* V2 Calendar Grid & Horizontal Scrolling on Mobile */
+.calendar-scroll-wrapper {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 0 1.5rem 1rem 1.5rem;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.4) transparent;
+}
+
+.calendar-scroll-wrapper::-webkit-scrollbar {
+  height: 6px;
+}
+
+.calendar-scroll-wrapper::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.04);
+  border-radius: 10px;
+}
+
+.calendar-scroll-wrapper::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.5);
+  border-radius: 10px;
+}
+
 .calendar-grid-v2 {
   display: grid;
-  grid-template-columns: repeat(7, 1fr);
+  grid-template-columns: repeat(7, minmax(110px, 1fr));
   gap: 0.5rem;
+  min-width: 770px;
+  width: 100%;
+}
+
+.mobile-calendar-hint {
+  display: none;
+  padding: 0.4rem 1rem;
+  margin: 0 1.5rem 0.6rem 1.5rem;
+  background: rgba(59, 130, 246, 0.08);
+  border: 1px dashed rgba(59, 130, 246, 0.3);
+  border-radius: 8px;
+  font-size: 0.75rem;
+  color: var(--accent-primary);
+  font-weight: 700;
+  text-align: center;
 }
 
 .calendar-day-header-v2 {
@@ -1255,6 +1293,15 @@ body {
     -webkit-overflow-scrolling: touch;
     width: 100%;
   }
+
+  .mobile-calendar-hint {
+    display: block;
+    margin: 0 1rem 0.5rem 1rem;
+  }
+
+  .calendar-scroll-wrapper {
+    padding: 0 1rem 1rem 1rem;
+  }
 }
 
 @media (max-width: 640px) {
@@ -1303,22 +1350,40 @@ body {
     width: 100%;
   }
 
+  .mobile-calendar-hint {
+    display: block;
+    margin: 0 0.5rem 0.5rem 0.5rem;
+    font-size: 0.72rem;
+  }
+
+  .calendar-scroll-wrapper {
+    padding: 0 0.5rem 0.75rem 0.5rem;
+  }
+
+  .calendar-grid-v2 {
+    grid-template-columns: repeat(7, minmax(95px, 1fr));
+    min-width: 665px;
+    gap: 0.35rem;
+  }
+
   .calendar-day-header-v2 {
-    font-size: 0.7rem;
+    font-size: 0.75rem;
+    padding: 0.3rem 0;
   }
 
   .calendar-cell-v2 {
-    min-height: 65px;
-    padding: 0.25rem;
+    min-height: 85px;
+    padding: 0.35rem;
+    -webkit-tap-highlight-color: transparent;
   }
 
   .calendar-date-number-v2 {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
   }
 
   .calendar-chip {
-    font-size: 0.6rem;
-    padding: 0.1rem 0.2rem;
+    font-size: 0.62rem;
+    padding: 0.15rem 0.25rem;
   }
 }
 

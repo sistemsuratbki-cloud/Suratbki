@@ -164,14 +164,20 @@ export const CalendarView = ({ surveyorFilter }) => {
         </div>
       </div>
 
-      <div className="calendar-grid-v2" style={{ padding: '0 1.5rem 1rem 1.5rem' }}>
-        {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((dayName) => (
-          <div key={dayName} className="calendar-day-header-v2">
-            {dayName}
-          </div>
-        ))}
+      {/* Mobile Swipe Hint */}
+      <div className="mobile-calendar-hint">
+        <span>👈 Geser kalender ke kiri / kanan untuk memilih tanggal 👉</span>
+      </div>
 
-        {daysArray.map((cell, index) => {
+      <div className="calendar-scroll-wrapper">
+        <div className="calendar-grid-v2">
+          {['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'].map((dayName) => (
+            <div key={dayName} className="calendar-day-header-v2">
+              {dayName}
+            </div>
+          ))}
+
+          {daysArray.map((cell, index) => {
           const { stList } = getEventsForDate(cell.dateStr);
           const holInfo = checkHolidayOrWeekend(cell.dateStr);
 
@@ -299,6 +305,7 @@ export const CalendarView = ({ surveyorFilter }) => {
             </div>
           );
         })}
+        </div>
       </div>
 
       {/* Legend Footer */}
