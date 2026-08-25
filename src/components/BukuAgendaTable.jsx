@@ -1210,7 +1210,15 @@ export const BukuAgendaTable = () => {
                     }}
                     className={isSelesai ? 'row-checked-selesai' : isSudahDicek ? 'row-checked-dicek' : ''}
                   >
-                    <td style={{ textAlign: 'center', width: '38px' }} onClick={(e) => e.stopPropagation()}>
+                    <td 
+                      style={{ 
+                        textAlign: 'center', 
+                        width: '38px',
+                        borderLeft: `4px solid ${borderLeftColor}`,
+                        transition: 'all 0.25s ease'
+                      }} 
+                      onClick={(e) => e.stopPropagation()}
+                    >
                       <input
                         type="checkbox"
                         style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
@@ -1224,7 +1232,6 @@ export const BukuAgendaTable = () => {
                         textAlign: 'center',
                         fontWeight: 700,
                         color: numColor,
-                        borderLeft: `4px solid ${borderLeftColor}`,
                         transition: 'all 0.25s ease'
                       }}
                     >
