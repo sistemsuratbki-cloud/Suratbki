@@ -175,8 +175,8 @@ export const DayDetailModal = ({
     noOrder: 'RFQ-0000',
     tiketHotel: 0,
     tiketPesawatTaxi: 0,
-    rincianTiket: [],
-    rincianHotel: [],
+    rincianTiket: [{ id: 1, keterangan: '', nominal: 0 }],
+    rincianHotel: [{ id: 1, namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 }],
     kategoriTransportasi: 'Pesawat Terbang',
     kategoriPerjalanan: 'Dalam Kota',
     saranaTransportasi: 'DARAT DAN AIR',
@@ -251,8 +251,8 @@ export const DayDetailModal = ({
         kategoriTransportasi: 'Pesawat Terbang',
         tiketHotel: 0,
         tiketPesawatTaxi: 0,
-        rincianTiket: [],
-        rincianHotel: [],
+        rincianTiket: [{ id: 1, keterangan: '', nominal: 0 }],
+        rincianHotel: [{ id: 1, namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 }],
         jumlahHariLibur: 0,
         isCito: false,
         visit: '1',
@@ -635,7 +635,10 @@ export const DayDetailModal = ({
 
   const handleRemoveTiket = (index) => {
     setFormData((prev) => {
-      const list = Array.isArray(prev.rincianTiket) ? prev.rincianTiket.filter((_, i) => i !== index) : [];
+      let list = Array.isArray(prev.rincianTiket) ? prev.rincianTiket.filter((_, i) => i !== index) : [];
+      if (list.length === 0) {
+        list = [{ id: Date.now(), keterangan: '', nominal: 0 }];
+      }
       const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
       return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
     });
@@ -667,7 +670,10 @@ export const DayDetailModal = ({
 
   const handleRemoveHotel = (index) => {
     setFormData((prev) => {
-      const list = Array.isArray(prev.rincianHotel) ? prev.rincianHotel.filter((_, i) => i !== index) : [];
+      let list = Array.isArray(prev.rincianHotel) ? prev.rincianHotel.filter((_, i) => i !== index) : [];
+      if (list.length === 0) {
+        list = [{ id: Date.now(), namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 }];
+      }
       const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
       return { ...prev, rincianHotel: list, tiketHotel: total };
     });

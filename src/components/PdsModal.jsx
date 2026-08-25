@@ -127,8 +127,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     jumlahHariLibur: 0,
     tiketHotel: 0,
     tiketPesawatTaxi: 0,
-    rincianTiket: [],
-    rincianHotel: [],
+    rincianTiket: [{ id: 1, keterangan: '', nominal: 0 }],
+    rincianHotel: [{ id: 1, namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 }],
     petugas: '',
     pangkat: 'GRADE 6 A',
     jabatan: 'SURVEYOR',
@@ -182,10 +182,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       } else if (typeof editItem.rincianTiket === 'string') {
         try { parsedTiket = JSON.parse(editItem.rincianTiket); } catch (e) { parsedTiket = []; }
       }
-      if (parsedTiket.length === 0 && (Number(editItem.tiketPesawatTaxi) > 0 || Number(editItem.biayaTiket) > 0)) {
+      if (parsedTiket.length === 0) {
         parsedTiket = [{
           id: 1,
-          keterangan: 'Tiket Pesawat / Transport',
+          keterangan: (Number(editItem.tiketPesawatTaxi) > 0 || Number(editItem.biayaTiket) > 0) ? 'Tiket Pesawat / Transport' : '',
           nominal: Number(editItem.tiketPesawatTaxi) || Number(editItem.biayaTiket) || 0
         }];
       }
@@ -197,14 +197,14 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       } else if (typeof editItem.rincianHotel === 'string') {
         try { parsedHotel = JSON.parse(editItem.rincianHotel); } catch (e) { parsedHotel = []; }
       }
-      if (parsedHotel.length === 0 && Number(editItem.tiketHotel) > 0) {
+      if (parsedHotel.length === 0) {
         const mlm = Math.max(1, (editItem.tglMulai && editItem.tglSelesai) ? Math.ceil((new Date(editItem.tglSelesai) - new Date(editItem.tglMulai)) / (1000 * 3600 * 24)) : 1);
         parsedHotel = [{
           id: 1,
-          namaHotel: 'Hotel / Penginapan',
+          namaHotel: Number(editItem.tiketHotel) > 0 ? 'Hotel / Penginapan' : '',
           jumlahMalam: mlm,
-          tarifPerMalam: Number(editItem.tiketHotel),
-          totalBiaya: Number(editItem.tiketHotel) * mlm
+          tarifPerMalam: Number(editItem.tiketHotel) || 0,
+          totalBiaya: (Number(editItem.tiketHotel) || 0) * mlm
         }];
       }
 
@@ -282,8 +282,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         jumlahHariLibur: 0,
         tiketHotel: 0,
         tiketPesawatTaxi: 0,
-        rincianTiket: [],
-        rincianHotel: [],
+        rincianTiket: [{ id: 1, keterangan: '', nominal: 0 }],
+        rincianHotel: [{ id: 1, namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 }],
         kategoriTransportasi: 'Pesawat Terbang',
         kategoriPerjalanan: initialCategory,
         saranaTransportasi: initialCategory === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR',
@@ -743,7 +743,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
   const handleRemoveTiket = (index) => {
     setFormData((prev) => {
-      const list = Array.isArray(prev.rincianTiket) ? prev.rincianTiket.filter((_, i) => i !== index) : [];
+      let list = Array.isArray(prev.rincianTiket) ? prev.rincianTiket.filter((_, i) => i !== index) : [];
+      if (list.length === 0) {
+        list = [{ id: Date.now(), keterangan: '', nominal: 0 }];
+      }
       const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
       return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
     });
@@ -775,7 +778,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
   const handleRemoveHotel = (index) => {
     setFormData((prev) => {
-      const list = Array.isArray(prev.rincianHotel) ? prev.rincianHotel.filter((_, i) => i !== index) : [];
+      let list = Array.isArray(prev.rincianHotel) ? prev.rincianHotel.filter((_, i) => i !== index) : [];
+      if (list.length === 0) {
+        list = [{ id: Date.now(), namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 }];
+      }
       const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
       return { ...prev, rincianHotel: list, tiketHotel: total };
     });
