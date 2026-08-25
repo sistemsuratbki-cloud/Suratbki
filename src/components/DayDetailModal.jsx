@@ -50,6 +50,7 @@ import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { PdsModal } from './PdsModal';
+import { ConfirmModal } from './ConfirmModal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
@@ -76,6 +77,7 @@ export const DayDetailModal = ({
     suratTugas: allSuratTugas,
     createPdsFromSurvey,
     updateSuratTugas,
+    deleteSuratTugas,
     updateKwitansiHonor,
     kwitansiHonor,
     adminSettings,
@@ -834,6 +836,26 @@ export const DayDetailModal = ({
     setIsLaporanPrintModalOpen(true);
   };
 
+  const isFinance = role === 'keuangan';
+  const canDelete = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
+
+  const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
+  const [itemToDelete, setItemToDelete] = useState(null);
+
+  const promptDelete = (item) => {
+    setItemToDelete(item);
+    setIsConfirmDeleteOpen(true);
+  };
+
+  const handleConfirmDelete = () => {
+    if (itemToDelete) {
+      deleteSuratTugas(itemToDelete.id);
+      toast.success(`Data ${itemToDelete.namaKapal || 'perjalanan dinas'} berhasil dihapus.`);
+      setItemToDelete(null);
+      setIsConfirmDeleteOpen(false);
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -1273,6 +1295,30 @@ export const DayDetailModal = ({
                                   <span>{pds.isUnlockedByAdmin ? 'Kunci' : 'Buka Kunci'}</span>
                                 </button>
                               )}
+
+                              {/* Tombol Hapus Dokumen PDS */}
+                              {canDelete && (
+                                <button
+                                  type="button"
+                                  className="btn btn-danger btn-sm"
+                                  style={{
+                                    padding: '0.25rem 0.6rem',
+                                    fontSize: '0.74rem',
+                                    fontWeight: 700,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    background: '#ef4444',
+                                    borderColor: '#ef4444',
+                                    color: '#ffffff'
+                                  }}
+                                  onClick={() => promptDelete(pds)}
+                                  title="Hapus Dokumen PDS ini"
+                                >
+                                  <Trash2 size={13} />
+                                  <span>Hapus</span>
+                                </button>
+                              )}
                             </div>
                           </div>
                         </div>
@@ -1400,6 +1446,30 @@ export const DayDetailModal = ({
                                 }}
                               >
                                 <span>Buat PDS Kapal Ini</span>
+                              </button>
+                            )}
+
+                            {/* Tombol Hapus SPS */}
+                            {canDelete && (
+                              <button
+                                type="button"
+                                className="btn btn-danger btn-sm"
+                                style={{
+                                  padding: '0.25rem 0.55rem',
+                                  fontSize: '0.74rem',
+                                  fontWeight: 700,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.25rem',
+                                  background: '#ef4444',
+                                  borderColor: '#ef4444',
+                                  color: '#ffffff'
+                                }}
+                                onClick={() => promptDelete(sps)}
+                                title="Hapus Surat Tugas SPS ini"
+                              >
+                                <Trash2 size={13} />
+                                <span>Hapus</span>
                               </button>
                             )}
                           </div>
@@ -2657,6 +2727,21 @@ export const DayDetailModal = ({
         title={previewAttachment.title}
         fileData={previewAttachment.fileData}
         fileName={previewAttachment.fileName}
+      />
+
+      {/* Confirm Delete Modal */}
+      <ConfirmModal
+        isOpen={isConfirmDeleteOpen}
+        title="Hapus Data Tugas / PDS"
+        message={`Apakah Anda yakin ingin menghapus dokumen "${itemToDelete?.namaKapal || 'ini'}"? Tindakan ini tidak dapat dibatalkan.`}
+        confirmText="Hapus Data"
+        cancelText="Batal"
+        type="danger"
+        onConfirm={handleConfirmDelete}
+        onClose={() => {
+          setIsConfirmDeleteOpen(false);
+          setItemToDelete(null);
+        }}
       />
     </ModalPortal>
   );
