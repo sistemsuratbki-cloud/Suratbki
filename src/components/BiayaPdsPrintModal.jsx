@@ -557,12 +557,20 @@ export const BiayaPdsPrintModal = ({
                   <div style={{ fontWeight: 'bold' }}>
                     Kepala Cabang Madya Klas Pontianak
                   </div>
-                  <div style={{ position: 'relative', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'relative', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
                     {withSignature && isValidSignature(kacabSignature) ? (
                       <img
                         src={kacabSignature}
                         alt="TTD Kepala Cabang"
-                        style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
+                        style={{
+                          height: '90px',
+                          maxHeight: '90px',
+                          maxWidth: '250px',
+                          width: 'auto',
+                          objectFit: 'contain',
+                          transform: 'scale(1.15)',
+                          transformOrigin: 'center'
+                        }}
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : null}
@@ -582,12 +590,20 @@ export const BiayaPdsPrintModal = ({
                   <div style={{ fontWeight: 'bold' }}>
                     Pembuat Daftar
                   </div>
-                  <div style={{ position: 'relative', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <div style={{ position: 'relative', height: '90px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
                     {withSignature && isValidSignature(pembuatSignature) ? (
                       <img
                         src={pembuatSignature}
                         alt="TTD Pembuat Daftar"
-                        style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
+                        style={{
+                          height: '90px',
+                          maxHeight: '90px',
+                          maxWidth: '250px',
+                          width: 'auto',
+                          objectFit: 'contain',
+                          transform: 'scale(1.35)',
+                          transformOrigin: 'center'
+                        }}
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : null}
