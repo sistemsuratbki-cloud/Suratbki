@@ -608,6 +608,8 @@ export const BukuAgendaTable = () => {
       const numB = (b.nomor || '').toLowerCase();
       const dateA = a.tglMulai || a.tglSelesai || '';
       const dateB = b.tglMulai || b.tglSelesai || '';
+      const lokasiA = (a.tempatSurvey || a.lokasi || a.lokasiSurvey || '').toLowerCase();
+      const lokasiB = (b.tempatSurvey || b.lokasi || b.lokasiSurvey || '').toLowerCase();
 
       switch (sortBy) {
         case 'nomor_asc':
@@ -620,8 +622,16 @@ export const BukuAgendaTable = () => {
           return dateB.localeCompare(dateA);
         case 'kapal_asc':
           return (a.namaKapal || '').localeCompare(b.namaKapal || '');
+        case 'kapal_desc':
+          return (b.namaKapal || '').localeCompare(a.namaKapal || '');
+        case 'lokasi_asc':
+          return lokasiA.localeCompare(lokasiB);
+        case 'lokasi_desc':
+          return lokasiB.localeCompare(lokasiA);
         case 'surveyor_asc':
           return (a.petugas || '').localeCompare(b.petugas || '');
+        case 'surveyor_desc':
+          return (b.petugas || '').localeCompare(a.petugas || '');
         default:
           return numA.localeCompare(numB, undefined, { numeric: true });
       }
@@ -1122,8 +1132,16 @@ export const BukuAgendaTable = () => {
                   <ArrowUpDown size={12} color="#ffffff" />
                 </div>
               </th>
-              <th rowSpan={2} style={{ background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '150px' }}>
-                LOKASI SURVEY
+              <th
+                rowSpan={2}
+                onClick={() => setSortBy(sortBy === 'lokasi_asc' ? 'lokasi_desc' : 'lokasi_asc')}
+                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '150px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan lokasi survey (A - Z / Z - A)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span>LOKASI SURVEY</span>
+                  <ArrowUpDown size={12} color="#ffffff" />
+                </div>
               </th>
               <th colSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '200px' }}>
                 TANGGAL PENGUASAAN

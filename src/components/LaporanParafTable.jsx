@@ -306,6 +306,8 @@ export const LaporanParafTable = () => {
       const dateB = b.tglMulai || b.tglSelesai || '';
       const durA = calculateDays(a.tglMulai, a.tglSelesai);
       const durB = calculateDays(b.tglMulai, b.tglSelesai);
+      const lokasiA = (a.tempatSurvey || a.lokasi || a.tujuan || '').toLowerCase();
+      const lokasiB = (b.tempatSurvey || b.lokasi || b.tujuan || '').toLowerCase();
 
       switch (sortBy) {
         case 'tgl_asc':
@@ -318,6 +320,10 @@ export const LaporanParafTable = () => {
           return (a.namaKapal || '').localeCompare(b.namaKapal || '');
         case 'kapal_desc':
           return (b.namaKapal || '').localeCompare(a.namaKapal || '');
+        case 'lokasi_asc':
+          return lokasiA.localeCompare(lokasiB);
+        case 'lokasi_desc':
+          return lokasiB.localeCompare(lokasiA);
         case 'petugas_asc':
           return (a.petugas || '').localeCompare(b.petugas || '');
         case 'petugas_desc':
@@ -781,6 +787,8 @@ export const LaporanParafTable = () => {
               <option value="tgl_asc">📅 Tanggal Mulai (Terlama)</option>
               <option value="kapal_asc">🚢 Nama Kapal (A - Z)</option>
               <option value="kapal_desc">🚢 Nama Kapal (Z - A)</option>
+              <option value="lokasi_asc">📍 Lokasi Survey (A - Z)</option>
+              <option value="lokasi_desc">📍 Lokasi Survey (Z - A)</option>
               <option value="petugas_asc">👤 Surveyor (A - Z)</option>
               <option value="petugas_desc">👤 Surveyor (Z - A)</option>
               <option value="nomor_asc">📄 Nomor Surat (A - Z)</option>
@@ -982,6 +990,8 @@ export const LaporanParafTable = () => {
               {sortBy === 'tgl_asc' && 'Tanggal Terlama'}
               {sortBy === 'kapal_asc' && 'Kapal (A-Z)'}
               {sortBy === 'kapal_desc' && 'Kapal (Z-A)'}
+              {sortBy === 'lokasi_asc' && 'Lokasi (A-Z)'}
+              {sortBy === 'lokasi_desc' && 'Lokasi (Z-A)'}
               {sortBy === 'petugas_asc' && 'Surveyor (A-Z)'}
               {sortBy === 'petugas_desc' && 'Surveyor (Z-A)'}
               {sortBy === 'nomor_asc' && 'No.Surat (A-Z)'}
@@ -1006,27 +1016,32 @@ export const LaporanParafTable = () => {
                 />
               </th>
               <th style={{ width: '45px', textAlign: 'center' }}>NO.</th>
-              <th onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')} style={{ cursor: 'pointer' }}>
+              <th onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Klik untuk mengurutkan kapal">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>NAMA KAPAL</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('kapal') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('kapal') ? 800 : undefined }}>NAMA KAPAL</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('kapal') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
-              <th onClick={() => setSortBy(sortBy === 'petugas_asc' ? 'petugas_desc' : 'petugas_asc')} style={{ cursor: 'pointer' }}>
+              <th onClick={() => setSortBy(sortBy === 'petugas_asc' ? 'petugas_desc' : 'petugas_asc')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Klik untuk mengurutkan surveyor">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>SURVEYOR</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('petugas') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('petugas') ? 800 : undefined }}>SURVEYOR</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('petugas') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
               <th style={{ textAlign: 'center' }}>NO HP</th>
               <th>JENIS SURVEY</th>
-              <th onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')} style={{ cursor: 'pointer' }}>
+              <th onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Klik untuk mengurutkan tanggal">
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>TGL. SURVEY</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('tgl') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('tgl') ? 800 : undefined }}>TGL. SURVEY</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('tgl') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
-              <th>LOKASI</th>
+              <th onClick={() => setSortBy(sortBy === 'lokasi_asc' ? 'lokasi_desc' : 'lokasi_asc')} style={{ cursor: 'pointer', userSelect: 'none' }} title="Klik untuk mengurutkan lokasi (A - Z / Z - A)">
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span style={{ color: sortBy.startsWith('lokasi') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('lokasi') ? 800 : undefined }}>LOKASI</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('lokasi') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                </div>
+              </th>
               <th style={{ textAlign: 'center' }}>RFQ</th>
               <th style={{ textAlign: 'center', width: '160px' }}>AKSI</th>
             </tr>

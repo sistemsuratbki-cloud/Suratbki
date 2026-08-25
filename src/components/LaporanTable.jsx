@@ -417,6 +417,9 @@ export const LaporanTable = () => {
       const agendaA = (a.noAgenda || a.nomor || '').toLowerCase();
       const agendaB = (b.noAgenda || b.nomor || '').toLowerCase();
 
+      const lokasiA = (a.lokasi || a.lokasiSurvey || a.tempatSurvey || '').toLowerCase();
+      const lokasiB = (b.lokasi || b.lokasiSurvey || b.tempatSurvey || '').toLowerCase();
+
       switch (sortBy) {
         case 'tgl_asc':
           return dateA.localeCompare(dateB);
@@ -428,6 +431,10 @@ export const LaporanTable = () => {
           return kapalA.localeCompare(kapalB);
         case 'kapal_desc':
           return kapalB.localeCompare(kapalA);
+        case 'lokasi_asc':
+          return lokasiA.localeCompare(lokasiB);
+        case 'lokasi_desc':
+          return lokasiB.localeCompare(lokasiA);
         case 'petugas_asc':
           return petugasA.localeCompare(petugasB);
         case 'petugas_desc':
@@ -1034,6 +1041,8 @@ export const LaporanTable = () => {
               <option value="nilai_asc">💰 Nilai (Terendah)</option>
               <option value="kapal_asc">🚢 Nama Kapal (A - Z)</option>
               <option value="kapal_desc">🚢 Nama Kapal (Z - A)</option>
+              <option value="lokasi_asc">📍 Lokasi Survey (A - Z)</option>
+              <option value="lokasi_desc">📍 Lokasi Survey (Z - A)</option>
               <option value="petugas_asc">👤 Surveyor (A - Z)</option>
               <option value="petugas_desc">👤 Surveyor (Z - A)</option>
               <option value="agenda_asc">📄 No. Agenda (A - Z)</option>
@@ -1209,8 +1218,10 @@ export const LaporanTable = () => {
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexWrap: 'wrap' }}>
             <span>
-              Menampilkan: <strong style={{ color: 'var(--text-primary)' }}>{filteredData.length}</strong> Kegiatan
+              Total Baris: <strong style={{ color: 'var(--accent-primary)' }}>{flattenedData.length}</strong> Kegiatan
             </span>
+            <span>•</span>
+            <span style={{ fontWeight: 600 }}>{currentMonthLabel}</span>
             <span>•</span>
             <span>
               Total: <strong style={{ color: 'var(--accent-primary)' }}>{formatRupiah(totalNilaiPerjalanan)}</strong>
@@ -1244,6 +1255,8 @@ export const LaporanTable = () => {
               {sortBy === 'nilai_asc' && 'Nilai Terendah'}
               {sortBy === 'kapal_asc' && 'Kapal (A-Z)'}
               {sortBy === 'kapal_desc' && 'Kapal (Z-A)'}
+              {sortBy === 'lokasi_asc' && 'Lokasi Survey (A-Z)'}
+              {sortBy === 'lokasi_desc' && 'Lokasi Survey (Z-A)'}
               {sortBy === 'petugas_asc' && 'Surveyor (A-Z)'}
               {sortBy === 'petugas_desc' && 'Surveyor (Z-A)'}
               {sortBy === 'agenda_asc' && 'No. Agenda (A-Z)'}
@@ -1288,7 +1301,18 @@ export const LaporanTable = () => {
                   <ArrowUpDown size={12} color={sortBy.startsWith('kapal') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
-              <th style={{ minWidth: '130px', textAlign: 'left' }}>LOKASI SURVEY</th>
+              <th
+                onClick={() => setSortBy(sortBy === 'lokasi_asc' ? 'lokasi_desc' : 'lokasi_asc')}
+                style={{ minWidth: '130px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                title="Klik untuk mengurutkan lokasi survey (A-Z / Z-A)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span style={{ color: sortBy.startsWith('lokasi') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('lokasi') ? 800 : undefined }}>
+                    LOKASI SURVEY
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('lokasi') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                </div>
+              </th>
               <th
                 onClick={() => setSortBy(sortBy === 'nilai_desc' ? 'nilai_asc' : 'nilai_desc')}
                 style={{ minWidth: '110px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
