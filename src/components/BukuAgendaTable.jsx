@@ -39,7 +39,7 @@ export const BukuAgendaTable = () => {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [surveyorFilter, setSurveyorFilter] = useState('Semua');
-  const [statusFilter, setStatusFilter] = useState('Semua'); // Semua, Selesai, Belum Selesai
+  const [statusFilter, setStatusFilter] = useState('Semua'); // Semua, Sudah Dicek, Selesai, Belum Dicek
   const [selectedMonth, setSelectedMonth] = useState('Semua');
   const [selectedYear, setSelectedYear] = useState('Semua');
   const [datePreset, setDatePreset] = useState('all');
@@ -51,10 +51,28 @@ export const BukuAgendaTable = () => {
   const [isBiayaPrintModalOpen, setIsBiayaPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
 
+  // Status Menu State
+  const [activeStatusMenuId, setActiveStatusMenuId] = useState(null);
+
   // Lampiran Modal State
   const [lampiranModalItem, setLampiranModalItem] = useState(null);
   const [isLampiranModalOpen, setIsLampiranModalOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
+
+  // Close floating menus on global click
+  useEffect(() => {
+    const handleGlobalClick = () => setActiveStatusMenuId(null);
+    window.addEventListener('click', handleGlobalClick);
+    return () => window.removeEventListener('click', handleGlobalClick);
+  }, []);
+
+  // Helper status agenda
+  const getItemStatusAgenda = (item) => {
+    if (item.statusAgenda) return item.statusAgenda;
+    if (item.status === 'Selesai') return 'Selesai';
+    if (item.isAgendaChecked) return 'Sudah Dicek';
+    return 'Belum Dicek';
+  };
 
   const resolvePdsItem = (item) => {
     if (!item) return null;
@@ -462,26 +480,29 @@ export const BukuAgendaTable = () => {
     endDate !== '' ||
     sortBy !== 'nomor_asc';
 
-  // Toggle checklist selesai & sudah dicek
-  const handleToggleCheckSelesai = async (item) => {
-    const isCurrentlyDone = item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai';
-    const newChecked = !isCurrentlyDone;
+  // Set status agenda (Sudah Dicek, Selesai, Belum Dicek)
+  const handleSetStatusAgenda = async (item, newStatus) => {
+    setActiveStatusMenuId(null);
+    const isSelesai = newStatus === 'Selesai';
+    const isSudahDicek = newStatus === 'Sudah Dicek';
 
     const payload = {
       ...item,
-      isAgendaChecked: newChecked,
-      status: newChecked ? 'Selesai' : 'Menunggu Survei',
-      statusAgenda: newChecked ? 'Selesai' : 'Belum Selesai',
-      agendaCheckedAt: newChecked ? new Date().toISOString() : null,
-      agendaCheckedBy: newChecked ? (currentUser?.name || currentUser?.username || 'Admin') : null
+      statusAgenda: newStatus,
+      isAgendaChecked: isSelesai || isSudahDicek,
+      status: isSelesai ? 'Selesai' : (item.status === 'Selesai' ? 'Menunggu Survei' : (item.status || 'Menunggu Survei')),
+      agendaCheckedAt: (isSelesai || isSudahDicek) ? new Date().toISOString() : null,
+      agendaCheckedBy: (isSelesai || isSudahDicek) ? (currentUser?.name || currentUser?.username || 'Admin') : null
     };
 
     try {
       updateSuratTugas(item.id, payload);
-      if (newChecked) {
-        toast.success(`Data Agenda ${cleanDocNumber(item.nomor)} telah DICEK & SELESAI ✅`);
+      if (newStatus === 'Selesai') {
+        toast.success(`Agenda ${cleanDocNumber(item.nomor)} diset: SELESAI ✅`);
+      } else if (newStatus === 'Sudah Dicek') {
+        toast.success(`Agenda ${cleanDocNumber(item.nomor)} diset: SUDAH DICEK 🔍`);
       } else {
-        toast.info(`Status Agenda ${cleanDocNumber(item.nomor)} dikembalikan ke BELUM SELESAI`);
+        toast.info(`Agenda ${cleanDocNumber(item.nomor)} diset: BELUM DICEK ⏳`);
       }
     } catch (err) {
       console.error('Error updating agenda status:', err);
@@ -521,11 +542,12 @@ export const BukuAgendaTable = () => {
         return false;
       }
 
-      // Status filter (Selesai vs Belum Selesai)
+      // Status filter (Semua, Selesai, Sudah Dicek, Belum Dicek)
       if (statusFilter !== 'Semua') {
-        const isDone = item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai';
-        if (statusFilter === 'Selesai' && !isDone) return false;
-        if (statusFilter === 'Belum Selesai' && isDone) return false;
+        const currentStatus = getItemStatusAgenda(item);
+        if (statusFilter === 'Selesai' && currentStatus !== 'Selesai') return false;
+        if (statusFilter === 'Sudah Dicek' && currentStatus !== 'Sudah Dicek') return false;
+        if (statusFilter === 'Belum Dicek' && currentStatus !== 'Belum Dicek') return false;
       }
 
       const itemDate = item.tglMulai || item.tglSelesai || '';
@@ -879,8 +901,9 @@ export const BukuAgendaTable = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="Semua">-- Semua Status --</option>
-            <option value="Selesai">✅ Sudah Dicek / Selesai</option>
-            <option value="Belum Selesai">⏳ Belum Dicek</option>
+            <option value="Sudah Dicek">🔍 Sudah Dicek</option>
+            <option value="Selesai">✅ Selesai</option>
+            <option value="Belum Dicek">⏳ Belum Dicek</option>
           </select>
 
           {/* Month Selector */}
@@ -1103,32 +1126,52 @@ export const BukuAgendaTable = () => {
                 const tglSelesaiFormatted = formatDateDMY(item.tglSelesai || item.tglMulai);
                 const biaya = calculateBiayaItem(item);
                 const lokasi = item.tempatSurvey || item.lokasi || '-';
-                const isChecked = Boolean(item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai');
+                const currentStatus = getItemStatusAgenda(item);
+                const isSelesai = currentStatus === 'Selesai';
+                const isSudahDicek = currentStatus === 'Sudah Dicek';
+                const isMenuOpen = activeStatusMenuId === item.id;
+
+                let rowBg = undefined;
+                let borderLeftColor = 'transparent';
+                let numColor = 'var(--text-secondary)';
+                let docNoColor = 'var(--accent-primary)';
+
+                if (isSelesai) {
+                  rowBg = 'rgba(16, 185, 129, 0.12)';
+                  borderLeftColor = '#10b981';
+                  numColor = '#047857';
+                  docNoColor = '#047857';
+                } else if (isSudahDicek) {
+                  rowBg = 'rgba(59, 130, 246, 0.10)';
+                  borderLeftColor = '#3b82f6';
+                  numColor = '#1d4ed8';
+                  docNoColor = '#1d4ed8';
+                }
 
                 return (
                   <tr
                     key={item.id || index}
                     style={{
-                      background: isChecked ? 'rgba(16, 185, 129, 0.12)' : undefined,
+                      background: rowBg,
                       transition: 'background 0.25s ease'
                     }}
-                    className={isChecked ? 'row-checked-selesai' : ''}
+                    className={isSelesai ? 'row-checked-selesai' : isSudahDicek ? 'row-checked-dicek' : ''}
                   >
                     <td
                       style={{
                         textAlign: 'center',
                         fontWeight: 700,
-                        color: isChecked ? '#047857' : 'var(--text-secondary)',
-                        borderLeft: isChecked ? '4px solid #10b981' : '4px solid transparent',
+                        color: numColor,
+                        borderLeft: `4px solid ${borderLeftColor}`,
                         transition: 'all 0.25s ease'
                       }}
                     >
                       {index + 1}
                     </td>
-                    <td style={{ fontWeight: 600, color: isChecked ? '#047857' : 'var(--accent-primary)', whiteSpace: 'nowrap' }}>
+                    <td style={{ fontWeight: 600, color: docNoColor, whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <span>{cleanDocNumber(item.nomor) || '-'}</span>
-                        {isChecked && (
+                        {isSelesai && (
                           <span
                             style={{
                               background: '#dcfce7',
@@ -1142,10 +1185,30 @@ export const BukuAgendaTable = () => {
                               alignItems: 'center',
                               gap: '2px'
                             }}
-                            title={`Data sudah dicek & selesai${item.agendaCheckedBy ? ` oleh ${item.agendaCheckedBy}` : ''}`}
+                            title={`Data selesai${item.agendaCheckedBy ? ` oleh ${item.agendaCheckedBy}` : ''}`}
                           >
                             <CheckCircle2 size={10} />
                             SELESAI
+                          </span>
+                        )}
+                        {isSudahDicek && (
+                          <span
+                            style={{
+                              background: '#dbeafe',
+                              color: '#1d4ed8',
+                              border: '1px solid #93c5fd',
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px'
+                            }}
+                            title={`Data sudah dicek${item.agendaCheckedBy ? ` oleh ${item.agendaCheckedBy}` : ''}`}
+                          >
+                            <FileCheck2 size={10} />
+                            DICEK
                           </span>
                         )}
                       </div>
@@ -1171,24 +1234,132 @@ export const BukuAgendaTable = () => {
                       {item.petugas || '-'}
                     </td>
                     <td style={{ textAlign: 'center' }}>
-                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
-                        {/* Tombol Checklist / Status Selesai & Sudah Dicek */}
-                        <button
-                          type="button"
-                          className="btn btn-icon btn-sm"
-                          onClick={() => handleToggleCheckSelesai(item)}
-                          title={isChecked ? `Status: SUDAH DICEK & SELESAI${item.agendaCheckedBy ? ` (${item.agendaCheckedBy})` : ''} — Klik untuk batalkan` : 'Tandai bahwa data SUDAH DICEK & SELESAI'}
-                          style={{
-                            background: isChecked ? '#10b981' : 'var(--bg-main)',
-                            color: isChecked ? '#ffffff' : '#94a3b8',
-                            borderColor: isChecked ? '#10b981' : 'var(--border-color)',
-                            boxShadow: isChecked ? '0 1px 5px rgba(16, 185, 129, 0.4)' : 'none',
-                            transform: isChecked ? 'scale(1.05)' : 'scale(1)',
-                            transition: 'all 0.2s ease'
-                          }}
-                        >
-                          <CheckCircle2 size={15} />
-                        </button>
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem', alignItems: 'center' }}>
+                        {/* Tombol Status Agenda Popover (Sudah Dicek, Selesai, Belum Dicek) */}
+                        <div style={{ position: 'relative', display: 'inline-block' }}>
+                          <button
+                            type="button"
+                            className="btn btn-icon btn-sm"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveStatusMenuId(isMenuOpen ? null : item.id);
+                            }}
+                            title={`Status Agenda: ${currentStatus} (Klik untuk ganti status)`}
+                            style={{
+                              background: isSelesai ? '#10b981' : isSudahDicek ? '#3b82f6' : 'var(--bg-main)',
+                              color: isSelesai || isSudahDicek ? '#ffffff' : '#94a3b8',
+                              borderColor: isSelesai ? '#10b981' : isSudahDicek ? '#3b82f6' : 'var(--border-color)',
+                              boxShadow: isSelesai ? '0 1px 5px rgba(16, 185, 129, 0.4)' : isSudahDicek ? '0 1px 5px rgba(59, 130, 246, 0.4)' : 'none',
+                              transform: isSelesai || isSudahDicek ? 'scale(1.05)' : 'scale(1)',
+                              transition: 'all 0.2s ease'
+                            }}
+                          >
+                            {isSelesai ? (
+                              <CheckCircle2 size={15} />
+                            ) : isSudahDicek ? (
+                              <FileCheck2 size={15} />
+                            ) : (
+                              <CheckCircle2 size={15} />
+                            )}
+                          </button>
+
+                          {/* Floating Popover Status Menu */}
+                          {isMenuOpen && (
+                            <div
+                              onClick={(e) => e.stopPropagation()}
+                              style={{
+                                position: 'absolute',
+                                top: '100%',
+                                right: 0,
+                                marginTop: '6px',
+                                zIndex: 100,
+                                background: 'var(--card-bg, #ffffff)',
+                                border: '1px solid var(--border-color, #e2e8f0)',
+                                borderRadius: '8px',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.25), 0 8px 10px -6px rgba(0, 0, 0, 0.2)',
+                                padding: '6px',
+                                minWidth: '155px',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '3px',
+                                textAlign: 'left'
+                              }}
+                            >
+                              <div style={{ fontSize: '0.66rem', fontWeight: 700, color: 'var(--text-muted)', padding: '2px 6px', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                                Pilih Status:
+                              </div>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSetStatusAgenda(item, 'Sudah Dicek')}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: isSudahDicek ? 700 : 500,
+                                  color: isSudahDicek ? '#1d4ed8' : 'var(--text-primary)',
+                                  background: isSudahDicek ? '#eff6ff' : 'transparent',
+                                  border: 'none',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3b82f6', flexShrink: 0 }}></span>
+                                <span>🔍 Sudah Dicek</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSetStatusAgenda(item, 'Selesai')}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: isSelesai ? 700 : 500,
+                                  color: isSelesai ? '#15803d' : 'var(--text-primary)',
+                                  background: isSelesai ? '#f0fdf4' : 'transparent',
+                                  border: 'none',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }}></span>
+                                <span>✅ Selesai</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => handleSetStatusAgenda(item, 'Belum Dicek')}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: !isSelesai && !isSudahDicek ? 700 : 500,
+                                  color: !isSelesai && !isSudahDicek ? '#64748b' : 'var(--text-primary)',
+                                  background: !isSelesai && !isSudahDicek ? 'var(--bg-main)' : 'transparent',
+                                  border: 'none',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', flexShrink: 0 }}></span>
+                                <span>⏳ Belum Dicek</span>
+                              </button>
+                            </div>
+                          )}
+                        </div>
 
                         {/* Tombol Akses / Lihat Lampiran PDS */}
                         {(() => {
