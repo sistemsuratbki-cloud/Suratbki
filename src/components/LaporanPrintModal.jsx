@@ -26,9 +26,9 @@ export const LaporanPrintModal = ({
     } else if (laporan) {
       // Get date from surat tugas if available
       const st = (suratTugas || []).find(s => s.id === laporan.suratId || s.id === laporan.suratTugasId);
-      const dateVal = st?.tglMulai || laporan.tglLapor || laporan.tanggal || laporan.tanggalBuat;
+      const dateVal = laporan.tglMulai || laporan.tglLapor || laporan.tanggal || laporan.tglSelesai || st?.tglMulai || laporan.tanggalBuat || laporan.createdAt || '';
       const dateObj = new Date(dateVal);
-      const dateStr = !isNaN(dateObj) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
+      const dateStr = !isNaN(dateObj.getTime()) ? `${dateObj.getFullYear()}-${String(dateObj.getMonth() + 1).padStart(2, '0')}-${String(dateObj.getDate()).padStart(2, '0')}` : 'Tanggal';
       const surveyor = laporan.petugas || 'Surveyor';
       document.title = `${dateStr} - ${surveyor} - Laporan Survei`;
     }
@@ -131,9 +131,10 @@ export const LaporanPrintModal = ({
                     ) : (
                       allData.map((item, index) => {
                         const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
-                        const dateFormatted = formatDateIndo(item.tglLapor || item.tanggal || linkedSurat?.tglMulai);
+                        const rawDate = item.tglLapor || item.tanggal || item.tglMulai || item.tglSelesai || item.tanggalMulai || item.tanggalBuat || linkedSurat?.tglMulai || linkedSurat?.tanggal || linkedSurat?.tglLapor || item.createdAt || '';
+                        const dateFormatted = rawDate ? formatDateIndo(rawDate) : '-';
                         const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();
-                        const lokasi = item.lokasi || item.lokasiSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
+                        const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || (linkedSurat ? linkedSurat.lokasi : '-');
                         const nilaiNum = Number(item.nilai) || Number(item.jumlahEstimasi) || (linkedSurat ? Number(linkedSurat.jumlahEstimasi) : 0) || Number(item.tarifDasar) || 0;
                         const namaSurveyor = item.petugas || (linkedSurat ? linkedSurat.petugas : '-');
                         const noAgendaRaw = item.noAgenda || (linkedSurat ? linkedSurat.nomor : '-');
@@ -225,7 +226,7 @@ export const LaporanPrintModal = ({
                       <tr>
                         <td style={{ fontWeight: 700 }}>TANGGAL</td>
                         <td>:</td>
-                        <td>{formatDateIndo(laporan.tglLapor || laporan.tanggal)}</td>
+                        <td>{formatDateIndo(laporan.tglLapor || laporan.tanggal || laporan.tglMulai || laporan.tglSelesai || laporan.tanggalMulai || laporan.createdAt)}</td>
                       </tr>
                       <tr>
                         <td style={{ fontWeight: 700 }}>LOKASI SURVEY</td>
