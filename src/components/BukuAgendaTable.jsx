@@ -606,8 +606,12 @@ export const BukuAgendaTable = () => {
     result.sort((a, b) => {
       const numA = (a.nomor || '').toLowerCase();
       const numB = (b.nomor || '').toLowerCase();
-      const dateA = a.tglMulai || a.tglSelesai || '';
-      const dateB = b.tglMulai || b.tglSelesai || '';
+      const tglMulaiA = a.tglMulai || a.tglLapor || a.tanggal || a.tglSelesai || '';
+      const tglMulaiB = b.tglMulai || b.tglLapor || b.tanggal || b.tglSelesai || '';
+      const tglSelesaiA = a.tglSelesai || a.tglMulai || a.tglLapor || a.tanggal || '';
+      const tglSelesaiB = b.tglSelesai || b.tglMulai || b.tglLapor || b.tanggal || '';
+      const biayaA = calculateBiayaItem(a);
+      const biayaB = calculateBiayaItem(b);
       const lokasiA = (a.tempatSurvey || a.lokasi || a.lokasiSurvey || '').toLowerCase();
       const lokasiB = (b.tempatSurvey || b.lokasi || b.lokasiSurvey || '').toLowerCase();
 
@@ -617,9 +621,19 @@ export const BukuAgendaTable = () => {
         case 'nomor_desc':
           return numB.localeCompare(numA, undefined, { numeric: true });
         case 'tgl_asc':
-          return dateA.localeCompare(dateB);
+        case 'tgl_mulai_asc':
+          return tglMulaiA.localeCompare(tglMulaiB);
         case 'tgl_desc':
-          return dateB.localeCompare(dateA);
+        case 'tgl_mulai_desc':
+          return tglMulaiB.localeCompare(tglMulaiA);
+        case 'tgl_selesai_asc':
+          return tglSelesaiA.localeCompare(tglSelesaiB);
+        case 'tgl_selesai_desc':
+          return tglSelesaiB.localeCompare(tglSelesaiA);
+        case 'biaya_asc':
+          return biayaA - biayaB;
+        case 'biaya_desc':
+          return biayaB - biayaA;
         case 'kapal_asc':
           return (a.namaKapal || '').localeCompare(b.namaKapal || '');
         case 'kapal_desc':
@@ -1115,48 +1129,79 @@ export const BukuAgendaTable = () => {
               <th
                 rowSpan={2}
                 onClick={() => setSortBy(sortBy === 'nomor_asc' ? 'nomor_desc' : 'nomor_asc')}
-                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px' }}
+                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan nomor surat (A-Z / Z-A)"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>NOMOR SURAT</span>
-                  <ArrowUpDown size={12} color="#ffffff" />
+                  <span style={{ color: sortBy.startsWith('nomor') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('nomor') ? 800 : undefined }}>
+                    NOMOR SURAT
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('nomor') ? '#fef08a' : '#ffffff'} />
                 </div>
               </th>
               <th
                 rowSpan={2}
-                onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'nomor_asc' : 'kapal_asc')}
-                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5' }}
+                onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')}
+                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', userSelect: 'none' }}
+                title="Klik untuk mengurutkan objek kapal (A-Z / Z-A)"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>OBJEK/SURVEY</span>
-                  <ArrowUpDown size={12} color="#ffffff" />
+                  <span style={{ color: sortBy.startsWith('kapal') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('kapal') ? 800 : undefined }}>
+                    OBJEK/SURVEY
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('kapal') ? '#fef08a' : '#ffffff'} />
                 </div>
               </th>
               <th
                 rowSpan={2}
                 onClick={() => setSortBy(sortBy === 'lokasi_asc' ? 'lokasi_desc' : 'lokasi_asc')}
                 style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '150px', userSelect: 'none' }}
-                title="Klik untuk mengurutkan lokasi survey (A - Z / Z - A)"
+                title="Klik untuk mengurutkan lokasi survey (A-Z / Z-A)"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>LOKASI SURVEY</span>
-                  <ArrowUpDown size={12} color="#ffffff" />
+                  <span style={{ color: sortBy.startsWith('lokasi') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('lokasi') ? 800 : undefined }}>
+                    LOKASI SURVEY
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('lokasi') ? '#fef08a' : '#ffffff'} />
                 </div>
               </th>
-              <th colSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '200px' }}>
-                TANGGAL PENUGASAN
-              </th>
-              <th rowSpan={2} style={{ textAlign: 'right', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px' }}>
-                BIAYA
+              <th
+                colSpan={2}
+                onClick={() => setSortBy(sortBy === 'tgl_mulai_desc' ? 'tgl_mulai_asc' : 'tgl_mulai_desc')}
+                style={{ cursor: 'pointer', textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '200px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan tanggal penugasan (Terbaru / Terlama)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
+                  <span style={{ color: sortBy.startsWith('tgl') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('tgl') ? 800 : undefined }}>
+                    TANGGAL PENUGASAN
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('tgl') ? '#fef08a' : '#ffffff'} />
+                </div>
               </th>
               <th
                 rowSpan={2}
-                onClick={() => setSortBy(sortBy === 'surveyor_asc' ? 'nomor_asc' : 'surveyor_asc')}
-                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px' }}
+                onClick={() => setSortBy(sortBy === 'biaya_desc' ? 'biaya_asc' : 'biaya_desc')}
+                style={{ cursor: 'pointer', textAlign: 'right', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan biaya (Tertinggi / Terendah)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
+                  <span style={{ color: sortBy.startsWith('biaya') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('biaya') ? 800 : undefined }}>
+                    BIAYA
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('biaya') ? '#fef08a' : '#ffffff'} />
+                </div>
+              </th>
+              <th
+                rowSpan={2}
+                onClick={() => setSortBy(sortBy === 'surveyor_asc' ? 'surveyor_desc' : 'surveyor_asc')}
+                style={{ cursor: 'pointer', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan surveyor (A-Z / Z-A)"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>SURVEYOR</span>
-                  <ArrowUpDown size={12} color="#ffffff" />
+                  <span style={{ color: sortBy.startsWith('surveyor') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('surveyor') ? 800 : undefined }}>
+                    SURVEYOR
+                  </span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('surveyor') ? '#fef08a' : '#ffffff'} />
                 </div>
               </th>
               <th rowSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px' }}>
@@ -1164,11 +1209,29 @@ export const BukuAgendaTable = () => {
               </th>
             </tr>
             <tr style={{ background: '#4f81bd', color: '#ffffff' }}>
-              <th style={{ textAlign: 'center', fontSize: '0.78rem', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px' }}>
-                MULAI
+              <th
+                onClick={() => setSortBy(sortBy === 'tgl_mulai_asc' ? 'tgl_mulai_desc' : 'tgl_mulai_asc')}
+                style={{ cursor: 'pointer', textAlign: 'center', fontSize: '0.78rem', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan tanggal mulai (Terlama / Terbaru)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                  <span style={{ color: sortBy.startsWith('tgl_mulai') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('tgl_mulai') ? 800 : undefined }}>
+                    MULAI
+                  </span>
+                  <ArrowUpDown size={11} color={sortBy.startsWith('tgl_mulai') ? '#fef08a' : '#ffffff'} />
+                </div>
               </th>
-              <th style={{ textAlign: 'center', fontSize: '0.78rem', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px' }}>
-                SELESAI
+              <th
+                onClick={() => setSortBy(sortBy === 'tgl_selesai_asc' ? 'tgl_selesai_desc' : 'tgl_selesai_asc')}
+                style={{ cursor: 'pointer', textAlign: 'center', fontSize: '0.78rem', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px', userSelect: 'none' }}
+                title="Klik untuk mengurutkan tanggal selesai (Terlama / Terbaru)"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.25rem' }}>
+                  <span style={{ color: sortBy.startsWith('tgl_selesai') ? '#fef08a' : undefined, fontWeight: sortBy.startsWith('tgl_selesai') ? 800 : undefined }}>
+                    SELESAI
+                  </span>
+                  <ArrowUpDown size={11} color={sortBy.startsWith('tgl_selesai') ? '#fef08a' : '#ffffff'} />
+                </div>
               </th>
             </tr>
           </thead>
