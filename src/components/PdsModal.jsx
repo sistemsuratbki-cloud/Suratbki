@@ -1521,72 +1521,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 )}
               </div>
 
-              {/* Section 3.5: NO CDA, NO.SO, NO.WBS - Finance/Admin Only for SO & WBS */}
-              <div
-                style={{
-                  background: 'var(--bg-main)',
-                  border: '1.5px solid var(--border-color-strong)',
-                  borderRadius: 'var(--radius-md)',
-                  padding: '1rem 1.25rem',
-                  marginBottom: '1.25rem'
-                }}
-              >
-                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
-                  📄 NOMOR DOKUMEN KEUANGAN & ADMINISTRASI
-                </div>
 
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '1rem' }}>
-                  {/* NO CDA - Editable by all */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <span>8. NO CDA</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.noCda}
-                      onChange={(e) => setFormData({ ...formData, noCda: e.target.value })}
-                      placeholder="Contoh: 5100010"
-                      style={{ fontWeight: 600 }}
-                    />
-                  </div>
-
-                  {/* NO.SO */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                      <span>9. NO.SO</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.noSo}
-                      onChange={(e) => setFormData({ ...formData, noSo: e.target.value })}
-                      placeholder="Contoh: 3000255955"
-                      style={{
-                        fontWeight: 700,
-                        color: formData.noSo ? '#0284c7' : 'inherit'
-                      }}
-                    />
-                  </div>
-
-                  {/* NO.WBS */}
-                  <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.82rem' }}>
-                      <span>10. NO.WBS</span>
-                    </label>
-                    <input
-                      type="text"
-                      className="form-input"
-                      value={formData.noWbs}
-                      onChange={(e) => setFormData({ ...formData, noWbs: e.target.value })}
-                      placeholder="Contoh: 00578-PK-Z4-0426"
-                      style={{
-                        fontWeight: 600
-                      }}
-                    />
-                  </div>
-                </div>
-              </div>
 
               {/* Section 4: Tanggal, Lokasi, Hari Libur & Opsi Uang Harian */}
               <div
