@@ -211,6 +211,12 @@ export const LaporanTable = () => {
     ? `TAHUN ${selectedYear}`
     : `BULAN ${monthNames.find(m => m.value === selectedMonth)?.label?.toUpperCase() || 'MEI'} ${selectedYear}`;
 
+  // Helper untuk mendapatkan tanggal item secara konsisten
+  const getItemDate = (item) => {
+    if (!item) return '';
+    return item.tglLapor || item.tanggal || item.tglMulai || item.tglSelesai || item.createdAt || '';
+  };
+
   // Filter & Sort Data
   const filteredData = useMemo(() => {
     // 1. Filter PDS items only (tidak include SPS yang pending)
@@ -225,7 +231,7 @@ export const LaporanTable = () => {
         return false;
       }
 
-      const dateStr = item.tglLapor || item.tanggal || item.tglMulai || '';
+      const dateStr = getItemDate(item);
 
       // Month & Year Filter
       if (selectedMonth !== 'Semua') {
@@ -280,53 +286,8 @@ export const LaporanTable = () => {
       return matchesSearch;
     });
 
-    // 2. Sort (Short / Sortir)
-    result.sort((a, b) => {
-      const linkedSuratA = suratTugas.find((s) => s.id === a.suratId);
-      const linkedSuratB = suratTugas.find((s) => s.id === b.suratId);
-
-      const dateA = a.tglLapor || a.tanggal || linkedSuratA?.tglMulai || '';
-      const dateB = b.tglLapor || b.tanggal || linkedSuratB?.tglMulai || '';
-
-      const valA = Number(a.jumlahEstimasi) || (linkedSuratA ? Number(linkedSuratA.jumlahEstimasi) : 0) || Number(a.nilai) || Number(a.tarifDasar) || 0;
-      const valB = Number(b.jumlahEstimasi) || (linkedSuratB ? Number(linkedSuratB.jumlahEstimasi) : 0) || Number(b.nilai) || Number(b.tarifDasar) || 0;
-
-      const kapalA = (a.namaKapal || (linkedSuratA ? linkedSuratA.namaKapal : '')).toLowerCase();
-      const kapalB = (b.namaKapal || (linkedSuratB ? linkedSuratB.namaKapal : '')).toLowerCase();
-
-      const petugasA = (a.petugas || linkedSuratA?.petugas || '').toLowerCase();
-      const petugasB = (b.petugas || linkedSuratB?.petugas || '').toLowerCase();
-
-      const agendaA = (a.noAgenda || a.nomor || linkedSuratA?.nomor || '').toLowerCase();
-      const agendaB = (b.noAgenda || b.nomor || linkedSuratB?.nomor || '').toLowerCase();
-
-      switch (sortBy) {
-        case 'tgl_asc':
-          return dateA.localeCompare(dateB);
-        case 'nilai_desc':
-          return valB - valA;
-        case 'nilai_asc':
-          return valA - valB;
-        case 'kapal_asc':
-          return kapalA.localeCompare(kapalB);
-        case 'kapal_desc':
-          return kapalB.localeCompare(kapalA);
-        case 'petugas_asc':
-          return petugasA.localeCompare(petugasB);
-        case 'petugas_desc':
-          return petugasB.localeCompare(petugasA);
-        case 'agenda_asc':
-          return agendaA.localeCompare(agendaB);
-        case 'agenda_desc':
-          return agendaB.localeCompare(agendaA);
-        case 'tgl_desc':
-        default:
-          return dateB.localeCompare(dateA);
-      }
-    });
-
     return result;
-  }, [suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm, sortBy]);
+  }, [suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm]);
 
   // Helper untuk mendapatkan Total Nilai Rincian PDS secara akurat
   const getItemNilaiTotal = (item) => {
@@ -376,7 +337,7 @@ export const LaporanTable = () => {
     return Number(target.nilai) || Number(target.tarifDasar) || 0;
   };
 
-  // Pecah / Pisahkan nama kapal dan nominal untuk PDS multi-kapal
+  // Pecah / Pisahkan nama kapal dan nominal untuk PDS multi-kapal, kemudian urutkan (Sort / Short)
   const flattenedData = useMemo(() => {
     const list = [];
     filteredData.forEach((item) => {
@@ -439,8 +400,50 @@ export const LaporanTable = () => {
       }
     });
 
+    // Urutkan (Sorting / Shortir) data secara menyeluruh
+    list.sort((a, b) => {
+      const dateA = getItemDate(a);
+      const dateB = getItemDate(b);
+
+      const valA = Number(a.nilai) || Number(a.jumlahEstimasi) || 0;
+      const valB = Number(b.nilai) || Number(b.jumlahEstimasi) || 0;
+
+      const kapalA = (a.namaKapal || '').toLowerCase();
+      const kapalB = (b.namaKapal || '').toLowerCase();
+
+      const petugasA = (a.petugas || '').toLowerCase();
+      const petugasB = (b.petugas || '').toLowerCase();
+
+      const agendaA = (a.noAgenda || a.nomor || '').toLowerCase();
+      const agendaB = (b.noAgenda || b.nomor || '').toLowerCase();
+
+      switch (sortBy) {
+        case 'tgl_asc':
+          return dateA.localeCompare(dateB);
+        case 'nilai_desc':
+          return valB - valA;
+        case 'nilai_asc':
+          return valA - valB;
+        case 'kapal_asc':
+          return kapalA.localeCompare(kapalB);
+        case 'kapal_desc':
+          return kapalB.localeCompare(kapalA);
+        case 'petugas_asc':
+          return petugasA.localeCompare(petugasB);
+        case 'petugas_desc':
+          return petugasB.localeCompare(petugasA);
+        case 'agenda_asc':
+          return agendaA.localeCompare(agendaB);
+        case 'agenda_desc':
+          return agendaB.localeCompare(agendaA);
+        case 'tgl_desc':
+        default:
+          return dateB.localeCompare(dateA);
+      }
+    });
+
     return list;
-  }, [filteredData, suratTugas, adminSettings]);
+  }, [filteredData, suratTugas, adminSettings, sortBy]);
 
   /* Total Nilai Calculation */
   const totalNilaiPerjalanan = useMemo(() => {
@@ -1267,44 +1270,53 @@ export const LaporanTable = () => {
               <th style={{ width: '45px', textAlign: 'center' }}>NO.</th>
               <th
                 onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')}
-                style={{ width: '110px', textAlign: 'center', cursor: 'pointer' }}
-                title="Klik untuk mengurutkan tanggal"
+                style={{ width: '110px', textAlign: 'center', cursor: 'pointer', userSelect: 'none' }}
+                title="Klik untuk mengurutkan tanggal (Terbaru / Terlama)"
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.3rem' }}>
-                  <span>TANGGAL</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('tgl') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('tgl') ? 800 : undefined }}>TANGGAL</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('tgl') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
               <th
                 onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')}
-                style={{ minWidth: '160px', textAlign: 'left', cursor: 'pointer' }}
-                title="Klik untuk mengurutkan kapal"
+                style={{ minWidth: '160px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                title="Klik untuk mengurutkan nama kapal"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>NAMA KAPAL</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('kapal') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('kapal') ? 800 : undefined }}>NAMA KAPAL</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('kapal') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
               <th style={{ minWidth: '130px', textAlign: 'left' }}>LOKASI SURVEY</th>
               <th
                 onClick={() => setSortBy(sortBy === 'nilai_desc' ? 'nilai_asc' : 'nilai_desc')}
-                style={{ minWidth: '110px', textAlign: 'right', cursor: 'pointer' }}
-                title="Klik untuk mengurutkan nilai"
+                style={{ minWidth: '110px', textAlign: 'right', cursor: 'pointer', userSelect: 'none' }}
+                title="Klik untuk mengurutkan nilai (Tertinggi / Terendah)"
               >
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: '0.3rem' }}>
-                  <span>NILAI</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('nilai') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('nilai') ? 800 : undefined }}>NILAI</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('nilai') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
-              <th style={{ minWidth: '160px', textAlign: 'left' }}>NAMA SURVEYOR</th>
+              <th
+                onClick={() => setSortBy(sortBy === 'petugas_asc' ? 'petugas_desc' : 'petugas_asc')}
+                style={{ minWidth: '160px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
+                title="Klik untuk mengurutkan surveyor"
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <span style={{ color: sortBy.startsWith('petugas') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('petugas') ? 800 : undefined }}>NAMA SURVEYOR</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('petugas') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
+                </div>
+              </th>
               <th
                 onClick={() => setSortBy(sortBy === 'agenda_asc' ? 'agenda_desc' : 'agenda_asc')}
-                style={{ minWidth: '140px', textAlign: 'left', cursor: 'pointer' }}
+                style={{ minWidth: '140px', textAlign: 'left', cursor: 'pointer', userSelect: 'none' }}
                 title="Klik untuk mengurutkan no. agenda"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                  <span>NO AGENDA</span>
-                  <ArrowUpDown size={12} color="var(--text-muted)" />
+                  <span style={{ color: sortBy.startsWith('agenda') ? 'var(--accent-primary)' : undefined, fontWeight: sortBy.startsWith('agenda') ? 800 : undefined }}>NO AGENDA</span>
+                  <ArrowUpDown size={12} color={sortBy.startsWith('agenda') ? 'var(--accent-primary)' : 'var(--text-muted)'} />
                 </div>
               </th>
               <th style={{ minWidth: '110px', textAlign: 'left' }}>NO CDA</th>
