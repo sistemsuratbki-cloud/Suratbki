@@ -54,6 +54,9 @@ export const BukuAgendaTable = () => {
   // Status Menu State
   const [activeStatusMenuId, setActiveStatusMenuId] = useState(null);
 
+  // Checkbox Selection State
+  const [selectedRowIds, setSelectedRowIds] = useState([]);
+
   // Lampiran Modal State
   const [lampiranModalItem, setLampiranModalItem] = useState(null);
   const [isLampiranModalOpen, setIsLampiranModalOpen] = useState(false);
@@ -471,6 +474,7 @@ export const BukuAgendaTable = () => {
     setStartDate('');
     setEndDate('');
     setSortBy('nomor_asc');
+    setSelectedRowIds([]);
   };
 
   const hasActiveFilters =
@@ -631,8 +635,28 @@ export const BukuAgendaTable = () => {
     return filteredData.reduce((acc, item) => acc + calculateBiayaItem(item), 0);
   }, [filteredData]);
 
+  // Selection Handlers
+  const handleToggleSelectAll = () => {
+    if (selectedRowIds.length === filteredData.length && filteredData.length > 0) {
+      setSelectedRowIds([]);
+    } else {
+      setSelectedRowIds(filteredData.map((item) => item.id));
+    }
+  };
+
+  const handleToggleSelectRow = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedRowIds((prev) =>
+      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
+    );
+  };
+
   // Export to Excel (Matching exact style from user's screenshot)
   const handleExportExcel = async () => {
+    const targetData = selectedRowIds.length > 0 
+      ? filteredData.filter(d => selectedRowIds.includes(d.id))
+      : filteredData;
+
     const wb = new ExcelJS.Workbook();
     wb.creator = 'BKI Pontianak';
     wb.created = new Date();
@@ -716,7 +740,7 @@ export const BukuAgendaTable = () => {
     ws.getRow(4).height = 22;
 
     // Add Data
-    filteredData.forEach((item, idx) => {
+    targetData.forEach((item, idx) => {
       const rowNum = idx + 5;
       const tglMulai = formatDateDMY(item.tglMulai || item.tglSelesai);
       const tglSelesai = formatDateDMY(item.tglSelesai || item.tglMulai);
@@ -802,7 +826,23 @@ export const BukuAgendaTable = () => {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {selectedRowIds.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(37, 99, 235, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(37, 99, 235, 0.25)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>
+                ✓ {selectedRowIds.length} dipilih
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedRowIds([])}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.1rem 0.4rem', fontSize: '0.72rem', height: 'auto', lineHeight: '1.2' }}
+              >
+                Batal
+              </button>
+            </div>
+          )}
+
           {hasActiveFilters && (
             <button
               type="button"
@@ -820,20 +860,20 @@ export const BukuAgendaTable = () => {
             className="btn btn-secondary btn-sm"
             onClick={handleExportExcel}
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#059669', color: '#ffffff', borderColor: '#059669' }}
-            title="Export Buku Agenda ke format Excel"
+            title={selectedRowIds.length > 0 ? `Export ${selectedRowIds.length} item terpilih ke Excel` : 'Export seluruh Buku Agenda ke format Excel'}
           >
             <FileSpreadsheet size={15} />
-            <span>Export Excel</span>
+            <span>{selectedRowIds.length > 0 ? `Export Terpilih (${selectedRowIds.length})` : 'Export Excel'}</span>
           </button>
 
           <button
             className="btn btn-primary btn-sm"
             onClick={() => setIsPrintModalOpen(true)}
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-            title="Cetak PDF Buku Agenda"
+            title={selectedRowIds.length > 0 ? `Cetak ${selectedRowIds.length} item terpilih ke PDF` : 'Cetak PDF Buku Agenda'}
           >
             <Printer size={15} />
-            <span>Cetak PDF</span>
+            <span>{selectedRowIds.length > 0 ? `Cetak Terpilih (${selectedRowIds.length})` : 'Cetak PDF'}</span>
           </button>
         </div>
       </div>
@@ -1050,6 +1090,15 @@ export const BukuAgendaTable = () => {
         >
           <thead>
             <tr style={{ background: '#4f81bd', color: '#ffffff' }}>
+              <th rowSpan={2} style={{ width: '38px', textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5' }}>
+                <input
+                  type="checkbox"
+                  style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
+                  checked={filteredData.length > 0 && selectedRowIds.length === filteredData.length}
+                  onChange={handleToggleSelectAll}
+                  title="Pilih Semua"
+                />
+              </th>
               <th rowSpan={2} style={{ width: '45px', textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5' }}>
                 NO
               </th>
@@ -1108,7 +1157,7 @@ export const BukuAgendaTable = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={9} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                <td colSpan={10} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <div className="table-empty-icon" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📖</div>
                   <p style={{ fontWeight: 700 }}>Tidak ada data Buku Agenda yang sesuai dengan filter.</p>
                   {hasActiveFilters && (
@@ -1132,20 +1181,21 @@ export const BukuAgendaTable = () => {
                 const currentStatus = getItemStatusAgenda(item);
                 const isSelesai = currentStatus === 'Selesai';
                 const isSudahDicek = currentStatus === 'Sudah Dicek';
+                const isSelected = selectedRowIds.includes(item.id);
                 const isMenuOpen = activeStatusMenuId === item.id;
 
-                let rowBg = undefined;
+                let rowBg = isSelected ? 'rgba(37, 99, 235, 0.08)' : undefined;
                 let borderLeftColor = 'transparent';
                 let numColor = 'var(--text-secondary)';
                 let docNoColor = 'var(--accent-primary)';
 
                 if (isSelesai) {
-                  rowBg = 'rgba(16, 185, 129, 0.12)';
+                  rowBg = isSelected ? 'rgba(16, 185, 129, 0.20)' : 'rgba(16, 185, 129, 0.12)';
                   borderLeftColor = '#10b981';
                   numColor = '#047857';
                   docNoColor = '#047857';
                 } else if (isSudahDicek) {
-                  rowBg = 'rgba(59, 130, 246, 0.10)';
+                  rowBg = isSelected ? 'rgba(59, 130, 246, 0.18)' : 'rgba(59, 130, 246, 0.10)';
                   borderLeftColor = '#3b82f6';
                   numColor = '#1d4ed8';
                   docNoColor = '#1d4ed8';
@@ -1160,6 +1210,15 @@ export const BukuAgendaTable = () => {
                     }}
                     className={isSelesai ? 'row-checked-selesai' : isSudahDicek ? 'row-checked-dicek' : ''}
                   >
+                    <td style={{ textAlign: 'center', width: '38px' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
+                        checked={isSelected}
+                        onChange={(e) => handleToggleSelectRow(item.id, e)}
+                        title={`Pilih ${item.namaKapal || 'Item'}`}
+                      />
+                    </td>
                     <td
                       style={{
                         textAlign: 'center',
@@ -1435,7 +1494,7 @@ export const BukuAgendaTable = () => {
           {filteredData.length > 0 && (
             <tfoot>
               <tr style={{ fontWeight: 800, background: 'var(--bg-main)' }}>
-                <td colSpan={6} style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>
+                <td colSpan={7} style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>
                   TOTAL BIAYA:
                 </td>
                 <td style={{ textAlign: 'right', padding: '0.75rem 0.5rem', color: '#059669', fontSize: '0.95rem' }}>
@@ -1453,7 +1512,7 @@ export const BukuAgendaTable = () => {
       <BukuAgendaPrintModal
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
-        data={filteredData}
+        data={selectedRowIds.length > 0 ? filteredData.filter(d => selectedRowIds.includes(d.id)) : filteredData}
         currentPeriod={currentPeriodLabel}
       />
 

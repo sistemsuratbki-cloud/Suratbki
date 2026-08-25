@@ -66,6 +66,9 @@ export const LaporanTable = () => {
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
   const [isPrintAllMode, setIsPrintAllMode] = useState(false);
 
+  // Checkbox Selection State
+  const [selectedRowKeys, setSelectedRowKeys] = useState([]);
+
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
 
@@ -142,6 +145,23 @@ export const LaporanTable = () => {
     setStartDate('');
     setEndDate('');
     setSortBy('tgl_desc');
+    setSelectedRowKeys([]);
+  };
+
+  // Selection Handlers
+  const handleToggleSelectAll = () => {
+    if (selectedRowKeys.length === flattenedData.length && flattenedData.length > 0) {
+      setSelectedRowKeys([]);
+    } else {
+      setSelectedRowKeys(flattenedData.map((item, idx) => item._flatKey || item.id || `row-${idx}`));
+    }
+  };
+
+  const handleToggleSelectRow = (key, e) => {
+    if (e) e.stopPropagation();
+    setSelectedRowKeys((prev) =>
+      prev.includes(key) ? prev.filter((k) => k !== key) : [...prev, key]
+    );
   };
 
   const hasActiveFilters =
@@ -429,7 +449,11 @@ export const LaporanTable = () => {
 
   /* Helper to prepare export rows */
   const getPreparedRows = () => {
-    return flattenedData.map((item, index) => {
+    const targetData = selectedRowKeys.length > 0
+      ? flattenedData.filter((item, idx) => selectedRowKeys.includes(item._flatKey || item.id || `row-${idx}`))
+      : flattenedData;
+
+    return targetData.map((item, index) => {
       // Item sudah PDS langsung
       const dateVal = item.tglLapor || item.tanggal || item.tglMulai || '';
       const dateFormatted = dateVal ? formatDateIndo(dateVal) : '-';
@@ -776,6 +800,22 @@ export const LaporanTable = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {selectedRowKeys.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(37, 99, 235, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(37, 99, 235, 0.25)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>
+                ✓ {selectedRowKeys.length} dipilih
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedRowKeys([])}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.1rem 0.4rem', fontSize: '0.72rem', height: 'auto', lineHeight: '1.2' }}
+              >
+                Batal
+              </button>
+            </div>
+          )}
+
           {hasActiveFilters && (
             <button
               type="button"
@@ -793,11 +833,11 @@ export const LaporanTable = () => {
           <button
             className="btn btn-secondary btn-sm"
             onClick={handleOpenPrintAll}
-            title="Cetak format cetak tabel resmi"
+            title={selectedRowKeys.length > 0 ? `Cetak ${selectedRowKeys.length} data terpilih (Landscape)` : 'Cetak format cetak tabel resmi'}
             style={{ borderColor: 'var(--accent-primary)', color: 'var(--accent-primary)', fontWeight: 700 }}
           >
             <Printer size={15} />
-            <span>Cetak Rekap</span>
+            <span>{selectedRowKeys.length > 0 ? `Cetak Rekap (${selectedRowKeys.length})` : 'Cetak Rekap'}</span>
           </button>
 
           {/* Export Dropdown Group */}
@@ -809,7 +849,7 @@ export const LaporanTable = () => {
               style={{ borderColor: '#10b981', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             >
               <FileSpreadsheet size={15} color="#10b981" />
-              <span>Export Excel</span>
+              <span>{selectedRowKeys.length > 0 ? `Export (${selectedRowKeys.length})` : 'Export Excel'}</span>
               <ChevronDown size={14} />
             </button>
 
@@ -1215,6 +1255,15 @@ export const LaporanTable = () => {
         <table className="data-table" style={{ fontSize: '0.85rem' }}>
           <thead>
             <tr style={{ textAlign: 'center' }}>
+              <th style={{ width: '38px', textAlign: 'center' }}>
+                <input
+                  type="checkbox"
+                  style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
+                  checked={flattenedData.length > 0 && selectedRowKeys.length === flattenedData.length}
+                  onChange={handleToggleSelectAll}
+                  title="Pilih Semua"
+                />
+              </th>
               <th style={{ width: '45px', textAlign: 'center' }}>NO.</th>
               <th
                 onClick={() => setSortBy(sortBy === 'tgl_desc' ? 'tgl_asc' : 'tgl_desc')}
@@ -1267,7 +1316,7 @@ export const LaporanTable = () => {
           <tbody>
             {flattenedData.length === 0 ? (
               <tr>
-                <td colSpan="11" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                <td colSpan="12" className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <Anchor size={36} style={{ opacity: 0.3, marginBottom: '0.5rem' }} />
                   <p style={{ fontWeight: 700 }}>Tidak ada data perjalanan dinas survey untuk filter ini.</p>
                   <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)' }}>
@@ -1288,6 +1337,8 @@ export const LaporanTable = () => {
             ) : (
               flattenedData.map((item, index) => {
                 // Item sudah PDS langsung, tidak perlu linkedSurat
+                const rowKey = item._flatKey || item.id || `row-${index}`;
+                const isSelected = selectedRowKeys.includes(rowKey);
                 const dateVal = item.tglLapor || item.tanggal || item.tglMulai;
                 const vesselName = item.namaKapal || '-';
                 const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || '-';
@@ -1300,7 +1351,16 @@ export const LaporanTable = () => {
                 const noWbs = (item.noWbs || '').trim() || '-';
 
                 return (
-                  <tr key={item._flatKey || item.id || index}>
+                  <tr key={rowKey} style={{ background: isSelected ? 'rgba(37, 99, 235, 0.08)' : undefined, transition: 'background 0.25s ease' }}>
+                    <td style={{ textAlign: 'center', width: '38px' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
+                        checked={isSelected}
+                        onChange={(e) => handleToggleSelectRow(rowKey, e)}
+                        title={`Pilih ${vesselName}`}
+                      />
+                    </td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>
                       {index + 1}
                     </td>
@@ -1418,11 +1478,13 @@ export const LaporanTable = () => {
           {flattenedData.length > 0 && (
             <tfoot>
               <tr style={{ background: 'var(--bg-main)', fontWeight: 800 }}>
-                <td colSpan="4" style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>
-                  TOTAL NILAI PERJALANAN DINAS ({flattenedData.length} Kegiatan):
+                <td colSpan="5" style={{ textAlign: 'right', padding: '0.75rem 1rem' }}>
+                  TOTAL NILAI PERJALANAN DINAS ({selectedRowKeys.length > 0 ? `${selectedRowKeys.length} Terpilih` : `${flattenedData.length} Kegiatan`}):
                 </td>
                 <td style={{ textAlign: 'right', padding: '0.75rem', color: 'var(--accent-primary)', fontSize: '0.95rem' }}>
-                  {formatRupiah(totalNilaiPerjalanan)}
+                  {formatRupiah(selectedRowKeys.length > 0 
+                    ? flattenedData.filter((item, idx) => selectedRowKeys.includes(item._flatKey || item.id || `row-${idx}`)).reduce((acc, curr) => acc + (Number(curr.nilai) || Number(curr.jumlahEstimasi) || 0), 0)
+                    : totalNilaiPerjalanan)}
                 </td>
                 <td colSpan="6"></td>
               </tr>
@@ -1620,9 +1682,11 @@ export const LaporanTable = () => {
         onClose={() => setIsPrintModalOpen(false)}
         laporan={selectedPrintItem}
         isPrintAll={isPrintAllMode}
-        allData={flattenedData}
+        allData={selectedRowKeys.length > 0 ? flattenedData.filter((item, idx) => selectedRowKeys.includes(item._flatKey || item.id || `row-${idx}`)) : flattenedData}
         currentPeriod={currentMonthLabel}
-        totalNilai={totalNilaiPerjalanan}
+        totalNilai={selectedRowKeys.length > 0 
+          ? flattenedData.filter((item, idx) => selectedRowKeys.includes(item._flatKey || item.id || `row-${idx}`)).reduce((acc, curr) => acc + (Number(curr.nilai) || Number(curr.jumlahEstimasi) || 0), 0)
+          : totalNilaiPerjalanan}
         suratTugas={suratTugas}
       />
 

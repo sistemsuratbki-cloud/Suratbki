@@ -59,6 +59,9 @@ export const LaporanParafTable = () => {
   const [editingItem, setEditingItem] = useState(null);
   const [showExportMenu, setShowExportMenu] = useState(false);
 
+  // Checkbox Selection State
+  const [selectedRowIds, setSelectedRowIds] = useState([]);
+
   const canManage = role === 'admin' || role === 'developer' || role === 'kacab';
   const canPrintSps = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan' || role === 'finance';
 
@@ -141,6 +144,23 @@ export const LaporanParafTable = () => {
     setStartDate('');
     setEndDate('');
     setSortBy('tgl_desc');
+    setSelectedRowIds([]);
+  };
+
+  // Selection Handlers
+  const handleToggleSelectAll = () => {
+    if (selectedRowIds.length === filteredData.length && filteredData.length > 0) {
+      setSelectedRowIds([]);
+    } else {
+      setSelectedRowIds(filteredData.map((item) => item.id));
+    }
+  };
+
+  const handleToggleSelectRow = (id, e) => {
+    if (e) e.stopPropagation();
+    setSelectedRowIds((prev) =>
+      prev.includes(id) ? prev.filter((rowId) => rowId !== id) : [...prev, id]
+    );
   };
 
   const hasActiveFilters =
@@ -397,7 +417,11 @@ export const LaporanParafTable = () => {
     });
 
     // Rows
-    filteredData.forEach((item, idx) => {
+    const targetData = selectedRowIds.length > 0
+      ? filteredData.filter((item) => selectedRowIds.includes(item.id))
+      : filteredData;
+
+    targetData.forEach((item, idx) => {
       const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || '-';
       const isEven = idx % 2 === 0;
       const row = ws.addRow([
@@ -437,8 +461,12 @@ export const LaporanParafTable = () => {
 
   const handleExportCSV = () => {
     setShowExportMenu(false);
+    const targetData = selectedRowIds.length > 0
+      ? filteredData.filter((item) => selectedRowIds.includes(item.id))
+      : filteredData;
+
     const headers = ['No', 'Nama Kapal', 'Surveyor', 'No HP', 'Jenis Survey', 'Tgl Survey', 'Lokasi Survey', 'RFQ / No Order'];
-    const rows = filteredData.map((item, idx) => {
+    const rows = targetData.map((item, idx) => {
       const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || '-';
       return [
         idx + 1,
@@ -477,6 +505,22 @@ export const LaporanParafTable = () => {
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+          {selectedRowIds.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: 'rgba(37, 99, 235, 0.1)', padding: '0.2rem 0.6rem', borderRadius: '6px', border: '1px solid rgba(37, 99, 235, 0.25)' }}>
+              <span style={{ fontSize: '0.8rem', fontWeight: 700, color: '#2563eb' }}>
+                ✓ {selectedRowIds.length} dipilih
+              </span>
+              <button
+                type="button"
+                onClick={() => setSelectedRowIds([])}
+                className="btn btn-secondary btn-sm"
+                style={{ padding: '0.1rem 0.4rem', fontSize: '0.72rem', height: 'auto', lineHeight: '1.2' }}
+              >
+                Batal
+              </button>
+            </div>
+          )}
+
           {hasActiveFilters && (
             <button
               type="button"
@@ -494,7 +538,7 @@ export const LaporanParafTable = () => {
           <button
             className="btn btn-primary btn-sm"
             onClick={handleOpenPrintAll}
-            title="Download / Cetak PDF Laporan Paraf Sesuai Periode"
+            title={selectedRowIds.length > 0 ? `Download / Cetak PDF ${selectedRowIds.length} Laporan Paraf Terpilih` : 'Download / Cetak PDF Laporan Paraf Sesuai Periode'}
             style={{
               background: '#2563eb',
               borderColor: '#2563eb',
@@ -506,7 +550,7 @@ export const LaporanParafTable = () => {
             }}
           >
             <Printer size={15} />
-            <span>Cetak PDF</span>
+            <span>{selectedRowIds.length > 0 ? `Cetak Terpilih (${selectedRowIds.length})` : 'Cetak PDF'}</span>
           </button>
 
           {/* Export Dropdown */}
@@ -518,7 +562,7 @@ export const LaporanParafTable = () => {
               style={{ borderColor: '#10b981', color: '#10b981', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}
             >
               <FileSpreadsheet size={15} color="#10b981" />
-              <span>Export Excel</span>
+              <span>{selectedRowIds.length > 0 ? `Export (${selectedRowIds.length})` : 'Export Excel'}</span>
               <ChevronDown size={14} />
             </button>
 
@@ -952,6 +996,15 @@ export const LaporanParafTable = () => {
         <table className="data-table" style={{ fontSize: '0.88rem' }}>
           <thead>
             <tr>
+              <th style={{ width: '38px', textAlign: 'center' }}>
+                <input
+                  type="checkbox"
+                  style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
+                  checked={filteredData.length > 0 && selectedRowIds.length === filteredData.length}
+                  onChange={handleToggleSelectAll}
+                  title="Pilih Semua"
+                />
+              </th>
               <th style={{ width: '45px', textAlign: 'center' }}>NO.</th>
               <th onClick={() => setSortBy(sortBy === 'kapal_asc' ? 'kapal_desc' : 'kapal_asc')} style={{ cursor: 'pointer' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
@@ -981,7 +1034,7 @@ export const LaporanParafTable = () => {
           <tbody>
             {filteredData.length === 0 ? (
               <tr>
-                <td colSpan={9} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
+                <td colSpan={10} className="table-empty" style={{ padding: '2.5rem 1rem' }}>
                   <div className="table-empty-icon" style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>📑</div>
                   <p style={{ fontWeight: 700 }}>
                     {statusTab === 'terkirim'
@@ -1007,6 +1060,7 @@ export const LaporanParafTable = () => {
               </tr>
             ) : (
               filteredData.map((item, index) => {
+                const isSelected = selectedRowIds.includes(item.id);
                 const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || item.noHp || '-';
                 const tglFormatted = formatDateIndo(item.tglMulai || item.tglSelesai);
                 const lokasi = (item.tempatSurvey || item.lokasi || item.tujuan || 'PONTIANAK').toUpperCase();
@@ -1014,7 +1068,16 @@ export const LaporanParafTable = () => {
                 const rfq = item.noOrder || item.agenda || '-';
 
                 return (
-                  <tr key={item.id || index}>
+                  <tr key={item.id || index} style={{ background: isSelected ? 'rgba(37, 99, 235, 0.08)' : undefined, transition: 'background 0.25s ease' }}>
+                    <td style={{ textAlign: 'center', width: '38px' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        style={{ cursor: 'pointer', width: '15px', height: '15px', accentColor: '#2563eb' }}
+                        checked={isSelected}
+                        onChange={(e) => handleToggleSelectRow(item.id, e)}
+                        title={`Pilih ${item.namaKapal || 'Item'}`}
+                      />
+                    </td>
                     <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>
                       {index + 1}
                     </td>
@@ -1132,7 +1195,7 @@ export const LaporanParafTable = () => {
         isOpen={isPrintModalOpen}
         onClose={() => setIsPrintModalOpen(false)}
         suratTugas={selectedPrintItem}
-        allData={filteredData}
+        allData={selectedRowIds.length > 0 ? filteredData.filter((item) => selectedRowIds.includes(item.id)) : filteredData}
         currentPeriod={currentPeriodLabel}
       />
 
