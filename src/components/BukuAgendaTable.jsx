@@ -1103,16 +1103,32 @@ export const BukuAgendaTable = () => {
                 const tglSelesaiFormatted = formatDateDMY(item.tglSelesai || item.tglMulai);
                 const biaya = calculateBiayaItem(item);
                 const lokasi = item.tempatSurvey || item.lokasi || '-';
+                const isChecked = Boolean(item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai');
 
                 return (
-                  <tr key={item.id || index}>
-                    <td style={{ textAlign: 'center', fontWeight: 700, color: 'var(--text-secondary)' }}>
+                  <tr
+                    key={item.id || index}
+                    style={{
+                      background: isChecked ? 'rgba(16, 185, 129, 0.12)' : undefined,
+                      transition: 'background 0.25s ease'
+                    }}
+                    className={isChecked ? 'row-checked-selesai' : ''}
+                  >
+                    <td
+                      style={{
+                        textAlign: 'center',
+                        fontWeight: 700,
+                        color: isChecked ? '#047857' : 'var(--text-secondary)',
+                        borderLeft: isChecked ? '4px solid #10b981' : '4px solid transparent',
+                        transition: 'all 0.25s ease'
+                      }}
+                    >
                       {index + 1}
                     </td>
-                    <td style={{ fontWeight: 600, color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>
+                    <td style={{ fontWeight: 600, color: isChecked ? '#047857' : 'var(--accent-primary)', whiteSpace: 'nowrap' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <span>{cleanDocNumber(item.nomor) || '-'}</span>
-                        {(item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai') && (
+                        {isChecked && (
                           <span
                             style={{
                               background: '#dcfce7',
@@ -1157,26 +1173,22 @@ export const BukuAgendaTable = () => {
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
                         {/* Tombol Checklist / Status Selesai & Sudah Dicek */}
-                        {(() => {
-                          const isChecked = item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai';
-                          return (
-                            <button
-                              type="button"
-                              className="btn btn-icon btn-sm"
-                              onClick={() => handleToggleCheckSelesai(item)}
-                              title={isChecked ? `Status: SUDAH DICEK & SELESAI${item.agendaCheckedBy ? ` (${item.agendaCheckedBy})` : ''} — Klik untuk batalkan` : 'Tandai bahwa data SUDAH DICEK & SELESAI'}
-                              style={{
-                                background: isChecked ? '#10b981' : 'var(--bg-main)',
-                                color: isChecked ? '#ffffff' : '#94a3b8',
-                                borderColor: isChecked ? '#10b981' : 'var(--border-color)',
-                                boxShadow: isChecked ? '0 1px 4px rgba(16, 185, 129, 0.35)' : 'none',
-                                transition: 'all 0.2s ease'
-                              }}
-                            >
-                              <CheckCircle2 size={15} />
-                            </button>
-                          );
-                        })()}
+                        <button
+                          type="button"
+                          className="btn btn-icon btn-sm"
+                          onClick={() => handleToggleCheckSelesai(item)}
+                          title={isChecked ? `Status: SUDAH DICEK & SELESAI${item.agendaCheckedBy ? ` (${item.agendaCheckedBy})` : ''} — Klik untuk batalkan` : 'Tandai bahwa data SUDAH DICEK & SELESAI'}
+                          style={{
+                            background: isChecked ? '#10b981' : 'var(--bg-main)',
+                            color: isChecked ? '#ffffff' : '#94a3b8',
+                            borderColor: isChecked ? '#10b981' : 'var(--border-color)',
+                            boxShadow: isChecked ? '0 1px 5px rgba(16, 185, 129, 0.4)' : 'none',
+                            transform: isChecked ? 'scale(1.05)' : 'scale(1)',
+                            transition: 'all 0.2s ease'
+                          }}
+                        >
+                          <CheckCircle2 size={15} />
+                        </button>
 
                         {/* Tombol Akses / Lihat Lampiran PDS */}
                         {(() => {
