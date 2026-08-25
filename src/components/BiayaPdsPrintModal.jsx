@@ -75,6 +75,7 @@ export const BiayaPdsPrintModal = ({
   const uangHarianRate = (suratTugas.tanpaUangHarian && sisaHariUangHarian === 0)
     ? 0
     : (Number(suratTugas.uangHarian) || Number(gradeData.uangHarian) || 300000);
+  const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
   const uangHotelTotal = (Array.isArray(suratTugas.rincianHotel) && suratTugas.rincianHotel.length > 0)
     ? suratTugas.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
     : (Number(suratTugas.totalBiayaHotel) || (Number(suratTugas.tiketHotel) || 0) * mlm);
