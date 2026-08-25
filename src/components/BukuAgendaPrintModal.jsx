@@ -176,7 +176,7 @@ export const BukuAgendaPrintModal = ({
                     <th colSpan={2} style={{ border: '1px solid black', padding: '6px', width: '18%' }}>NOMOR SURAT</th>
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '20%' }}>OBJEK/SURVEY</th>
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '14%' }}>LOKASI SURVEY</th>
-                    <th colSpan={2} style={{ border: '1px solid black', padding: '4px', width: '16%' }}>TANGGAL PENGUASAAN</th>
+                    <th colSpan={2} style={{ border: '1px solid black', padding: '4px', width: '16%' }}>TANGGAL PENUGASAN</th>
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '14%' }}>BIAYA</th>
                     <th rowSpan={2} style={{ border: '1px solid black', padding: '6px', width: '14%' }}>SURVEYOR</th>
                   </tr>

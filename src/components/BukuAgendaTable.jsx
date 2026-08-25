@@ -681,8 +681,8 @@ export const BukuAgendaTable = () => {
       { width: 22 },  // C: NOMOR SURAT (/SV...)
       { width: 28 },  // D: OBJEK/SURVEY
       { width: 20 },  // E: LOKASI SURVEY
-      { width: 15 },  // F: TANGGAL PENGUASAAN - MULAI
-      { width: 15 },  // G: TANGGAL PENGUASAAN - SELESAI
+      { width: 15 },  // F: TANGGAL PENUGASAN - MULAI
+      { width: 15 },  // G: TANGGAL PENUGASAN - SELESAI
       { width: 18 },  // H: BIAYA
       { width: 20 },  // I: SURVEYOR
     ];
@@ -726,7 +726,7 @@ export const BukuAgendaTable = () => {
     ws.getCell('E3').value = 'LOKASI SURVEY';
 
     ws.mergeCells('F3:G3');
-    ws.getCell('F3').value = 'TANGGAL PENGUASAAN';
+    ws.getCell('F3').value = 'TANGGAL PENUGASAN';
 
     ws.getCell('F4').value = 'MULAI';
     ws.getCell('G4').value = 'SELESAI';
@@ -1144,7 +1144,7 @@ export const BukuAgendaTable = () => {
                 </div>
               </th>
               <th colSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '200px' }}>
-                TANGGAL PENGUASAAN
+                TANGGAL PENUGASAN
               </th>
               <th rowSpan={2} style={{ textAlign: 'right', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '130px' }}>
                 BIAYA
