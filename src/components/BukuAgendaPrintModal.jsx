@@ -241,9 +241,9 @@ export const BukuAgendaPrintModal = ({
                     })
                   )}
 
-                  {/* Empty rows to make the sheet look complete */}
-                  {data.length < 12 && Array.from({ length: 12 - data.length }).map((_, emptyIdx) => (
-                    <tr key={`empty-${emptyIdx}`} style={{ height: '22px' }}>
+                  {/* Only pad minimal empty rows if very few items (< 6) */}
+                  {data.length < 6 && Array.from({ length: 6 - data.length }).map((_, emptyIdx) => (
+                    <tr key={`empty-${emptyIdx}`} style={{ height: '22px', pageBreakInside: 'avoid' }}>
                       <td style={{ border: '1px solid black', padding: '3px', textAlign: 'center', color: '#cbd5e1' }}>
                         {data.length + emptyIdx + 1}
                       </td>
@@ -259,7 +259,7 @@ export const BukuAgendaPrintModal = ({
                   ))}
                 </tbody>
                 <tfoot>
-                  <tr style={{ fontWeight: 'bold', background: '#f8fafc' }}>
+                  <tr style={{ fontWeight: 'bold', background: '#f8fafc', pageBreakInside: 'avoid' }}>
                     <td colSpan={7} style={{ border: '1px solid black', padding: '5px 8px', textAlign: 'center' }}>
                       TOTAL BIAYA
                     </td>
@@ -272,7 +272,7 @@ export const BukuAgendaPrintModal = ({
               </table>
 
               {/* Signature Block */}
-              <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', breakInside: 'avoid' }}>
+              <div className="print-signature-block" style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '2rem', pageBreakInside: 'avoid', breakInside: 'avoid' }}>
                 <div style={{ textAlign: 'center', minWidth: '280px' }}>
                   <div style={{ fontSize: '9pt', marginBottom: '0.2rem' }}>
                     Pontianak, {todayFormatted}
@@ -297,17 +297,21 @@ export const BukuAgendaPrintModal = ({
 
           <style>{`
             @media print {
-              @page { size: A4 landscape !important; margin: 8mm 10mm !important; }
+              @page { size: A4 landscape !important; margin: 8mm 8mm !important; }
               body { background: #ffffff !important; color: #000000 !important; }
               .modal-overlay { position: static !important; background: transparent !important; padding: 0 !important; }
               .modal-content { max-width: 100% !important; width: 100% !important; border: none !important; box-shadow: none !important; }
               .modal-header, .modal-footer { display: none !important; }
-              .modal-body { padding: 0 !important; overflow: visible !important; }
-              .printable-sheet { padding: 0 !important; width: 100% !important; }
-              table { width: 100% !important; border: 1px solid black !important; }
+              .modal-body { padding: 0 !important; overflow: visible !important; height: auto !important; max-height: none !important; }
+              .printable-sheet { padding: 0 !important; width: 100% !important; border: none !important; }
+              table { width: 100% !important; border-collapse: collapse !important; page-break-inside: auto !important; }
+              tr { page-break-inside: avoid !important; page-break-after: auto !important; }
+              thead { display: table-header-group !important; }
+              tfoot { display: table-footer-group !important; }
               th, td { border: 1px solid black !important; }
               thead tr { background: #4f81bd !important; color: #ffffff !important; -webkit-print-color-adjust: exact !important; }
               th { color: #ffffff !important; -webkit-print-color-adjust: exact !important; }
+              .print-signature-block { page-break-inside: avoid !important; break-inside: avoid !important; margin-top: 1.5rem !important; }
             }
           `}</style>
 

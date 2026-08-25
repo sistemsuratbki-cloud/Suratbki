@@ -1388,12 +1388,12 @@ body {
 }
 
 /* ==========================================================================
-   Print Media Styles - Single Page A4 Fit & Clean UI Hiding
+   Print Media Styles - Clean Multi-Page & Orientation Flexible
    ========================================================================== */
 @media print {
   @page {
-    size: A4 portrait;
-    margin: 0;
+    size: auto;
+    margin: 8mm;
   }
 
   * {
@@ -1406,8 +1406,10 @@ body {
     color: #000000 !important;
     margin: 0 !important;
     padding: 0 !important;
-    font-size: 11pt !important;
+    font-size: 10pt !important;
     height: auto !important;
+    min-height: 0 !important;
+    max-height: none !important;
     overflow: visible !important;
   }
 
@@ -1439,6 +1441,9 @@ body {
     margin: 0 !important;
     display: block !important;
     backdrop-filter: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   .modal-content {
@@ -1451,41 +1456,50 @@ body {
     padding: 0 !important;
     margin: 0 !important;
     transform: none !important;
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
   }
 
   .modal-body {
     padding: 0 !important;
     overflow: visible !important;
+    height: auto !important;
     max-height: none !important;
   }
 
-  /* Printable Sheet Styles - Exact 1-Page A4 Fit */
   .printable-sheet {
     border: none !important;
-    padding: 20mm 22mm 18mm 22mm !important;
+    padding: 0 !important;
     border-radius: 0 !important;
     background: #ffffff !important;
     color: #000000 !important;
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
   }
 
   table {
-    page-break-inside: auto;
+    page-break-inside: auto !important;
+    break-inside: auto !important;
   }
   
   tr {
-    page-break-inside: avoid;
-    page-break-after: auto;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    page-break-after: auto !important;
+    break-after: auto !important;
   }
 
   thead {
-    display: table-header-group;
+    display: table-header-group !important;
   }
 
   tfoot {
-    display: table-footer-group;
+    display: table-footer-group !important;
   }
 }
 
