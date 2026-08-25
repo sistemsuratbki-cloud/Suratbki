@@ -21,6 +21,7 @@ import {
   X
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
+import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber, formatRupiah, parseAttachmentFiles } from '../utils/formatters';
@@ -32,12 +33,13 @@ import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 
 export const BukuAgendaTable = () => {
-  const { suratTugas, laporanSurvei, kwitansiHonor, gradeTariffs, adminSettings } = useData();
-  const { role, usersList } = useAuth();
+  const { suratTugas, updateSuratTugas, laporanSurvei, kwitansiHonor, gradeTariffs, adminSettings } = useData();
+  const { currentUser, role, usersList } = useAuth();
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [surveyorFilter, setSurveyorFilter] = useState('Semua');
+  const [statusFilter, setStatusFilter] = useState('Semua'); // Semua, Selesai, Belum Selesai
   const [selectedMonth, setSelectedMonth] = useState('Semua');
   const [selectedYear, setSelectedYear] = useState('Semua');
   const [datePreset, setDatePreset] = useState('all');
@@ -441,6 +443,7 @@ export const BukuAgendaTable = () => {
   const handleResetFilters = () => {
     setSearchTerm('');
     setSurveyorFilter('Semua');
+    setStatusFilter('Semua');
     setSelectedMonth('Semua');
     setSelectedYear('Semua');
     setDatePreset('all');
@@ -452,11 +455,39 @@ export const BukuAgendaTable = () => {
   const hasActiveFilters =
     searchTerm !== '' ||
     surveyorFilter !== 'Semua' ||
+    statusFilter !== 'Semua' ||
     selectedMonth !== 'Semua' ||
     selectedYear !== 'Semua' ||
     startDate !== '' ||
     endDate !== '' ||
     sortBy !== 'nomor_asc';
+
+  // Toggle checklist selesai & sudah dicek
+  const handleToggleCheckSelesai = async (item) => {
+    const isCurrentlyDone = item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai';
+    const newChecked = !isCurrentlyDone;
+
+    const payload = {
+      ...item,
+      isAgendaChecked: newChecked,
+      status: newChecked ? 'Selesai' : 'Menunggu Survei',
+      statusAgenda: newChecked ? 'Selesai' : 'Belum Selesai',
+      agendaCheckedAt: newChecked ? new Date().toISOString() : null,
+      agendaCheckedBy: newChecked ? (currentUser?.name || currentUser?.username || 'Admin') : null
+    };
+
+    try {
+      updateSuratTugas(item.id, payload);
+      if (newChecked) {
+        toast.success(`Data Agenda ${cleanDocNumber(item.nomor)} telah DICEK & SELESAI ✅`);
+      } else {
+        toast.info(`Status Agenda ${cleanDocNumber(item.nomor)} dikembalikan ke BELUM SELESAI`);
+      }
+    } catch (err) {
+      console.error('Error updating agenda status:', err);
+      toast.error('Gagal memperbarui status agenda');
+    }
+  };
 
   // Period label for export & printing
   const currentPeriodLabel = useMemo(() => {
@@ -488,6 +519,13 @@ export const BukuAgendaTable = () => {
       // Surveyor filter
       if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
         return false;
+      }
+
+      // Status filter (Selesai vs Belum Selesai)
+      if (statusFilter !== 'Semua') {
+        const isDone = item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai';
+        if (statusFilter === 'Selesai' && !isDone) return false;
+        if (statusFilter === 'Belum Selesai' && isDone) return false;
       }
 
       const itemDate = item.tglMulai || item.tglSelesai || '';
@@ -561,7 +599,7 @@ export const BukuAgendaTable = () => {
     });
 
     return result;
-  }, [suratTugas, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
+  }, [suratTugas, surveyorFilter, statusFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
 
   // Total Biaya Accumulation
   const totalBiayaAkumulasi = useMemo(() => {
@@ -788,7 +826,7 @@ export const BukuAgendaTable = () => {
         }}
       >
         {/* Row 1: Search and Dropdowns */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(220px, 1.8fr) minmax(180px, 1.2fr) minmax(140px, 1fr) minmax(120px, 1fr)', gap: '0.75rem', alignItems: 'center' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'minmax(200px, 1.6fr) minmax(160px, 1.1fr) minmax(140px, 1fr) minmax(120px, 0.9fr) minmax(110px, 0.8fr)', gap: '0.65rem', alignItems: 'center' }}>
           {/* Search Box */}
           <div style={{ position: 'relative', width: '100%' }}>
             <Search
@@ -831,6 +869,18 @@ export const BukuAgendaTable = () => {
                 {s.name}
               </option>
             ))}
+          </select>
+
+          {/* Status Dropdown */}
+          <select
+            className="form-select"
+            style={{ height: '38px', fontSize: '0.85rem', width: '100%', background: 'var(--card-bg)' }}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+          >
+            <option value="Semua">-- Semua Status --</option>
+            <option value="Selesai">✅ Sudah Dicek / Selesai</option>
+            <option value="Belum Selesai">⏳ Belum Dicek</option>
           </select>
 
           {/* Month Selector */}
@@ -1060,7 +1110,29 @@ export const BukuAgendaTable = () => {
                       {index + 1}
                     </td>
                     <td style={{ fontWeight: 600, color: 'var(--accent-primary)', whiteSpace: 'nowrap' }}>
-                      {cleanDocNumber(item.nomor) || '-'}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <span>{cleanDocNumber(item.nomor) || '-'}</span>
+                        {(item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai') && (
+                          <span
+                            style={{
+                              background: '#dcfce7',
+                              color: '#15803d',
+                              border: '1px solid #86efac',
+                              fontSize: '0.62rem',
+                              fontWeight: 800,
+                              padding: '1px 5px',
+                              borderRadius: '4px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '2px'
+                            }}
+                            title={`Data sudah dicek & selesai${item.agendaCheckedBy ? ` oleh ${item.agendaCheckedBy}` : ''}`}
+                          >
+                            <CheckCircle2 size={10} />
+                            SELESAI
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td style={{ fontWeight: 600, color: 'var(--text-primary)' }}>
                       {Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0
@@ -1084,6 +1156,28 @@ export const BukuAgendaTable = () => {
                     </td>
                     <td style={{ textAlign: 'center' }}>
                       <div style={{ display: 'flex', justifyContent: 'center', gap: '0.35rem' }}>
+                        {/* Tombol Checklist / Status Selesai & Sudah Dicek */}
+                        {(() => {
+                          const isChecked = item.isAgendaChecked || item.status === 'Selesai' || item.statusAgenda === 'Selesai';
+                          return (
+                            <button
+                              type="button"
+                              className="btn btn-icon btn-sm"
+                              onClick={() => handleToggleCheckSelesai(item)}
+                              title={isChecked ? `Status: SUDAH DICEK & SELESAI${item.agendaCheckedBy ? ` (${item.agendaCheckedBy})` : ''} — Klik untuk batalkan` : 'Tandai bahwa data SUDAH DICEK & SELESAI'}
+                              style={{
+                                background: isChecked ? '#10b981' : 'var(--bg-main)',
+                                color: isChecked ? '#ffffff' : '#94a3b8',
+                                borderColor: isChecked ? '#10b981' : 'var(--border-color)',
+                                boxShadow: isChecked ? '0 1px 4px rgba(16, 185, 129, 0.35)' : 'none',
+                                transition: 'all 0.2s ease'
+                              }}
+                            >
+                              <CheckCircle2 size={15} />
+                            </button>
+                          );
+                        })()}
+
                         {/* Tombol Akses / Lihat Lampiran PDS */}
                         {(() => {
                           const attInfo = getPdsAttachments(item);
