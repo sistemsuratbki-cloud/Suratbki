@@ -268,8 +268,8 @@ export const LaporanTable = () => {
       const dateA = a.tglLapor || a.tanggal || linkedSuratA?.tglMulai || '';
       const dateB = b.tglLapor || b.tanggal || linkedSuratB?.tglMulai || '';
 
-      const valA = Number(a.nilai) || Number(a.tarifDasar) || (linkedSuratA ? linkedSuratA.jumlahEstimasi : 0) || 0;
-      const valB = Number(b.nilai) || Number(b.tarifDasar) || (linkedSuratB ? linkedSuratB.jumlahEstimasi : 0) || 0;
+      const valA = Number(a.jumlahEstimasi) || (linkedSuratA ? Number(linkedSuratA.jumlahEstimasi) : 0) || Number(a.nilai) || Number(a.tarifDasar) || 0;
+      const valB = Number(b.jumlahEstimasi) || (linkedSuratB ? Number(linkedSuratB.jumlahEstimasi) : 0) || Number(b.nilai) || Number(b.tarifDasar) || 0;
 
       const kapalA = (a.namaKapal || (linkedSuratA ? linkedSuratA.namaKapal : '')).toLowerCase();
       const kapalB = (b.namaKapal || (linkedSuratB ? linkedSuratB.namaKapal : '')).toLowerCase();
@@ -308,6 +308,50 @@ export const LaporanTable = () => {
     return result;
   }, [suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm, sortBy]);
 
+  // Helper untuk mendapatkan Total Nilai Rincian PDS secara akurat
+  const getItemNilaiTotal = (item) => {
+    if (!item) return 0;
+
+    const linkedSurat = suratTugas.find((s) => s.id === item.suratId);
+    
+    // 1. Prioritaskan jumlahEstimasi / total rincian tersimpan
+    if (item.jumlahEstimasi && Number(item.jumlahEstimasi) > 0) {
+      return Number(item.jumlahEstimasi);
+    }
+    if (linkedSurat && linkedSurat.jumlahEstimasi && Number(linkedSurat.jumlahEstimasi) > 0) {
+      return Number(linkedSurat.jumlahEstimasi);
+    }
+    if (item.jumlah && Number(item.jumlah) > 0 && Number(item.jumlah) !== Number(item.tarifDasar)) {
+      return Number(item.jumlah);
+    }
+    if (item.nilai && Number(item.nilai) > 0 && Number(item.nilai) !== Number(item.tarifDasar)) {
+      return Number(item.nilai);
+    }
+
+    // 2. Hitung dinamis rincian lengkap jika hanya tarifDasar yang tersimpan
+    const target = item || linkedSurat;
+    const isLuarKota = (target.kategoriPerjalanan || '').toLowerCase().includes('luar') || target.kategoriPerjalanan === 'Luar Kota';
+    const start = target.tglMulai ? new Date(target.tglMulai) : new Date();
+    const end = target.tglSelesai ? new Date(target.tglSelesai) : start;
+    const timeDiff = Math.ceil((end.getTime() - start.getTime()) / (1000 * 3600 * 24)) + 1;
+    const hr = timeDiff > 0 ? timeDiff : 1;
+    const mlm = Math.max(0, hr - 1);
+
+    const hrLbr = Number(target.jumlahHariLibur) || 0;
+    const uangHarianRate = target.tanpaUangHarian ? 0 : (Number(target.uangHarian) || 300000);
+    const uangHarianTotal = uangHarianRate * hr;
+    const uangHotelTotal = (Number(target.tiketHotel) || 0) * mlm;
+    const hrLbrTotal = target.tanpaUangHarian ? 0 : (hrLbr * uangHarianRate * 0.5);
+    const tiketTotal = Number(target.tiketPesawatTaxi) || Number(target.biayaTiket) || 0;
+    const tatTotal = target.tanpaTAT ? 0 : (target.biayaTAT !== undefined ? Number(target.biayaTAT) : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
+    const rateSK = Number(target.tarifDasar) || 0;
+
+    const calculated = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + (isLuarKota ? (tiketTotal + tatTotal) : 0);
+    if (calculated > 0) return calculated;
+
+    return Number(target.nilai) || Number(target.tarifDasar) || 0;
+  };
+
   // Pecah / Pisahkan nama kapal dan nominal untuk PDS multi-kapal
   const flattenedData = useMemo(() => {
     const list = [];
@@ -319,7 +363,7 @@ export const LaporanTable = () => {
           ? linkedSurat.shipsDetail
           : null;
 
-      const totalNilai = Number(item.nilai) || Number(item.tarifDasar) || (linkedSurat ? Number(linkedSurat.jumlahEstimasi) : 0) || 0;
+      const totalNilai = getItemNilaiTotal(item);
 
       if (shipsDetail && shipsDetail.length > 0) {
         shipsDetail.forEach((sh, sIdx) => {
@@ -372,7 +416,7 @@ export const LaporanTable = () => {
     });
 
     return list;
-  }, [filteredData, suratTugas]);
+  }, [filteredData, suratTugas, adminSettings]);
 
   /* Total Nilai Calculation */
   const totalNilaiPerjalanan = useMemo(() => {
