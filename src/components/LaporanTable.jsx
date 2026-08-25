@@ -39,7 +39,7 @@ import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 
 export const LaporanTable = () => {
   // UPDATED: Gunakan suratTugas (PDS) sebagai data source, bukan laporanSurvei
-  const { suratTugas, updateSuratTugas, deleteSuratTugas, requestEditApproval, approveEditRequest } = useData();
+  const { suratTugas, updateSuratTugas, deleteSuratTugas, requestEditApproval, approveEditRequest, adminSettings } = useData();
   const { role, usersList } = useAuth();
 
   // Search & Basic Filters
