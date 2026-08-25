@@ -108,10 +108,17 @@ export function sanitizeFormData(formObj) {
     return formObj.map((item) => sanitizeFormData(item));
   }
 
+  const isSignatureOrUrlKey = (k) => {
+    const lk = k.toLowerCase();
+    return lk.includes('signature') || lk.includes('ttd') || lk.endsWith('url') || lk === 'avatarbg' || lk === 'filedata';
+  };
+
   const sanitized = {};
   for (const [key, value] of Object.entries(formObj)) {
     // Don't sanitize password fields — they need exact characters
     if (key.toLowerCase().includes('password') || key === 'pass') {
+      sanitized[key] = value;
+    } else if (isSignatureOrUrlKey(key)) {
       sanitized[key] = value;
     } else if (value && typeof value === 'object') {
       sanitized[key] = sanitizeFormData(value);

@@ -3,6 +3,7 @@ import { Plus, Search, Edit2, Trash2, Users, KeyRound, Shield } from 'lucide-rea
 import { useAuth } from '../context/AuthContext';
 import { UserModal } from './UserModal';
 import { ConfirmModal } from './ConfirmModal';
+import { isValidSignature } from '../utils/signatureHelper';
 
 export const UserManagementTable = () => {
   const { usersList, deleteUser, resetPassword, currentUser } = useAuth();
@@ -196,14 +197,22 @@ export const UserManagementTable = () => {
                     </div>
                   </td>
                   <td>
-                    {item.signatureUrl ? (
+                    {isValidSignature(item.signatureUrl) ? (
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
                         <img
                           src={item.signatureUrl}
                           alt="TTD"
                           style={{ height: '24px', maxWidth: '48px', objectFit: 'contain', background: '#f1f5f9', padding: '2px', borderRadius: '3px', border: '1px solid #cbd5e1' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            const badge = e.target.parentElement?.querySelector('.ttd-badge');
+                            if (badge) {
+                              badge.className = 'badge badge-warning';
+                              badge.textContent = '⚠️ TTD Rusak';
+                            }
+                          }}
                         />
-                        <span className="badge badge-success" style={{ fontSize: '0.7rem' }}>✓ Ada TTD</span>
+                        <span className="badge badge-success ttd-badge" style={{ fontSize: '0.7rem' }}>✓ Ada TTD</span>
                       </div>
                     ) : (
                       <span style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>Belum ada</span>

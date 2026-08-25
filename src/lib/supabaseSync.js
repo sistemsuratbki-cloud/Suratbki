@@ -393,9 +393,10 @@ export const saveAdminSettingsToCloud = async (settings) => {
     pembuat_daftar:      settings.pembuatDaftar      || null,
     nup_pembuat_daftar:  settings.nupPembuatDaftar   || null,
     nama_cabang:         settings.namaCabang         || null,
-    kacab_signature_url: settings.kacabSignatureUrl  || null,
-    tat_luar_kota:       Number(settings.tatLuarKota) || null,
-    raw_data:            settings,
+    kacab_signature_url:   settings.kacabSignatureUrl    || null,
+    pembuat_signature_url: settings.pembuatSignatureUrl  || null,
+    tat_luar_kota:         Number(settings.tatLuarKota)  || null,
+    raw_data:              settings,
   };
   return withRetry(async () => {
     const { error } = await supabase

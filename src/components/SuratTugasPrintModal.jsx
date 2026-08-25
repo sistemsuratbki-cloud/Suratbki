@@ -3,6 +3,7 @@ import { X, Printer, Anchor, Maximize2, Minimize2, Monitor, Smartphone } from 'l
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
+import { isValidSignature } from '../utils/signatureHelper';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
 import { IDSurveyLogo } from './IDSurveyLogo';
@@ -344,11 +345,12 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
                       Pontianak, {tglSurveyFormatted}
                     </div>
                     <div style={{ position: 'relative', height: isMobilePrint ? '50px' : '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {withSignature && kacabSignature ? (
+                      {withSignature && isValidSignature(kacabSignature) ? (
                         <img
                           src={kacabSignature}
                           alt="TTD Kepala Cabang"
                           style={{ height: isMobilePrint ? '50px' : '85px', width: 'auto', objectFit: 'contain' }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       ) : null}
                     </div>

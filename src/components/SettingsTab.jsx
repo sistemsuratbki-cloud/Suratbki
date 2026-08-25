@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ConfirmModal } from './ConfirmModal';
 import { validatePasswordStrength } from '../utils/security';
+import { fileToSignatureDataUrl, isValidSignature } from '../utils/signatureHelper';
 import { toast } from 'react-hot-toast';
 
 export const SettingsTab = () => {
@@ -55,32 +56,27 @@ export const SettingsTab = () => {
     if (!file) return;
 
     setIsUploadingKacabTtd(true);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `kacab_${Date.now()}.${fileExt}`;
-    const filePath = `signatures/${fileName}`;
-
     try {
-      if (!supabase) throw new Error('Supabase not configured');
-      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
-      if (error) throw error;
-
-      const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
+      const dataUrl = await fileToSignatureDataUrl(file);
       setSignatoryInput((prev) => ({
         ...prev,
-        kacabSignatureUrl: publicUrlData.publicUrl
+        kacabSignatureUrl: dataUrl
       }));
+      toast.success('TTD Kepala Cabang berhasil diunggah!');
+
+      // Attempt background cloud upload if Supabase is connected
+      if (supabase) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `kacab_${Date.now()}.${fileExt}`;
+        const filePath = `signatures/${fileName}`;
+        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
+      }
     } catch (err) {
-      console.error('Upload failed, falling back to base64:', err);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSignatoryInput((prev) => ({
-          ...prev,
-          kacabSignatureUrl: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
+      console.error('Upload TTD Kacab failed:', err);
+      toast.error('Gagal memproses berkas TTD Kepala Cabang.');
     } finally {
       setIsUploadingKacabTtd(false);
+      e.target.value = '';
     }
   };
 
@@ -89,32 +85,27 @@ export const SettingsTab = () => {
     if (!file) return;
 
     setIsUploadingPembuatTtd(true);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `pembuat_${Date.now()}.${fileExt}`;
-    const filePath = `signatures/${fileName}`;
-
     try {
-      if (!supabase) throw new Error('Supabase not configured');
-      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
-      if (error) throw error;
-
-      const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
+      const dataUrl = await fileToSignatureDataUrl(file);
       setSignatoryInput((prev) => ({
         ...prev,
-        pembuatSignatureUrl: publicUrlData.publicUrl
+        pembuatSignatureUrl: dataUrl
       }));
+      toast.success('TTD Pembuat Daftar berhasil diunggah!');
+
+      // Attempt background cloud upload if Supabase is connected
+      if (supabase) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `pembuat_${Date.now()}.${fileExt}`;
+        const filePath = `signatures/${fileName}`;
+        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
+      }
     } catch (err) {
-      console.error('Upload failed, falling back to base64:', err);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setSignatoryInput((prev) => ({
-          ...prev,
-          pembuatSignatureUrl: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
+      console.error('Upload TTD Pembuat failed:', err);
+      toast.error('Gagal memproses berkas TTD Pembuat Daftar.');
     } finally {
       setIsUploadingPembuatTtd(false);
+      e.target.value = '';
     }
   };
 
@@ -468,24 +459,46 @@ export const SettingsTab = () => {
                 <label className="form-label" style={{ fontWeight: 700, color: '#0f172a', marginBottom: '0.4rem', display: 'block' }}>
                   ✍️ Scan TTD Kepala Cabang
                 </label>
-                {signatoryInput.kacabSignatureUrl ? (
+                {isValidSignature(signatoryInput.kacabSignatureUrl) ? (
                   <div>
-                    <div style={{ background: '#ffffff', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ background: '#ffffff', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem', position: 'relative' }}>
                       <img
                         src={signatoryInput.kacabSignatureUrl}
                         alt="TTD Kacab"
-                        style={{ maxHeight: '50px', maxWidth: '120px', objectFit: 'contain' }}
+                        style={{ maxHeight: '54px', maxWidth: '140px', objectFit: 'contain' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          const errBox = document.getElementById('kacab-ttd-err');
+                          if (errBox) errBox.style.display = 'block';
+                        }}
                       />
+                      <span id="kacab-ttd-err" style={{ display: 'none', fontSize: '0.7rem', color: '#dc2626', fontWeight: 600, textAlign: 'center' }}>
+                        ⚠️ Gambar rusak / tidak dapat dimuat. Silakan upload ulang.
+                      </span>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setSignatoryInput({ ...signatoryInput, kacabSignatureUrl: '' })}
-                      style={{ color: '#dc2626', width: '100%' }}
-                    >
-                      <Trash2 size={13} />
-                      <span>Hapus TTD</span>
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <label className="btn btn-secondary btn-sm" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', margin: 0, fontSize: '0.75rem' }}>
+                        <Upload size={13} />
+                        <span>{isUploadingKacabTtd ? 'Mengunggah...' : 'Ganti TTD'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={handleKacabSignatureUpload}
+                          disabled={isUploadingKacabTtd}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setSignatoryInput({ ...signatoryInput, kacabSignatureUrl: '' })}
+                        style={{ color: '#dc2626', fontSize: '0.75rem' }}
+                        title="Hapus TTD"
+                      >
+                        <Trash2 size={13} />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '90px', background: '#ffffff', borderRadius: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'center', padding: '0.5rem' }}>
@@ -510,24 +523,46 @@ export const SettingsTab = () => {
                 <label className="form-label" style={{ fontWeight: 700, color: '#0f172a', marginBottom: '0.4rem', display: 'block' }}>
                   ✍️ Scan TTD Pembuat Daftar
                 </label>
-                {signatoryInput.pembuatSignatureUrl ? (
+                {isValidSignature(signatoryInput.pembuatSignatureUrl) ? (
                   <div>
-                    <div style={{ background: '#ffffff', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem' }}>
+                    <div style={{ background: '#ffffff', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', height: '64px', display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: '0.5rem', position: 'relative' }}>
                       <img
                         src={signatoryInput.pembuatSignatureUrl}
                         alt="TTD Pembuat"
-                        style={{ maxHeight: '50px', maxWidth: '120px', objectFit: 'contain' }}
+                        style={{ maxHeight: '54px', maxWidth: '140px', objectFit: 'contain' }}
+                        onError={(e) => {
+                          e.target.style.display = 'none';
+                          const errBox = document.getElementById('pembuat-ttd-err');
+                          if (errBox) errBox.style.display = 'block';
+                        }}
                       />
+                      <span id="pembuat-ttd-err" style={{ display: 'none', fontSize: '0.7rem', color: '#dc2626', fontWeight: 600, textAlign: 'center' }}>
+                        ⚠️ Gambar rusak / tidak dapat dimuat. Silakan upload ulang.
+                      </span>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-secondary btn-sm"
-                      onClick={() => setSignatoryInput({ ...signatoryInput, pembuatSignatureUrl: '' })}
-                      style={{ color: '#dc2626', width: '100%' }}
-                    >
-                      <Trash2 size={13} />
-                      <span>Hapus TTD</span>
-                    </button>
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <label className="btn btn-secondary btn-sm" style={{ flex: 1, cursor: 'pointer', textAlign: 'center', margin: 0, fontSize: '0.75rem' }}>
+                        <Upload size={13} />
+                        <span>{isUploadingPembuatTtd ? 'Mengunggah...' : 'Ganti TTD'}</span>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          style={{ display: 'none' }}
+                          onChange={handlePembuatSignatureUpload}
+                          disabled={isUploadingPembuatTtd}
+                        />
+                      </label>
+                      <button
+                        type="button"
+                        className="btn btn-secondary btn-sm"
+                        onClick={() => setSignatoryInput({ ...signatoryInput, pembuatSignatureUrl: '' })}
+                        style={{ color: '#dc2626', fontSize: '0.75rem' }}
+                        title="Hapus TTD"
+                      >
+                        <Trash2 size={13} />
+                        <span>Hapus</span>
+                      </button>
+                    </div>
                   </div>
                 ) : (
                   <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '90px', background: '#ffffff', borderRadius: '4px', border: '1px solid #e2e8f0', cursor: 'pointer', textAlign: 'center', padding: '0.5rem' }}>

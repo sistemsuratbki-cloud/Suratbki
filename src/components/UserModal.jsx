@@ -5,6 +5,7 @@ import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validatePasswordStrength, validateFileUpload } from '../utils/security';
+import { fileToSignatureDataUrl, isValidSignature } from '../utils/signatureHelper';
 
 export const UserModal = ({ isOpen, onClose, editItem = null }) => {
   const { addUser, updateUser, currentUser } = useAuth();
@@ -103,32 +104,26 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
     }
 
     setIsUploadingTtd(true);
-    const fileExt = file.name.split('.').pop();
-    const fileName = `ttd_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
-    const filePath = `signatures/${fileName}`;
-
     try {
-      if (!supabase) throw new Error('Supabase not configured');
-      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
-      if (error) throw error;
-
-      const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
+      const dataUrl = await fileToSignatureDataUrl(file);
       setFormData((prev) => ({
         ...prev,
-        signatureUrl: publicUrlData.publicUrl
+        signatureUrl: dataUrl
       }));
+
+      // Background cloud upload if Supabase is connected
+      if (supabase) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `ttd_${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
+        const filePath = `signatures/${fileName}`;
+        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
+      }
     } catch (err) {
-      console.error('Supabase upload failed, falling back to local base64:', err);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setFormData((prev) => ({
-          ...prev,
-          signatureUrl: reader.result
-        }));
-      };
-      reader.readAsDataURL(file);
+      console.error('Signature upload failed:', err);
+      setErrorMsg('Gagal memproses file tanda tangan. Pastikan berkas berupa gambar valid.');
     } finally {
       setIsUploadingTtd(false);
+      e.target.value = '';
     }
   };
 
@@ -345,14 +340,22 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                     </span>
                   </div>
 
-                  {formData.signatureUrl ? (
+                  {isValidSignature(formData.signatureUrl) ? (
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', background: '#ffffff', padding: '0.75rem', borderRadius: '6px', border: '1px solid var(--border-color)' }}>
-                      <div style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', minWidth: '120px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <div style={{ background: '#f8fafc', padding: '0.5rem', borderRadius: '4px', border: '1px solid #e2e8f0', minWidth: '120px', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}>
                         <img
                           src={formData.signatureUrl}
                           alt="Scan TTD"
                           style={{ maxHeight: '50px', maxWidth: '110px', objectFit: 'contain' }}
+                          onError={(e) => {
+                            e.target.style.display = 'none';
+                            const errBox = document.getElementById('usermodal-ttd-err');
+                            if (errBox) errBox.style.display = 'block';
+                          }}
                         />
+                        <span id="usermodal-ttd-err" style={{ display: 'none', fontSize: '0.68rem', color: '#dc2626', fontWeight: 600, textAlign: 'center' }}>
+                          ⚠️ Gambar rusak
+                        </span>
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#059669' }}>
@@ -362,15 +365,32 @@ export const UserModal = ({ isOpen, onClose, editItem = null }) => {
                           Siap disematkan pada dokumen SPS & PDS surveyor ini.
                         </div>
                       </div>
-                      <button
-                        type="button"
-                        className="btn btn-secondary btn-sm"
-                        onClick={handleRemoveSignature}
-                        style={{ color: '#dc2626', borderColor: '#fca5a5' }}
-                      >
-                        <Trash2 size={14} />
-                        <span>Hapus</span>
-                      </button>
+                      <div style={{ display: 'flex', gap: '0.4rem' }}>
+                        <label
+                          className="btn btn-secondary btn-sm"
+                          style={{ cursor: 'pointer', margin: 0, fontSize: '0.75rem' }}
+                        >
+                          <Upload size={13} />
+                          <span>{isUploadingTtd ? '...' : 'Ganti'}</span>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            style={{ display: 'none' }}
+                            onChange={handleSignatureUpload}
+                            disabled={isUploadingTtd}
+                          />
+                        </label>
+                        <button
+                          type="button"
+                          className="btn btn-secondary btn-sm"
+                          onClick={handleRemoveSignature}
+                          style={{ color: '#dc2626', borderColor: '#fca5a5', fontSize: '0.75rem' }}
+                          title="Hapus TTD"
+                        >
+                          <Trash2 size={13} />
+                          <span>Hapus</span>
+                        </button>
+                      </div>
                     </div>
                   ) : (
                     <div>

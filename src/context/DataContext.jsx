@@ -41,6 +41,9 @@ const safeSetLocalStorage = (key, data) => {
       // Jika quota penyimpanan terlampaui (misal file base64 pdf), simpan versi ringan tanpa string base64 besar
       const sanitized = JSON.parse(
         JSON.stringify(data, (k, v) => {
+          if (k === 'signatureUrl' || k === 'kacabSignatureUrl' || k === 'pembuatSignatureUrl' || k === 'signature') {
+            return v;
+          }
           if (typeof v === 'string' && v.startsWith('data:') && v.length > 20000) {
             return '[DATA_URL_ATTACHMENT]';
           }

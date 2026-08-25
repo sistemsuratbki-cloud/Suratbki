@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
+import { isValidSignature } from '../utils/signatureHelper';
 import { ModalPortal } from './ModalPortal';
 import { BKILogo } from './BKILogo';
 
@@ -557,11 +558,12 @@ export const BiayaPdsPrintModal = ({
                     Kepala Cabang Madya Klas Pontianak
                   </div>
                   <div style={{ position: 'relative', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {withSignature && kacabSignature ? (
+                    {withSignature && isValidSignature(kacabSignature) ? (
                       <img
                         src={kacabSignature}
                         alt="TTD Kepala Cabang"
                         style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : null}
                   </div>
@@ -581,11 +583,12 @@ export const BiayaPdsPrintModal = ({
                     Pembuat Daftar
                   </div>
                   <div style={{ position: 'relative', height: '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    {withSignature && pembuatSignature ? (
+                    {withSignature && isValidSignature(pembuatSignature) ? (
                       <img
                         src={pembuatSignature}
                         alt="TTD Pembuat Daftar"
                         style={{ height: '85px', width: 'auto', objectFit: 'contain' }}
+                        onError={(e) => { e.target.style.display = 'none'; }}
                       />
                     ) : null}
                   </div>

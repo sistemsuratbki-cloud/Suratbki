@@ -1,6 +1,7 @@
 import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { X, Printer, FileText, Maximize2, Minimize2, Monitor, Smartphone } from 'lucide-react';
 import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
+import { isValidSignature } from '../utils/signatureHelper';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
@@ -425,11 +426,12 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
                     </div>
 
                     <div style={{ position: 'relative', height: isMobilePrint ? '48px' : '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                      {withSignature && kacabSignature ? (
+                      {withSignature && isValidSignature(kacabSignature) ? (
                         <img
                           src={kacabSignature}
                           alt="TTD Kepala Cabang"
                           style={{ height: isMobilePrint ? '48px' : '85px', width: 'auto', objectFit: 'contain' }}
+                          onError={(e) => { e.target.style.display = 'none'; }}
                         />
                       ) : null}
                     </div>
