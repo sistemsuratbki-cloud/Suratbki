@@ -340,9 +340,13 @@ export const LaporanTable = () => {
     const hrLbr = Number(target.jumlahHariLibur) || 0;
     const uangHarianRate = target.tanpaUangHarian ? 0 : (Number(target.uangHarian) || 300000);
     const uangHarianTotal = uangHarianRate * hr;
-    const uangHotelTotal = (Number(target.tiketHotel) || 0) * mlm;
+    const uangHotelTotal = (Array.isArray(target.rincianHotel) && target.rincianHotel.length > 0)
+      ? target.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
+      : (Number(target.totalBiayaHotel) || (Number(target.tiketHotel) || 0) * mlm);
     const hrLbrTotal = target.tanpaUangHarian ? 0 : (hrLbr * uangHarianRate * 0.5);
-    const tiketTotal = Number(target.tiketPesawatTaxi) || Number(target.biayaTiket) || 0;
+    const tiketTotal = (Array.isArray(target.rincianTiket) && target.rincianTiket.length > 0)
+      ? target.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
+      : (Number(target.tiketPesawatTaxi) || Number(target.biayaTiket) || 0);
     const tatTotal = target.tanpaTAT ? 0 : (target.biayaTAT !== undefined ? Number(target.biayaTAT) : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(target.tarifDasar) || 0;
 
