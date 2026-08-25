@@ -43,6 +43,7 @@ import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
+import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
@@ -510,6 +511,15 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   };
 
   const handleRemoveShipFromDetail = (namaKapal) => {
+    const removedShip = shipsDetail.find((s) => s.namaKapal === namaKapal);
+    if (removedShip) {
+      if (isGoogleDriveUrl(removedShip.fileVisitData || removedShip.fileVisitName)) {
+        deleteFromGoogleDrive(removedShip.fileVisitData || removedShip.fileVisitName).catch(console.warn);
+      }
+      if (isGoogleDriveUrl(removedShip.fileFotoData || removedShip.fileFotoName)) {
+        deleteFromGoogleDrive(removedShip.fileFotoData || removedShip.fileFotoName).catch(console.warn);
+      }
+    }
     const updated = shipsDetail.filter((s) => s.namaKapal !== namaKapal);
     setShipsDetail(updated);
     setFormData((prev) => ({
@@ -711,7 +721,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
     try {
       if (!supabase) throw new Error('Supabase not configured');
-      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, file);
+      const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
+      // Convert File to ArrayBuffer to prevent multipart form-data corruption
+      const fileBuffer = await file.arrayBuffer();
+      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, fileBuffer, { contentType: mimeType });
       if (error) throw error;
 
       const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
@@ -771,12 +784,24 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       jumlahEstimasi: calculations.totalBiaya,
       biayaTiket: Number(formData.tiketPesawatTaxi) + Number(formData.tiketHotel),
       linkedSpsIds: selectedSpsIds,
-      shipsDetail: shipsDetail.length > 0 ? shipsDetail : [
+      shipsDetail: shipsDetail.length > 0 ? shipsDetail.map((s, idx) => ({
+        ...s,
+        ...(idx === 0 && {
+          fileVisitName: s.fileVisitName || formData.fileVisitName || '',
+          fileVisitData: s.fileVisitData || formData.fileVisitData || '',
+          fileFotoName: s.fileFotoName || formData.fileFotoName || '',
+          fileFotoData: s.fileFotoData || formData.fileFotoData || ''
+        })
+      })) : [
         {
           namaKapal: formData.namaKapal.toUpperCase(),
           noAgenda: formData.noAgenda || '-',
           noOrder: formData.noOrder || '-',
-          biayaSurvei: calculations.totalBiaya
+          biayaSurvei: calculations.totalBiaya,
+          fileVisitName: formData.fileVisitName || '',
+          fileVisitData: formData.fileVisitData || '',
+          fileFotoName: formData.fileFotoName || '',
+          fileFotoData: formData.fileFotoData || ''
         }
       ]
     });
@@ -1841,6 +1866,11 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     color="#0284c7"
                     isAdmin={isAdmin}
                     bucketName="lampiran"
+                    folderContext={{
+                      year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                      subFolder: `${formData.noOrder || formData.agenda || 'PDS'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+                      category: '3_Tiket_Transport'
+                    }}
                     maxFileSize={3 * 1024 * 1024}
                   />
                 </div>
@@ -1878,6 +1908,11 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     color="#059669"
                     isAdmin={isAdmin}
                     bucketName="lampiran"
+                    folderContext={{
+                      year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                      subFolder: `${formData.noOrder || formData.agenda || 'PDS'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+                      category: '4_Kwitansi_Hotel'
+                    }}
                     maxFileSize={3 * 1024 * 1024}
                   />
                 </div>
@@ -1994,6 +2029,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 onChangeShipsDetail={(updated) => setShipsDetail(updated)}
                 defaultShipName={formData.namaKapal}
                 defaultAgenda={formData.noAgenda}
+                folderContext={{
+                  year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                  subFolder: `${formData.noOrder || formData.agenda || 'PDS'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+                }}
                 onSyncPrimaryFiles={({ fileVisitName, fileVisitData, fileFotoName, fileFotoData }) => {
                   setFormData((prev) => ({
                     ...prev,

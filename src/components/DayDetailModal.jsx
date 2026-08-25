@@ -57,6 +57,7 @@ import SearchableLocationSelect from './SearchableLocationSelect';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
+import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
 
@@ -516,6 +517,15 @@ export const DayDetailModal = ({
   };
 
   const handleRemoveShipFromDetail = (namaKapal) => {
+    const removedShip = shipsDetail.find((s) => s.namaKapal === namaKapal);
+    if (removedShip) {
+      if (isGoogleDriveUrl(removedShip.fileVisitData || removedShip.fileVisitName)) {
+        deleteFromGoogleDrive(removedShip.fileVisitData || removedShip.fileVisitName).catch(console.warn);
+      }
+      if (isGoogleDriveUrl(removedShip.fileFotoData || removedShip.fileFotoName)) {
+        deleteFromGoogleDrive(removedShip.fileFotoData || removedShip.fileFotoName).catch(console.warn);
+      }
+    }
     const updated = shipsDetail.filter((s) => s.namaKapal !== namaKapal);
     setShipsDetail(updated);
     setFormData((prev) => ({
@@ -636,7 +646,10 @@ export const DayDetailModal = ({
       const fileName = `${Date.now()}_${fieldKey}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
       const filePath = `documents/${fileName}`;
 
-      const { data, error } = await supabase.storage.from('surat-tugas').upload(filePath, file, { cacheControl: '3600', upsert: false });
+      const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
+      // Convert File to ArrayBuffer to prevent multipart form-data corruption
+      const fileBuffer = await file.arrayBuffer();
+      const { data, error } = await supabase.storage.from('surat-tugas').upload(filePath, fileBuffer, { contentType: mimeType, cacheControl: '3600', upsert: false });
 
       if (error) throw error;
 
@@ -2181,6 +2194,11 @@ export const DayDetailModal = ({
                       color="#0284c7"
                       isAdmin={isAdmin}
                       bucketName="surat-tugas"
+                      folderContext={{
+                        year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                        subFolder: `${formData.noOrder || formData.agenda || 'SP'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+                        category: '3_Tiket_Transport'
+                      }}
                       maxFileSize={3 * 1024 * 1024}
                     />
                   </div>
@@ -2218,6 +2236,11 @@ export const DayDetailModal = ({
                     color="#059669"
                     isAdmin={isAdmin}
                     bucketName="surat-tugas"
+                    folderContext={{
+                      year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                      subFolder: `${formData.noOrder || formData.agenda || 'SP'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+                      category: '4_Kwitansi_Hotel'
+                    }}
                     maxFileSize={3 * 1024 * 1024}
                   />
                 </div>
@@ -2334,6 +2357,10 @@ export const DayDetailModal = ({
                   onChangeShipsDetail={(updated) => setShipsDetail(updated)}
                   defaultShipName={formData.namaKapal}
                   defaultAgenda={formData.noAgenda}
+                  folderContext={{
+                    year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                    subFolder: `${formData.noOrder || formData.agenda || 'SP'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+                  }}
                   onSyncPrimaryFiles={({ fileVisitName, fileVisitData, fileFotoName, fileFotoData }) => {
                     setFormData((prev) => ({
                       ...prev,

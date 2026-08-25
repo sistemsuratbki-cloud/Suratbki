@@ -61,6 +61,34 @@ const mapFromDb = (row) => {
   if (row.tat_luar_kota !== undefined && row.tat_luar_kota !== null) merged.tatLuarKota = row.tat_luar_kota;
   else if (raw.tatLuarKota !== undefined) merged.tatLuarKota = raw.tatLuarKota;
 
+  // Normalisasi shipsDetail
+  if (row.ships_detail !== undefined && row.ships_detail !== null) merged.shipsDetail = row.ships_detail;
+  else if (raw.shipsDetail !== undefined) merged.shipsDetail = raw.shipsDetail;
+
+  // Normalisasi lampiran berkas (visit, selfie, tiket, hotel, fotoList)
+  if (row.file_visit_name !== undefined && row.file_visit_name !== null) merged.fileVisitName = row.file_visit_name;
+  else if (raw.fileVisitName !== undefined) merged.fileVisitName = raw.fileVisitName;
+
+  if (row.file_foto_name !== undefined && row.file_foto_name !== null) merged.fileFotoName = row.file_foto_name;
+  else if (raw.fileFotoName !== undefined) merged.fileFotoName = raw.fileFotoName;
+
+  if (row.file_tiket_transport_name !== undefined && row.file_tiket_transport_name !== null) merged.fileTiketTransportName = row.file_tiket_transport_name;
+  else if (row.file_tiket_name !== undefined && row.file_tiket_name !== null) merged.fileTiketTransportName = row.file_tiket_name;
+  else if (raw.fileTiketTransportName !== undefined) merged.fileTiketTransportName = raw.fileTiketTransportName;
+  else if (raw.fileTiketName !== undefined) merged.fileTiketTransportName = raw.fileTiketName;
+
+  if (row.file_kwitansi_hotel_name !== undefined && row.file_kwitansi_hotel_name !== null) merged.fileKwitansiHotelName = row.file_kwitansi_hotel_name;
+  else if (raw.fileKwitansiHotelName !== undefined) merged.fileKwitansiHotelName = raw.fileKwitansiHotelName;
+
+  if (row.foto_list !== undefined && row.foto_list !== null) merged.fotoList = row.foto_list;
+  else if (raw.fotoList !== undefined) merged.fotoList = raw.fotoList;
+
+  if (row.linked_sps_ids !== undefined && row.linked_sps_ids !== null) merged.linkedSpsIds = row.linked_sps_ids;
+  else if (raw.linkedSpsIds !== undefined) merged.linkedSpsIds = raw.linkedSpsIds;
+
+  if (row.ships_list !== undefined && row.ships_list !== null) merged.shipsList = row.ships_list;
+  else if (raw.shipsList !== undefined) merged.shipsList = raw.shipsList;
+
   return merged;
 };
 

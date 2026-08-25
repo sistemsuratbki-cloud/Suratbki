@@ -116,15 +116,28 @@ export const terbilang = (angka) => {
 
 export const parseAttachmentFiles = (fileDataOrName, fallbackName = 'Lampiran') => {
   if (!fileDataOrName) return [];
+  
+  const cleanDisplayName = (str, idx = 0) => {
+    if (!str || typeof str !== 'string') return `${fallbackName}_${idx + 1}`;
+    if (str.includes('drive.google.com') || str.includes('googleusercontent.com')) {
+      return `${fallbackName} (Google Drive)`;
+    }
+    const cleanStr = str.split('?')[0];
+    const rawPop = cleanStr.split('/').pop();
+    const decoded = decodeURIComponent(rawPop || '');
+    if (!decoded || decoded === 'view' || decoded.length < 2) {
+      return `${fallbackName}_${idx + 1}`;
+    }
+    return decoded;
+  };
+
   if (Array.isArray(fileDataOrName)) {
     return fileDataOrName.filter(Boolean).map((f, idx) => {
       if (typeof f === 'string') {
-        const cleanStr = f.split('?')[0];
-        const decoded = decodeURIComponent(cleanStr.split('/').pop() || `${fallbackName}_${idx + 1}`);
-        return { name: decoded, url: f, data: f };
+        return { name: cleanDisplayName(f, idx), url: f, data: f };
       }
       return {
-        name: f.name || `${fallbackName}_${idx + 1}`,
+        name: f.name && f.name !== 'view' ? f.name : cleanDisplayName(f.url || f.data, idx),
         url: f.url || f.data || '',
         data: f.data || f.url || ''
       };
@@ -139,12 +152,10 @@ export const parseAttachmentFiles = (fileDataOrName, fallbackName = 'Lampiran') 
         if (Array.isArray(parsed)) {
           return parsed.filter(Boolean).map((f, idx) => {
             if (typeof f === 'string') {
-              const cleanStr = f.split('?')[0];
-              const decoded = decodeURIComponent(cleanStr.split('/').pop() || `${fallbackName}_${idx + 1}`);
-              return { name: decoded, url: f, data: f };
+              return { name: cleanDisplayName(f, idx), url: f, data: f };
             }
             return {
-              name: f.name || `${fallbackName}_${idx + 1}`,
+              name: f.name && f.name !== 'view' ? f.name : cleanDisplayName(f.url || f.data, idx),
               url: f.url || f.data || '',
               data: f.data || f.url || ''
             };
@@ -157,14 +168,12 @@ export const parseAttachmentFiles = (fileDataOrName, fallbackName = 'Lampiran') 
     if (trimmed.includes('|||')) {
       const parts = trimmed.split('|||').map(p => p.trim()).filter(Boolean);
       return parts.map((part, idx) => ({
-        name: `${fallbackName}_${idx + 1}`,
+        name: cleanDisplayName(part, idx),
         url: part,
         data: part
       }));
     }
-    const cleanStr = trimmed.split('?')[0];
-    const decoded = decodeURIComponent(cleanStr.split('/').pop() || fallbackName);
-    return [{ name: decoded, url: trimmed, data: trimmed }];
+    return [{ name: cleanDisplayName(trimmed, 0), url: trimmed, data: trimmed }];
   }
   return [];
 };
@@ -174,7 +183,8 @@ export const serializeAttachmentFiles = (files) => {
   const cleanFiles = files.filter(f => f && (f.url || f.data || f.name));
   if (cleanFiles.length === 0) return '';
   if (cleanFiles.length === 1) {
-    return cleanFiles[0].url || cleanFiles[0].data || cleanFiles[0].name || '';
+    // Prefer base64 data over URL for reliability (Supabase URLs may be corrupt)
+    return cleanFiles[0].data || cleanFiles[0].url || cleanFiles[0].name || '';
   }
   return JSON.stringify(cleanFiles);
 };

@@ -32,7 +32,7 @@ import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 
 export const BukuAgendaTable = () => {
-  const { suratTugas, gradeTariffs, adminSettings } = useData();
+  const { suratTugas, laporanSurvei, kwitansiHonor, gradeTariffs, adminSettings } = useData();
   const { role, usersList } = useAuth();
 
   // Filters
@@ -58,123 +58,247 @@ export const BukuAgendaTable = () => {
     if (!item) return null;
     if (item.docType === 'PDS' || item.isPds) return item;
     if (item.pdsId) {
-      const parent = suratTugas.find(st => st.id === item.pdsId);
+      const parent = (suratTugas || []).find(st => st.id === item.pdsId);
       if (parent) return parent;
     }
-    const parentByLink = suratTugas.find(st => (st.isPds || st.docType === 'PDS') && Array.isArray(st.linkedSpsIds) && st.linkedSpsIds.includes(item.id));
+    const parentByLink = (suratTugas || []).find(st => (st.isPds || st.docType === 'PDS') && Array.isArray(st.linkedSpsIds) && st.linkedSpsIds.includes(item.id));
     if (parentByLink) return parentByLink;
     return item;
   };
 
   const getPdsAttachments = (item) => {
-    const pds = resolvePdsItem(item);
-    if (!pds) return { totalCount: 0, shipAttachments: [], generalAttachments: [] };
+    if (!item) return { totalCount: 0, shipAttachments: [], generalAttachments: [] };
+
+    const isMultiShipPds =
+      (item.docType === 'PDS' || item.isPds) &&
+      ((Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0) ||
+        (Array.isArray(item.linkedSpsIds) && item.linkedSpsIds.length > 0));
 
     const shipAttachments = [];
     const generalAttachments = [];
+    const addedFileKeys = new Set();
 
-    // Ships detail attachments
-    if (Array.isArray(pds.shipsDetail) && pds.shipsDetail.length > 0) {
-      pds.shipsDetail.forEach((sh, sIdx) => {
-        const shipName = (sh.namaKapal || `Kapal #${sIdx + 1}`).toUpperCase();
-        const agenda = sh.noAgenda || '-';
-        const files = [];
+    if (isMultiShipPds) {
+      // 1. Combined PDS with multiple ships in shipsDetail
+      let parsedShipsDetail = item.shipsDetail || item.ships_detail;
+      if (typeof parsedShipsDetail === 'string') {
+        try {
+          parsedShipsDetail = JSON.parse(parsedShipsDetail);
+        } catch (e) {
+          parsedShipsDetail = [];
+        }
+      }
 
-        if (sh.fileVisitData || sh.fileVisitName) {
-          files.push({
-            type: 'visit',
-            label: 'Formulir Visit Lapangan (PDF)',
-            fileName: sh.fileVisitName || `Form_Visit_${shipName}.pdf`,
-            fileData: sh.fileVisitData || sh.fileVisitName
-          });
-        }
-        if (sh.fileFotoData || sh.fileFotoName) {
-          files.push({
-            type: 'selfie',
-            label: 'Foto Selfie Lapangan (PDF)',
-            fileName: sh.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
-            fileData: sh.fileFotoData || sh.fileFotoName
-          });
-        }
+      if (Array.isArray(parsedShipsDetail) && parsedShipsDetail.length > 0) {
+        parsedShipsDetail.forEach((sh, sIdx) => {
+          const shipName = (sh.namaKapal || sh.nama_kapal || `Kapal #${sIdx + 1}`).toUpperCase();
+          const agenda = sh.noAgenda || sh.no_agenda || item.noAgenda || item.agenda || '-';
+          const files = [];
 
-        if (files.length > 0) {
-          shipAttachments.push({
-            shipName,
-            agenda,
-            files
-          });
-        }
-      });
+          // Find exact matching child SPS or Laporan for this specific ship if available
+          const matchingChildSps = (suratTugas || []).find(st =>
+            (sh.id && st.id === sh.id) ||
+            (Array.isArray(item.linkedSpsIds) && item.linkedSpsIds.includes(st.id) && st.namaKapal === sh.namaKapal)
+          );
+
+          const matchingChildLap = (laporanSurvei || []).find(lap =>
+            (sh.id && lap.suratId === sh.id) ||
+            (matchingChildSps && lap.suratId === matchingChildSps.id)
+          );
+
+          const visitFile =
+            sh.fileVisitData ||
+            sh.fileVisitName ||
+            sh.file_visit_name ||
+            sh.file_visit_data ||
+            matchingChildSps?.fileVisitData ||
+            matchingChildSps?.fileVisitName ||
+            matchingChildLap?.fileVisitData ||
+            matchingChildLap?.fileVisitName ||
+            (sIdx === 0 ? (item.fileVisitData || item.fileVisitName || item.file_visit_name) : null);
+
+          const selfieFile =
+            sh.fileFotoData ||
+            sh.fileFotoName ||
+            sh.file_foto_name ||
+            sh.file_foto_data ||
+            matchingChildSps?.fileFotoData ||
+            matchingChildSps?.fileFotoName ||
+            matchingChildLap?.fileFotoData ||
+            matchingChildLap?.fileFotoName ||
+            (sIdx === 0 ? (item.fileFotoData || item.fileFotoName || item.file_foto_name) : null);
+
+          if (visitFile && !addedFileKeys.has(`visit_${sIdx}_${visitFile}`)) {
+            addedFileKeys.add(`visit_${sIdx}_${visitFile}`);
+            files.push({
+              type: 'visit',
+              label: 'Formulir Visit Lapangan (PDF)',
+              fileName: sh.fileVisitName || sh.file_visit_name || matchingChildSps?.fileVisitName || `Form_Visit_${shipName}.pdf`,
+              fileData: visitFile
+            });
+          }
+
+          if (selfieFile && !addedFileKeys.has(`selfie_${sIdx}_${selfieFile}`)) {
+            addedFileKeys.add(`selfie_${sIdx}_${selfieFile}`);
+            files.push({
+              type: 'selfie',
+              label: 'Foto Selfie Lapangan (PDF)',
+              fileName: sh.fileFotoName || sh.file_foto_name || matchingChildSps?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
+              fileData: selfieFile
+            });
+          }
+
+          if (files.length > 0) {
+            shipAttachments.push({ shipName, agenda, files });
+          }
+        });
+      }
     } else {
-      const shipName = (pds.namaKapal || 'KAPAL UTAMA').toUpperCase();
+      // 2. Individual survey row / SPS / Single Ship Report
+      const matchingLap = (laporanSurvei || []).find(lap => lap.suratId === item.id || lap.id === item.id);
+      const shipName = (item.namaKapal || item.nama_kapal || matchingLap?.namaKapal || 'SURVEI').toUpperCase();
+      const agenda = item.noAgenda || item.no_agenda || item.agenda || matchingLap?.noAgenda || '-';
       const files = [];
-      if (pds.fileVisitData || pds.fileVisitName) {
+
+      const visitFile =
+        item.fileVisitData ||
+        item.fileVisitName ||
+        item.file_visit_name ||
+        item.file_visit_data ||
+        matchingLap?.fileVisitData ||
+        matchingLap?.fileVisitName;
+
+      const selfieFile =
+        item.fileFotoData ||
+        item.fileFotoName ||
+        item.file_foto_name ||
+        item.file_foto_data ||
+        matchingLap?.fileFotoData ||
+        matchingLap?.fileFotoName;
+
+      if (visitFile && !addedFileKeys.has(`visit_${item.id}_${visitFile}`)) {
+        addedFileKeys.add(`visit_${item.id}_${visitFile}`);
         files.push({
           type: 'visit',
           label: 'Formulir Visit Lapangan (PDF)',
-          fileName: pds.fileVisitName || `Form_Visit_${shipName}.pdf`,
-          fileData: pds.fileVisitData || pds.fileVisitName
+          fileName: item.fileVisitName || item.file_visit_name || matchingLap?.fileVisitName || `Form_Visit_${shipName}.pdf`,
+          fileData: visitFile
         });
       }
-      if (pds.fileFotoData || pds.fileFotoName) {
+
+      if (selfieFile && !addedFileKeys.has(`selfie_${item.id}_${selfieFile}`)) {
+        addedFileKeys.add(`selfie_${item.id}_${selfieFile}`);
         files.push({
           type: 'selfie',
           label: 'Foto Selfie Lapangan (PDF)',
-          fileName: pds.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
-          fileData: pds.fileFotoData || pds.fileFotoName
+          fileName: item.fileFotoName || item.file_foto_name || matchingLap?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
+          fileData: selfieFile
         });
       }
+
       if (files.length > 0) {
-        shipAttachments.push({
-          shipName,
-          agenda: pds.noAgenda || '-',
-          files
-        });
+        shipAttachments.push({ shipName, agenda, files });
       }
     }
 
-    // General travel attachments
-    const rawTiket = pds.fileTiketTransportData || pds.fileTiketTransportName || pds.fileTiketName;
-    if (rawTiket) {
-      const parsedTiket = parseAttachmentFiles(rawTiket, 'Tiket_Transport');
-      if (parsedTiket.length > 0) {
+    // 3. Travel receipts (Tiket, Hotel, Foto Lapangan) strictly for this item
+    const matchingLap = (laporanSurvei || []).find(lap => lap.suratId === item.id || lap.id === item.id);
+    const itemSources = [item, matchingLap].filter(Boolean);
+
+    // Tiket Transport
+    for (const src of itemSources) {
+      const rawTiket =
+        src.fileTiketTransportData ||
+        src.fileTiketTransportName ||
+        src.file_tiket_transport_name ||
+        src.file_tiket_name ||
+        src.fileTiketName;
+
+      if (rawTiket) {
+        const parsedTiket = parseAttachmentFiles(rawTiket, 'Tiket_Transport');
         parsedTiket.forEach((t, tIdx) => {
-          generalAttachments.push({
-            type: 'tiket',
-            label: parsedTiket.length > 1 ? `Bukti Tiket Transportasi #${tIdx + 1}` : 'Bukti Tiket Transportasi (Pesawat/Taxi/BBM)',
-            fileName: t.name || 'Tiket_Transport',
-            fileData: t.url || t.data,
-            files: parsedTiket
-          });
+          const val = t.url || t.data;
+          if (val && !addedFileKeys.has(`tiket_${val}`)) {
+            addedFileKeys.add(`tiket_${val}`);
+            generalAttachments.push({
+              type: 'tiket',
+              label: parsedTiket.length > 1 ? `Bukti Tiket Transportasi #${tIdx + 1}` : 'Bukti Tiket Transportasi (Pesawat/Taxi/BBM)',
+              fileName: t.name || 'Tiket_Transport',
+              fileData: val,
+              files: parsedTiket
+            });
+          }
         });
+        if (generalAttachments.some(g => g.type === 'tiket')) break;
       }
     }
 
-    const rawHotel = pds.fileKwitansiHotelData || pds.fileKwitansiHotelName;
-    if (rawHotel) {
-      const parsedHotel = parseAttachmentFiles(rawHotel, 'Kwitansi_Hotel');
-      if (parsedHotel.length > 0) {
+    // Kwitansi Hotel
+    for (const src of itemSources) {
+      const rawHotel =
+        src.fileKwitansiHotelData ||
+        src.fileKwitansiHotelName ||
+        src.file_kwitansi_hotel_name;
+
+      if (rawHotel) {
+        const parsedHotel = parseAttachmentFiles(rawHotel, 'Kwitansi_Hotel');
         parsedHotel.forEach((h, hIdx) => {
-          generalAttachments.push({
-            type: 'hotel',
-            label: parsedHotel.length > 1 ? `Bukti Kwitansi Hotel #${hIdx + 1}` : 'Bukti Kwitansi Hotel / Penginapan',
-            fileName: h.name || 'Kwitansi_Hotel',
-            fileData: h.url || h.data,
-            files: parsedHotel
-          });
+          const val = h.url || h.data;
+          if (val && !addedFileKeys.has(`hotel_${val}`)) {
+            addedFileKeys.add(`hotel_${val}`);
+            generalAttachments.push({
+              type: 'hotel',
+              label: parsedHotel.length > 1 ? `Bukti Kwitansi Hotel #${hIdx + 1}` : 'Bukti Kwitansi Hotel / Penginapan',
+              fileName: h.name || 'Kwitansi_Hotel',
+              fileData: val,
+              files: parsedHotel
+            });
+          }
         });
+        if (generalAttachments.some(g => g.type === 'hotel')) break;
       }
     }
 
-    if (Array.isArray(pds.fotoList) && pds.fotoList.length > 0) {
-      pds.fotoList.forEach((f, fIdx) => {
-        generalAttachments.push({
-          type: 'foto_survey',
-          label: `Foto Lapangan #${fIdx + 1}`,
-          fileName: typeof f === 'string' ? f : f.name || `Foto_${fIdx + 1}`,
-          fileData: typeof f === 'string' ? f : f.url || f.data
+    // Foto Survei
+    for (const src of itemSources) {
+      let parsedFotoList = src.fotoList || src.foto_list;
+      if (typeof parsedFotoList === 'string') {
+        try {
+          parsedFotoList = JSON.parse(parsedFotoList);
+        } catch (e) {
+          parsedFotoList = [];
+        }
+      }
+
+      if (Array.isArray(parsedFotoList) && parsedFotoList.length > 0) {
+        parsedFotoList.forEach((f, fIdx) => {
+          const val = typeof f === 'string' ? f : f.url || f.data;
+          if (val && !addedFileKeys.has(`foto_${val}`)) {
+            addedFileKeys.add(`foto_${val}`);
+            generalAttachments.push({
+              type: 'foto_survey',
+              label: `Foto Dokumentasi Survei #${fIdx + 1}`,
+              fileName: typeof f === 'string' ? f : f.name || `Foto_${fIdx + 1}`,
+              fileData: val
+            });
+          }
         });
-      });
+      } else if (src.fileFotoData || src.file_foto_data) {
+        const rawFotoData = src.fileFotoData || src.file_foto_data;
+        const fotoUrls = typeof rawFotoData === 'string' ? rawFotoData.split('|||').map(s => s.trim()).filter(Boolean) : [];
+        const rawFotoNames = (src.fileFotoName || src.file_foto_name || '').split(',').map(s => s.trim()).filter(Boolean);
+        fotoUrls.forEach((fUrl, fIdx) => {
+          if (fUrl && !addedFileKeys.has(`foto_${fUrl}`)) {
+            addedFileKeys.add(`foto_${fUrl}`);
+            generalAttachments.push({
+              type: 'foto_survey',
+              label: `Foto Dokumentasi Survei #${fIdx + 1}`,
+              fileName: rawFotoNames[fIdx] || `Foto_${fIdx + 1}`,
+              fileData: fUrl
+            });
+          }
+        });
+      }
     }
 
     const totalCount =
@@ -194,8 +318,7 @@ export const BukuAgendaTable = () => {
   };
 
   const handleOpenLampiran = (item) => {
-    const resolved = resolvePdsItem(item);
-    setLampiranModalItem(resolved);
+    setLampiranModalItem(item);
     setIsLampiranModalOpen(true);
   };
 

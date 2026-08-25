@@ -1,9 +1,10 @@
 import React, { useRef, useState } from 'react';
-import { Upload, X, Eye, FileText, Image as ImageIcon, Plus, Check, Loader2 } from 'lucide-react';
+import { Upload, X, Eye, FileText, Image as ImageIcon, Plus, Check, Loader2, HardDrive, ExternalLink } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { validateFileUpload } from '../utils/security';
 import { parseAttachmentFiles, serializeAttachmentFiles } from '../utils/formatters';
+import { getGoogleDriveConfig, uploadToGoogleDrive, deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 
 export const MultiDocUpload = ({
   value = '',
@@ -16,6 +17,7 @@ export const MultiDocUpload = ({
   disabled = false,
   isAdmin = false,
   bucketName = 'lampiran',
+  folderContext = {},
   maxFileSize = 3 * 1024 * 1024 // 3 MB
 }) => {
   const fileInputRef = useRef(null);
@@ -50,47 +52,87 @@ export const MultiDocUpload = ({
     setUploadProgress(`0/${validFiles.length}`);
 
     const newUploaded = [];
+    const gdriveConfig = getGoogleDriveConfig();
+    const isDriveActive = gdriveConfig?.enabled && gdriveConfig?.webAppUrl;
 
     for (let i = 0; i < validFiles.length; i++) {
       const file = validFiles[i];
       setUploadProgress(`${i + 1}/${validFiles.length}`);
 
-      try {
-        if (!supabase) throw new Error('Supabase not configured');
-        const fileExt = file.name.split('.').pop();
-        const cleanOriginalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-        const fileName = `${Date.now()}_${cleanOriginalName}`;
-        const filePath = `documents/${fileName}`;
+      let uploadSuccess = false;
 
-        const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
-        const { data, error } = await supabase.storage.from(bucketName).upload(filePath, file, {
-          contentType: mimeType,
-          cacheControl: '3600',
-          upsert: false
-        });
+      // Read local base64 preview data first
+      const localDataUrl = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
 
-        if (error) throw error;
+      // 1. Prioritize Google Drive if enabled
+      if (isDriveActive) {
+        try {
+          const driveResult = await uploadToGoogleDrive({
+            file,
+            folderContext: {
+              ...folderContext,
+              category: folderContext.category || title.replace(/[^a-zA-Z0-9_-]/g, '_')
+            }
+          });
 
-        const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-        const url = publicUrlData?.publicUrl || filePath;
+          newUploaded.push({
+            id: driveResult.id,
+            name: driveResult.name || file.name,
+            url: driveResult.url || driveResult.viewUrl,
+            data: driveResult.url || driveResult.viewUrl,
+            viewUrl: driveResult.viewUrl,
+            downloadUrl: driveResult.downloadUrl,
+            thumbnailUrl: driveResult.thumbnailUrl,
+            folderUrl: driveResult.folderUrl,
+            storageProvider: 'gdrive'
+          });
+
+          uploadSuccess = true;
+        } catch (driveErr) {
+          console.warn('Google Drive upload error:', driveErr);
+          toast.error(`Google Drive: ${driveErr.message}`);
+        }
+      }
+
+      // 2. Fallback to Supabase Storage or Base64 if Drive not active or failed
+      if (!uploadSuccess) {
+        let supabaseUrl = null;
+        try {
+          if (supabase) {
+            const fileExt = file.name.split('.').pop();
+            const cleanOriginalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const fileName = `${Date.now()}_${cleanOriginalName}`;
+            const filePath = `documents/${fileName}`;
+            const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
+
+            // Convert File to ArrayBuffer to prevent multipart form-data corruption
+            const fileBuffer = await file.arrayBuffer();
+            const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, fileBuffer, {
+              contentType: mimeType,
+              cacheControl: '3600',
+              upsert: false
+            });
+
+            if (!uploadError) {
+              const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
+              if (publicUrlData?.publicUrl) {
+                supabaseUrl = publicUrlData.publicUrl;
+              }
+            }
+          }
+        } catch (storageErr) {
+          console.warn('Supabase storage fallback:', storageErr);
+        }
 
         newUploaded.push({
           name: file.name,
-          url: url,
-          data: url
-        });
-      } catch (err) {
-        // Fallback to base64
-        const dataUrl = await new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
-
-        newUploaded.push({
-          name: file.name,
-          url: dataUrl,
-          data: dataUrl
+          url: supabaseUrl || localDataUrl,
+          data: localDataUrl, // Always keep Base64 data for instantaneous local preview
+          storageProvider: supabaseUrl ? 'supabase' : 'base64'
         });
       }
     }
@@ -107,8 +149,20 @@ export const MultiDocUpload = ({
     toast.success(`Berhasil mengunggah ${newUploaded.length} berkas.`);
   };
 
-  const handleRemove = (indexToRemove) => {
+  const handleRemove = async (indexToRemove) => {
     if (disabled) return;
+    const removedFile = currentFiles[indexToRemove];
+
+    // Delete from Google Drive if it's a GDrive file
+    if (removedFile && (isGoogleDriveUrl(removedFile.url) || isGoogleDriveUrl(removedFile.data))) {
+      const driveUrl = removedFile.url || removedFile.data;
+      deleteFromGoogleDrive(driveUrl).then((res) => {
+        if (res.success) {
+          toast.success('File juga dihapus dari Google Drive');
+        }
+      }).catch(() => {});
+    }
+
     const updated = currentFiles.filter((_, idx) => idx !== indexToRemove);
     const serialized = serializeAttachmentFiles(updated);
     if (onChange) {
@@ -243,6 +297,26 @@ export const MultiDocUpload = ({
                       >
                         {idx + 1}. {file.name}
                       </span>
+                      {isGoogleDriveUrl(file.url || file.data) && (
+                        <span
+                          style={{
+                            fontSize: '0.62rem',
+                            background: '#dbeafe',
+                            color: '#1d4ed8',
+                            padding: '0.1rem 0.35rem',
+                            borderRadius: '3px',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '2px',
+                            flexShrink: 0
+                          }}
+                          title="Tersimpan di Google Drive"
+                        >
+                          <HardDrive size={10} />
+                          <span>Drive</span>
+                        </span>
+                      )}
                     </div>
 
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', flexShrink: 0 }}>

@@ -31,6 +31,53 @@ import {
   subscribeToRealtimeChanges
 } from '../lib/supabaseSync';
 import { supabase } from '../lib/supabase';
+import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+
+const deleteEntityFilesFromGoogleDrive = (item) => {
+  if (!item || typeof item !== 'object') return;
+  const urlsToDelete = [];
+
+  const checkAndAdd = (val) => {
+    if (!val) return;
+    if (typeof val === 'string' && isGoogleDriveUrl(val)) {
+      urlsToDelete.push(val);
+    } else if (Array.isArray(val)) {
+      val.forEach(v => {
+        if (typeof v === 'string' && isGoogleDriveUrl(v)) urlsToDelete.push(v);
+        else if (v && typeof v === 'object') {
+          if (isGoogleDriveUrl(v.url)) urlsToDelete.push(v.url);
+          if (isGoogleDriveUrl(v.data)) urlsToDelete.push(v.data);
+        }
+      });
+    }
+  };
+
+  checkAndAdd(item.fileVisitData);
+  checkAndAdd(item.fileVisitName);
+  checkAndAdd(item.fileFotoData);
+  checkAndAdd(item.fileFotoName);
+  checkAndAdd(item.fileTiketTransportData);
+  checkAndAdd(item.fileTiketTransportName);
+  checkAndAdd(item.fileKwitansiHotelData);
+  checkAndAdd(item.fileKwitansiHotelName);
+  checkAndAdd(item.fotoList);
+
+  if (Array.isArray(item.shipsDetail)) {
+    item.shipsDetail.forEach(sh => {
+      if (sh) {
+        checkAndAdd(sh.fileVisitData);
+        checkAndAdd(sh.fileVisitName);
+        checkAndAdd(sh.fileFotoData);
+        checkAndAdd(sh.fileFotoName);
+      }
+    });
+  }
+
+  const uniqueUrls = [...new Set(urlsToDelete)];
+  uniqueUrls.forEach(url => {
+    deleteFromGoogleDrive(url).catch(err => console.warn('Auto-delete GDrive file error:', err));
+  });
+};
 
 const safeSetLocalStorage = (key, data) => {
   try {
@@ -1010,6 +1057,14 @@ export const DataProvider = ({ children }) => {
   };
 
   const deleteSuratTugas = (id) => {
+    const itemToDelete = suratTugas.find((item) => item.id === id);
+    const relatedLaporan = laporanSurvei.filter((item) => item.suratId === id || item.id === id);
+    const relatedKwitansi = kwitansiHonor.filter((item) => item.suratId === id || item.id === id);
+
+    if (itemToDelete) deleteEntityFilesFromGoogleDrive(itemToDelete);
+    relatedLaporan.forEach(deleteEntityFilesFromGoogleDrive);
+    relatedKwitansi.forEach(deleteEntityFilesFromGoogleDrive);
+
     setSuratTugas((prev) => prev.filter((item) => item.id !== id));
     setKwitansiHonor((prev) => prev.filter((item) => item.suratId !== id));
     setLaporanSurvei((prev) => prev.filter((item) => item.suratId !== id));
@@ -1078,6 +1133,8 @@ export const DataProvider = ({ children }) => {
   };
 
   const deleteLaporanSurvei = (id) => {
+    const itemToDelete = laporanSurvei.find((item) => item.id === id);
+    if (itemToDelete) deleteEntityFilesFromGoogleDrive(itemToDelete);
     setLaporanSurvei((prev) => prev.filter((item) => item.id !== id));
     deleteLaporanFromCloud(id);
   };

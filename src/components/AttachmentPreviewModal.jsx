@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Download, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Files, ExternalLink, Loader2, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { X, Download, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Files, ExternalLink, Loader2, ZoomIn, ZoomOut, RotateCw, HardDrive } from 'lucide-react';
 import { ModalPortal } from './ModalPortal';
 import { parseAttachmentFiles } from '../utils/formatters';
+import { isGoogleDriveUrl, extractGDriveFileId } from '../utils/googleDriveService';
 import * as pdfjsLib from 'pdfjs-dist';
 
 // Configure PDF.js worker
@@ -110,6 +111,20 @@ const PdfCanvasViewer = ({ arrayBuffer, pdfUrl, onErrorFallback, onOpenExternal,
   }, [currentPage, scale, loading, renderError]);
 
   if (renderError) {
+    const gdriveId = extractGDriveFileId(pdfUrl);
+    if (gdriveId) {
+      return (
+        <div style={{ width: '100%', height: '70vh', minHeight: '400px', background: '#0f172a' }}>
+          <iframe
+            src={`https://drive.google.com/file/d/${gdriveId}/preview`}
+            style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
+            title={displayName || 'Pratinjau Dokumen Google Drive'}
+            allow="autoplay"
+          />
+        </div>
+      );
+    }
+
     return (
       <div style={{
         display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
@@ -245,6 +260,7 @@ export const AttachmentPreviewModal = ({
   const [blobUrl, setBlobUrl] = useState(null);
   const [pdfArrayBuffer, setPdfArrayBuffer] = useState(null);
   const [isLoadingFile, setIsLoadingFile] = useState(false);
+  const [imgLoadError, setImgLoadError] = useState(false);
 
   const fileList = React.useMemo(() => {
     if (files && Array.isArray(files) && files.length > 0) {
@@ -255,6 +271,7 @@ export const AttachmentPreviewModal = ({
 
   useEffect(() => {
     setActiveIndex(0);
+    setImgLoadError(false);
   }, [isOpen, fileData, fileName, files]);
 
   const currentFile = fileList[activeIndex] || fileList[0] || { name: 'Dokumen', url: '', data: '' };
@@ -276,13 +293,18 @@ export const AttachmentPreviewModal = ({
 
   const displayName = currentFile.name || (isString && hasBase64OrUrl ? `Lampiran_${activeIndex + 1}` : rawFile) || 'Dokumen';
 
-  // Fetch as ArrayBuffer for clean PDF / Image data
+  // Fetch as ArrayBuffer for PDF files; for images use direct URL
   useEffect(() => {
     let active = true;
     let createdUrl = null;
 
     if (isOpen && hasBase64OrUrl) {
-      if (rawFile.startsWith('http://') || rawFile.startsWith('https://')) {
+      if (isGoogleDriveUrl(rawFile)) {
+        // Direct Google Drive embedded viewer — no need to fetch
+        setBlobUrl(rawFile);
+        setIsLoadingFile(false);
+      } else if (isPdf && (rawFile.startsWith('http://') || rawFile.startsWith('https://'))) {
+        // Only fetch ArrayBuffer for PDF files from URLs
         setIsLoadingFile(true);
         fetch(rawFile)
           .then((res) => {
@@ -292,22 +314,9 @@ export const AttachmentPreviewModal = ({
           .then((buffer) => {
             if (!active) return;
             const uint8 = new Uint8Array(buffer);
-            const fileNameLower = (currentFile.name || displayName || rawFile).toLowerCase();
-            let forcedMimeType = 'application/octet-stream';
-
-            if (isPdf || fileNameLower.endsWith('.pdf') || fileNameLower.includes('.pdf') || rawFile.toLowerCase().includes('.pdf')) {
-              forcedMimeType = 'application/pdf';
-            } else if (fileNameLower.endsWith('.png')) {
-              forcedMimeType = 'image/png';
-            } else if (fileNameLower.endsWith('.jpg') || fileNameLower.endsWith('.jpeg')) {
-              forcedMimeType = 'image/jpeg';
-            } else if (fileNameLower.endsWith('.webp')) {
-              forcedMimeType = 'image/webp';
-            }
-
             let finalBuffer = uint8;
 
-            // Check if file contains %PDF (0x25, 0x50, 0x44, 0x46)
+            // Check if file contains %PDF header
             let pdfStartIndex = -1;
             for (let i = 0; i < Math.min(uint8.length - 4, 4096); i++) {
               if (uint8[i] === 0x25 && uint8[i + 1] === 0x50 && uint8[i + 2] === 0x44 && uint8[i + 3] === 0x46) {
@@ -316,54 +325,124 @@ export const AttachmentPreviewModal = ({
               }
             }
 
-            if (pdfStartIndex !== -1) {
-              forcedMimeType = 'application/pdf';
-              if (pdfStartIndex > 0) {
-                // Extract pure PDF bytes, removing WebKitFormBoundary wrapper
-                let pdfEndIndex = uint8.length;
-                for (let i = uint8.length - 5; i >= pdfStartIndex; i--) {
-                  if (uint8[i] === 0x25 && uint8[i + 1] === 0x25 && uint8[i + 2] === 0x45 && uint8[i + 3] === 0x4F && uint8[i + 4] === 0x46) {
-                    let end = i + 5;
-                    while (end < uint8.length && (uint8[end] === 10 || uint8[end] === 13 || uint8[end] === 32)) {
-                      end++;
-                    }
-                    pdfEndIndex = end;
-                    break;
+            if (pdfStartIndex > 0) {
+              let pdfEndIndex = uint8.length;
+              for (let i = uint8.length - 5; i >= pdfStartIndex; i--) {
+                if (uint8[i] === 0x25 && uint8[i + 1] === 0x25 && uint8[i + 2] === 0x45 && uint8[i + 3] === 0x4F && uint8[i + 4] === 0x46) {
+                  let end = i + 5;
+                  while (end < uint8.length && (uint8[end] === 10 || uint8[end] === 13 || uint8[end] === 32)) {
+                    end++;
                   }
+                  pdfEndIndex = end;
+                  break;
                 }
-                finalBuffer = uint8.slice(pdfStartIndex, pdfEndIndex);
               }
-              setPdfArrayBuffer(finalBuffer.buffer);
-            } else {
-              setPdfArrayBuffer(buffer);
+              finalBuffer = uint8.slice(pdfStartIndex, pdfEndIndex);
             }
 
-            const typedBlob = new Blob([finalBuffer], { type: forcedMimeType });
+            setPdfArrayBuffer(finalBuffer.buffer);
+            const typedBlob = new Blob([finalBuffer], { type: 'application/pdf' });
             createdUrl = URL.createObjectURL(typedBlob);
             setBlobUrl(createdUrl);
             setIsLoadingFile(false);
           })
           .catch((err) => {
             if (!active) return;
-            console.warn('Fallback to direct URL for attachment:', err);
+            console.warn('PDF fetch fallback to direct URL:', err);
             setBlobUrl(rawFile);
             setPdfArrayBuffer(null);
             setIsLoadingFile(false);
           });
+      } else if (!isPdf && (rawFile.startsWith('http://') || rawFile.startsWith('https://'))) {
+        // For images from URLs: fetch and handle potential Supabase multipart corruption
+        setIsLoadingFile(true);
+        fetch(rawFile)
+          .then((res) => {
+            if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+            return res.arrayBuffer();
+          })
+          .then((buffer) => {
+            if (!active) return;
+            const uint8 = new Uint8Array(buffer);
+
+            // Detect multipart form-data corruption (WebKitFormBoundary)
+            // Check first 200 bytes for '------WebKit' signature
+            const headerStr = new TextDecoder('utf-8', { fatal: false }).decode(uint8.slice(0, 200));
+            if (headerStr.includes('WebKitFormBoundary') || headerStr.includes('Content-Disposition: form-data')) {
+              console.warn('Detected multipart-corrupted Supabase file, extracting image bytes...');
+              
+              // Find the actual image data after double CRLF following Content-Type header
+              let imgStart = -1;
+              for (let i = 0; i < Math.min(uint8.length - 4, 2048); i++) {
+                // Look for \r\n\r\n (0x0D 0x0A 0x0D 0x0A) after Content-Type
+                if (uint8[i] === 0x0D && uint8[i+1] === 0x0A && uint8[i+2] === 0x0D && uint8[i+3] === 0x0A) {
+                  const preceding = new TextDecoder('utf-8', { fatal: false }).decode(uint8.slice(Math.max(0, i-100), i));
+                  if (preceding.includes('Content-Type: image/') || preceding.includes('filename=')) {
+                    imgStart = i + 4;
+                    break;
+                  }
+                }
+              }
+
+              if (imgStart > 0) {
+                // Find the trailing boundary (starts with \r\n------)
+                let imgEnd = uint8.length;
+                for (let i = uint8.length - 100; i > imgStart; i--) {
+                  if (uint8[i] === 0x0D && uint8[i+1] === 0x0A && uint8[i+2] === 0x2D && uint8[i+3] === 0x2D && uint8[i+4] === 0x2D) {
+                    imgEnd = i;
+                    break;
+                  }
+                }
+
+                const cleanBytes = uint8.slice(imgStart, imgEnd);
+                // Detect mime from header
+                let mime = 'image/png';
+                if (headerStr.includes('image/jpeg')) mime = 'image/jpeg';
+                else if (headerStr.includes('image/webp')) mime = 'image/webp';
+                else if (headerStr.includes('image/gif')) mime = 'image/gif';
+
+                const cleanBlob = new Blob([cleanBytes], { type: mime });
+                createdUrl = URL.createObjectURL(cleanBlob);
+                setBlobUrl(createdUrl);
+                setIsLoadingFile(false);
+                return;
+              }
+            }
+
+            // Not corrupted: create normal blob URL
+            const fileNameLower = (currentFile.name || rawFile).toLowerCase();
+            let mime = 'image/png';
+            if (fileNameLower.includes('.jpg') || fileNameLower.includes('.jpeg')) mime = 'image/jpeg';
+            else if (fileNameLower.includes('.webp')) mime = 'image/webp';
+            else if (fileNameLower.includes('.gif')) mime = 'image/gif';
+
+            const blob = new Blob([uint8], { type: mime });
+            createdUrl = URL.createObjectURL(blob);
+            setBlobUrl(createdUrl);
+            setIsLoadingFile(false);
+          })
+          .catch((err) => {
+            if (!active) return;
+            console.warn('Image fetch failed, using direct URL:', err);
+            setBlobUrl(rawFile);
+            setIsLoadingFile(false);
+          });
       } else if (rawFile.startsWith('data:')) {
         // Base64 data URL
-        try {
-          const base64Parts = rawFile.split(',');
-          const base64Data = base64Parts[1] || base64Parts[0];
-          const binaryStr = atob(base64Data);
-          const len = binaryStr.length;
-          const bytes = new Uint8Array(len);
-          for (let i = 0; i < len; i++) {
-            bytes[i] = binaryStr.charCodeAt(i);
+        if (isPdf) {
+          try {
+            const base64Parts = rawFile.split(',');
+            const base64Data = base64Parts[1] || base64Parts[0];
+            const binaryStr = atob(base64Data);
+            const len = binaryStr.length;
+            const bytes = new Uint8Array(len);
+            for (let i = 0; i < len; i++) {
+              bytes[i] = binaryStr.charCodeAt(i);
+            }
+            setPdfArrayBuffer(bytes.buffer);
+          } catch (e) {
+            console.warn('Base64 parse for PDF warning:', e);
           }
-          setPdfArrayBuffer(bytes.buffer);
-        } catch (e) {
-          console.warn('Base64 parse for PDF warning:', e);
         }
         setBlobUrl(rawFile);
         setIsLoadingFile(false);
@@ -400,7 +479,8 @@ export const AttachmentPreviewModal = ({
 
   const handleOpenExternal = () => {
     if (hasBase64OrUrl) {
-      const targetUrl = blobUrl || rawFile;
+      // Always prefer the original URL (rawFile) over blob URL for external tabs
+      const targetUrl = rawFile.startsWith('http') ? rawFile : (blobUrl || rawFile);
       window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
   };
@@ -481,6 +561,19 @@ export const AttachmentPreviewModal = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               {hasBase64OrUrl && (
                 <>
+                  {isGoogleDriveUrl(activeSrc) && (
+                    <a
+                      href={activeSrc}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.55rem', color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' }}
+                      title="Buka File di Google Drive"
+                    >
+                      <HardDrive size={13} color="#2563eb" />
+                      <span>Google Drive</span>
+                    </a>
+                  )}
                   <button
                     type="button"
                     onClick={handleOpenExternal}
@@ -601,6 +694,22 @@ export const AttachmentPreviewModal = ({
                 <Loader2 size={32} className="spinner" color="#38bdf8" />
                 <span style={{ fontSize: '0.85rem' }}>Memuat dokumen pratinjau...</span>
               </div>
+            ) : (isGoogleDriveUrl(rawFile) || isGoogleDriveUrl(activeSrc)) ? (
+              /* Google Drive Direct Native Embedded Viewer (Supports PDF, PNG, JPG, Documents) */
+              <div style={{ width: '100%', height: '74vh', minHeight: '480px', background: '#0f172a', position: 'relative' }}>
+                <iframe
+                  src={`https://drive.google.com/file/d/${extractGDriveFileId(rawFile) || extractGDriveFileId(activeSrc)}/preview`}
+                  style={{
+                    width: '100%',
+                    height: '100%',
+                    border: 'none',
+                    borderRadius: '0 0 8px 8px',
+                    background: '#0f172a'
+                  }}
+                  title={displayName}
+                  allow="autoplay"
+                />
+              </div>
             ) : hasBase64OrUrl ? (
               isPdf ? (
                 <PdfCanvasViewer
@@ -612,7 +721,17 @@ export const AttachmentPreviewModal = ({
               ) : (
                 <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
                   <img
-                    src={activeSrc}
+                    src={(() => {
+                      if (isGoogleDriveUrl(activeSrc)) {
+                        const gId = extractGDriveFileId(activeSrc);
+                        if (gId) return `https://lh3.googleusercontent.com/d/${gId}=s1600`;
+                      }
+                      // If blobUrl failed, try rawFile directly
+                      if (imgLoadError && activeSrc !== rawFile && rawFile.startsWith('http')) {
+                        return rawFile;
+                      }
+                      return activeSrc;
+                    })()}
                     alt={displayName}
                     style={{
                       maxWidth: '100%',
@@ -622,8 +741,29 @@ export const AttachmentPreviewModal = ({
                       boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
                     }}
                     onError={(e) => {
-                      console.warn('Image render error, fallback');
-                      e.target.style.display = 'none';
+                      if (!imgLoadError && activeSrc !== rawFile && rawFile.startsWith('http')) {
+                        // First error: try raw URL directly as fallback
+                        console.warn('Image blobUrl failed, trying rawFile directly');
+                        setImgLoadError(true);
+                      } else {
+                        // Second error or no fallback available: show embedded iframe
+                        console.warn('Image render failed completely, showing as embedded object');
+                        e.target.style.display = 'none';
+                        // Replace with embedded object
+                        const container = e.target.parentElement;
+                        if (container && !container.querySelector('object')) {
+                          const obj = document.createElement('object');
+                          obj.data = rawFile.startsWith('http') ? rawFile : activeSrc;
+                          obj.type = 'image/png';
+                          obj.style.cssText = 'max-width:100%;max-height:68vh;border-radius:6px;';
+                          // Final fallback content
+                          const fallbackDiv = document.createElement('div');
+                          fallbackDiv.style.cssText = 'text-align:center;color:#94a3b8;padding:2rem;';
+                          fallbackDiv.innerHTML = `<p style="font-size:0.85rem;margin-bottom:1rem">${displayName}</p><a href="${rawFile.startsWith('http') ? rawFile : activeSrc}" target="_blank" rel="noreferrer" style="color:#38bdf8;text-decoration:underline;font-size:0.82rem">Klik untuk membuka file</a>`;
+                          obj.appendChild(fallbackDiv);
+                          container.appendChild(obj);
+                        }
+                      }
                     }}
                   />
                 </div>

@@ -1,12 +1,118 @@
 import React, { useState } from 'react';
-import { KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User, FileCheck2, Upload, Trash2, Database } from 'lucide-react';
+import {
+  KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User, FileCheck2, Upload, Trash2,
+  Database, HardDrive, Zap, Loader2, CheckCircle2, AlertCircle, HelpCircle, Copy, CheckCheck, ExternalLink
+} from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ConfirmModal } from './ConfirmModal';
 import { validatePasswordStrength } from '../utils/security';
 import { fileToSignatureDataUrl, isValidSignature } from '../utils/signatureHelper';
+import {
+  getGoogleDriveConfig,
+  saveGoogleDriveConfig,
+  testGoogleDriveConnection
+} from '../utils/googleDriveService';
 import { toast } from 'react-hot-toast';
+
+const GDRIVE_SCRIPT_CODE = `function doGet(e) {
+  return handleResponse({
+    success: true,
+    message: "Google Drive API BKI Pontianak aktif!",
+    timestamp: new Date().toISOString()
+  });
+}
+
+function doPost(e) {
+  try {
+    if (!e || !e.postData || !e.postData.contents) {
+      return handleResponse({ success: false, message: "Payload kosong" }, 400);
+    }
+
+    var payload = JSON.parse(e.postData.contents);
+    var action = payload.action || "uploadFile";
+
+    if (action === "ping") {
+      return handleResponse({
+        success: true,
+        message: "Koneksi ke Google Drive sukses!",
+        userEmail: Session.getActiveUser().getEmail() || "Google Drive Account"
+      });
+    }
+
+    if (action === "uploadFile") {
+      var rootFolderName = payload.rootFolder || "BKI_DOKUMEN_SURAT";
+      var year = payload.year || new Date().getFullYear().toString();
+      var month = payload.month || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MM-MMMM");
+      var subFolder = payload.subFolder || "UMUM";
+      var category = payload.category || "Dokumen";
+      
+      var fileName = payload.fileName || ("file_" + Date.now());
+      var mimeType = payload.mimeType || "application/octet-stream";
+      var base64Data = payload.base64Data || "";
+
+      if (base64Data.indexOf(",") > -1) {
+        base64Data = base64Data.split(",")[1];
+      }
+
+      var decodedBlob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
+      var targetFolder = getOrCreateFolderPath([rootFolderName, year, month, subFolder, category]);
+      var createdFile = targetFolder.createFile(decodedBlob);
+      
+      try {
+        createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+      } catch (errSharing) {}
+
+      var fileId = createdFile.getId();
+      var viewUrl = "https://drive.google.com/file/d/" + fileId + "/view";
+      var downloadUrl = "https://drive.google.com/uc?export=download&id=" + fileId;
+      var directUrl = "https://drive.google.com/uc?export=view&id=" + fileId;
+      var thumbnailUrl = "https://lh3.googleusercontent.com/d/" + fileId + "=s800";
+
+      return handleResponse({
+        success: true,
+        fileId: fileId,
+        fileName: createdFile.getName(),
+        url: viewUrl,
+        viewUrl: viewUrl,
+        downloadUrl: downloadUrl,
+        directUrl: directUrl,
+        thumbnailUrl: thumbnailUrl,
+        folderUrl: targetFolder.getUrl(),
+        size: createdFile.getSize(),
+        mimeType: createdFile.getMimeType(),
+        storageProvider: "gdrive",
+        uploadedAt: new Date().toISOString()
+      });
+    }
+
+    return handleResponse({ success: false, message: "Aksi tidak dikenal" }, 400);
+  } catch (error) {
+    return handleResponse({ success: false, message: error.toString() }, 500);
+  }
+}
+
+function getOrCreateFolderPath(folderNames) {
+  var currentFolder = DriveApp.getRootFolder();
+  for (var i = 0; i < folderNames.length; i++) {
+    var name = String(folderNames[i]).trim();
+    if (!name) continue;
+    name = name.replace(/[/\\\\?%*:|"<>]/g, "_");
+    var subFolders = currentFolder.getFoldersByName(name);
+    if (subFolders.hasNext()) {
+      currentFolder = subFolders.next();
+    } else {
+      currentFolder = currentFolder.createFolder(name);
+    }
+  }
+  return currentFolder;
+}
+
+function handleResponse(data, statusCode) {
+  return ContentService.createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}`;
 
 export const SettingsTab = () => {
   const { currentUser, changePassword, verifyCurrentPassword, updateUser, usersList } = useAuth();
@@ -32,6 +138,53 @@ export const SettingsTab = () => {
   const [isSubmittingPass, setIsSubmittingPass] = useState(false);
   const [isUploadingKacabTtd, setIsUploadingKacabTtd] = useState(false);
   const [isUploadingPembuatTtd, setIsUploadingPembuatTtd] = useState(false);
+
+  // Google Drive State
+  const [gdriveConfig, setGdriveConfig] = useState(() => getGoogleDriveConfig());
+  const [isTestingGDrive, setIsTestingGDrive] = useState(false);
+  const [gdriveTestResult, setGdriveTestResult] = useState(null);
+  const [showGDriveGuide, setShowGDriveGuide] = useState(false);
+  const [isCopiedScript, setIsCopiedScript] = useState(false);
+
+  const handleTestGDriveConnection = async () => {
+    if (!gdriveConfig.webAppUrl) {
+      toast.error('Masukkan Web App URL terlebih dahulu');
+      return;
+    }
+
+    setIsTestingGDrive(true);
+    setGdriveTestResult(null);
+
+    try {
+      const result = await testGoogleDriveConnection(gdriveConfig.webAppUrl);
+      setGdriveTestResult({
+        success: true,
+        message: result.message,
+        latencyMs: result.latencyMs
+      });
+      toast.success('Koneksi Google Drive Berhasil!');
+    } catch (err) {
+      setGdriveTestResult({
+        success: false,
+        message: err.message
+      });
+      toast.error(err.message || 'Gagal terhubung ke Google Drive');
+    } finally {
+      setIsTestingGDrive(false);
+    }
+  };
+
+  const handleSaveGDriveConfig = () => {
+    saveGoogleDriveConfig(gdriveConfig);
+    toast.success('Pengaturan Google Drive berhasil disimpan!');
+  };
+
+  const handleCopyScriptCode = () => {
+    navigator.clipboard.writeText(GDRIVE_SCRIPT_CODE);
+    setIsCopiedScript(true);
+    toast.success('Kode Google Apps Script berhasil disalin!');
+    setTimeout(() => setIsCopiedScript(false), 3000);
+  };
 
   const [signatoryInput, setSignatoryInput] = useState({
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
@@ -616,6 +769,265 @@ export const SettingsTab = () => {
               <span>Simpan Pengaturan Cetak & TTD</span>
             </button>
           </form>
+        </div>
+      )}
+
+      {/* GOOGLE DRIVE INTEGRATION SETTINGS (DEVELOPER ONLY) */}
+      {currentUser?.role === 'developer' && (
+        <div className="card-section" style={{ padding: '1.75rem' }}>
+          <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
+            <div className="card-title-group">
+              <HardDrive size={22} color="var(--accent-primary)" />
+              <div>
+                <h3 className="card-title">Penyimpanan Berkas Google Drive</h3>
+                <div className="card-subtitle">
+                  Pisahkan berkas foto visit, dokumentasi survei, kwitansi, dan tiket ke folder Google Drive agar hemat database dan mudah dikelola
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>
+                  Aktifkan Penyimpanan Google Drive
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  {gdriveConfig.enabled
+                    ? '🟢 Berkas baru yang diunggah akan otomatis disimpan ke Google Drive'
+                    : '⚪ Penyimpanan menggunakan mode standar (Supabase / Local)'}
+                </div>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px', margin: 0, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={gdriveConfig.enabled}
+                  onChange={(e) => {
+                    const newCfg = { ...gdriveConfig, enabled: e.target.checked };
+                    setGdriveConfig(newCfg);
+                    saveGoogleDriveConfig(newCfg);
+                    toast.success(e.target.checked ? 'Google Drive diaktifkan!' : 'Google Drive dinonaktifkan.');
+                  }}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    backgroundColor: gdriveConfig.enabled ? 'var(--accent-primary)' : '#cbd5e1',
+                    transition: '.2s',
+                    borderRadius: '26px'
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      content: '""',
+                      height: '20px',
+                      width: '20px',
+                      left: gdriveConfig.enabled ? '25px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '.2s',
+                      borderRadius: '50%'
+                    }}
+                  />
+                </span>
+              </label>
+            </div>
+
+            {/* Config Form */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+              <div className="form-group" style={{ gridColumn: 'span 2' }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>
+                  Google Apps Script Web App URL *
+                </label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://script.google.com/macros/s/AKfycb.../exec"
+                  value={gdriveConfig.webAppUrl}
+                  onChange={(e) => setGdriveConfig({ ...gdriveConfig, webAppUrl: e.target.value })}
+                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+                />
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                  URL Web App yang diperoleh setelah menerapkan (*deploy*) script di Google Apps Script.
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>
+                  Nama Folder Utama di Drive
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="BKI_DOKUMEN_SURAT"
+                  value={gdriveConfig.rootFolder}
+                  onChange={(e) => setGdriveConfig({ ...gdriveConfig, rootFolder: e.target.value })}
+                />
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                  Folder akan dibuat otomatis di Google Drive utama Anda.
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleTestGDriveConnection}
+                  disabled={isTestingGDrive || !gdriveConfig.webAppUrl}
+                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem' }}
+                >
+                  {isTestingGDrive ? (
+                    <>
+                      <Loader2 size={15} className="spin-icon" />
+                      <span>Menguji...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={15} color="#eab308" />
+                      <span>Tes Koneksi Drive</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveGDriveConfig}
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.82rem' }}
+                >
+                  <Check size={15} />
+                  <span>Simpan</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Test Result Indicator */}
+            {gdriveTestResult && (
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  borderRadius: '6px',
+                  fontSize: '0.8rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  background: gdriveTestResult.success ? '#ecfdf5' : '#fef2f2',
+                  border: `1px solid ${gdriveTestResult.success ? '#a7f3d0' : '#fecaca'}`,
+                  color: gdriveTestResult.success ? '#065f46' : '#991b1b'
+                }}
+              >
+                {gdriveTestResult.success ? <CheckCircle2 size={16} color="#059669" /> : <AlertCircle size={16} color="#dc2626" />}
+                <div style={{ flex: 1 }}>
+                  <strong>{gdriveTestResult.success ? 'Koneksi Berhasil!' : 'Koneksi Gagal'}</strong> — {gdriveTestResult.message}
+                  {gdriveTestResult.latencyMs && (
+                    <span style={{ fontSize: '0.72rem', opacity: 0.8, marginLeft: '0.4rem' }}>
+                      ({gdriveTestResult.latencyMs} ms)
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Guide & Script Template Accordion */}
+            <div style={{ background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: '8px', overflow: 'hidden' }}>
+              <div
+                style={{
+                  padding: '0.75rem 1rem',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  cursor: 'pointer',
+                  background: '#f1f5f9'
+                }}
+                onClick={() => setShowGDriveGuide(!showGDriveGuide)}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontWeight: 700, fontSize: '0.85rem', color: '#1e293b' }}>
+                  <HelpCircle size={16} color="var(--accent-primary)" />
+                  <span>Panduan Cepat Setup Google Apps Script (2 Menit)</span>
+                </div>
+                <span style={{ fontSize: '0.78rem', color: 'var(--accent-primary)', fontWeight: 600 }}>
+                  {showGDriveGuide ? 'Tutup Panduan ▲' : 'Buka Panduan ▼'}
+                </span>
+              </div>
+
+              {showGDriveGuide && (
+                <div style={{ padding: '1rem', fontSize: '0.82rem', lineHeight: '1.5', color: '#334155' }}>
+                  <ol style={{ paddingLeft: '1.2rem', margin: '0 0 1rem 0' }}>
+                    <li style={{ marginBottom: '0.35rem' }}>
+                      Buka <strong><a href="https://script.google.com/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-primary)' }}>Google Apps Script (script.google.com)</a></strong> dengan akun Google kantor / pribadi Anda.
+                    </li>
+                    <li style={{ marginBottom: '0.35rem' }}>
+                      Klik <strong>"New project" (Proyek baru)</strong>, lalu hapus semua kode di editor.
+                    </li>
+                    <li style={{ marginBottom: '0.35rem' }}>
+                      Salin kode di bawah ini lalu tempelkan (*paste*) ke editor Google Apps Script.
+                    </li>
+                    <li style={{ marginBottom: '0.35rem' }}>
+                      Klik tombol biru <strong>"Deploy"</strong> di pojok kanan atas &gt; <strong>"New deployment"</strong>.
+                    </li>
+                    <li style={{ marginBottom: '0.35rem' }}>
+                      Pilih tipe <strong>"Web app"</strong>:
+                      <ul style={{ margin: '0.2rem 0', paddingLeft: '1.2rem' }}>
+                        <li><strong>Execute as:</strong> <code>Me (Akun Anda)</code></li>
+                        <li><strong>Who has access:</strong> <code>Anyone (Siapa saja)</code></li>
+                      </ul>
+                    </li>
+                    <li style={{ marginBottom: '0.35rem' }}>
+                      Klik <strong>"Deploy"</strong>, izinkan akses akun, lalu salin <strong>Web app URL</strong> yang dihasilkan dan tempelkan ke kolom URL di atas!
+                    </li>
+                  </ol>
+
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.78rem', color: '#475569' }}>
+                      Kode Google Apps Script (Code.gs):
+                    </span>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleCopyScriptCode}
+                      style={{ fontSize: '0.75rem', padding: '0.25rem 0.6rem' }}
+                    >
+                      {isCopiedScript ? (
+                        <>
+                          <CheckCheck size={14} color="#059669" />
+                          <span style={{ color: '#059669', fontWeight: 600 }}>Tersalin!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} />
+                          <span>Salin Kode Script</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  <pre
+                    style={{
+                      background: '#0f172a',
+                      color: '#e2e8f0',
+                      padding: '0.85rem',
+                      borderRadius: '6px',
+                      fontSize: '0.72rem',
+                      fontFamily: 'monospace',
+                      maxHeight: '220px',
+                      overflowY: 'auto',
+                      margin: 0
+                    }}
+                  >
+                    {GDRIVE_SCRIPT_CODE}
+                  </pre>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
 
