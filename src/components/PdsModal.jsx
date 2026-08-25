@@ -127,6 +127,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     jumlahHariLibur: 0,
     tiketHotel: 0,
     tiketPesawatTaxi: 0,
+    rincianTiket: [],
+    rincianHotel: [],
     petugas: '',
     pangkat: 'GRADE 6 A',
     jabatan: 'SURVEYOR',
@@ -173,6 +175,39 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       setShipsDetail(existingShips);
       setSelectedSpsIds(editItem.linkedSpsIds || []);
 
+      // Load or convert multi tiket
+      let parsedTiket = [];
+      if (Array.isArray(editItem.rincianTiket) && editItem.rincianTiket.length > 0) {
+        parsedTiket = editItem.rincianTiket;
+      } else if (typeof editItem.rincianTiket === 'string') {
+        try { parsedTiket = JSON.parse(editItem.rincianTiket); } catch (e) { parsedTiket = []; }
+      }
+      if (parsedTiket.length === 0 && (Number(editItem.tiketPesawatTaxi) > 0 || Number(editItem.biayaTiket) > 0)) {
+        parsedTiket = [{
+          id: 1,
+          keterangan: 'Tiket Pesawat / Transport',
+          nominal: Number(editItem.tiketPesawatTaxi) || Number(editItem.biayaTiket) || 0
+        }];
+      }
+
+      // Load or convert multi hotel
+      let parsedHotel = [];
+      if (Array.isArray(editItem.rincianHotel) && editItem.rincianHotel.length > 0) {
+        parsedHotel = editItem.rincianHotel;
+      } else if (typeof editItem.rincianHotel === 'string') {
+        try { parsedHotel = JSON.parse(editItem.rincianHotel); } catch (e) { parsedHotel = []; }
+      }
+      if (parsedHotel.length === 0 && Number(editItem.tiketHotel) > 0) {
+        const mlm = Math.max(1, (editItem.tglMulai && editItem.tglSelesai) ? Math.ceil((new Date(editItem.tglSelesai) - new Date(editItem.tglMulai)) / (1000 * 3600 * 24)) : 1);
+        parsedHotel = [{
+          id: 1,
+          namaHotel: 'Hotel / Penginapan',
+          jumlahMalam: mlm,
+          tarifPerMalam: Number(editItem.tiketHotel),
+          totalBiaya: Number(editItem.tiketHotel) * mlm
+        }];
+      }
+
       setFormData({
         ...editItem,
         nomor: cleanDocNumber(editItem.nomor || 'A 0    /SV.201/PK/KI-26'),
@@ -189,6 +224,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         jumlahHariLibur: editItem.jumlahHariLibur !== undefined ? Number(editItem.jumlahHariLibur) : 0,
         tiketHotel: Number(editItem.tiketHotel) || 0,
         tiketPesawatTaxi: Number(editItem.tiketPesawatTaxi) || Number(editItem.biayaTiket) || 0,
+        rincianTiket: parsedTiket,
+        rincianHotel: parsedHotel,
         kategoriPerjalanan: editCategory,
         pangkat: editItem.pangkat || 'GRADE 6 A',
         jabatan: editItem.jabatan || 'SURVEYOR',
@@ -245,6 +282,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         jumlahHariLibur: 0,
         tiketHotel: 0,
         tiketPesawatTaxi: 0,
+        rincianTiket: [],
+        rincianHotel: [],
         kategoriTransportasi: 'Pesawat Terbang',
         kategoriPerjalanan: initialCategory,
         saranaTransportasi: initialCategory === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR',
@@ -643,13 +682,20 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
     const uangHarianRate = formData.tanpaUangHarian && sisaHariUangHarian === 0 ? 0 : (Number(gradeData.uangHarian) || 300000);
     const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
-    const uangHotelRate = Number(formData.tiketHotel) || 0;
-    const uangHotelTotal = uangHotelRate * mlm;
+    
+    // Multi Hotel Total
+    const uangHotelTotal = (Array.isArray(formData.rincianHotel) && formData.rincianHotel.length > 0)
+      ? formData.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
+      : (Number(formData.tiketHotel) || 0) * mlm;
 
     const hrLibur = Number(formData.jumlahHariLibur) || 0;
     const hrLbrTotal = formData.tanpaUangHarian && sisaHariUangHarian === 0 ? 0 : hrLibur * uangHarianRate * 0.5;
 
-    const tiketTransport = Number(formData.tiketPesawatTaxi) || 0;
+    // Multi Tiket Transport Total
+    const tiketTransport = (Array.isArray(formData.rincianTiket) && formData.rincianTiket.length > 0)
+      ? formData.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
+      : (Number(formData.tiketPesawatTaxi) || 0);
+
     const tat = formData.tanpaTAT ? 0 : Number(formData.biayaTAT || (isLuarKota ? (adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(formData.tarifDasar) || 0;
 
@@ -674,6 +720,66 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       totalBiaya
     };
   }, [formData, totalDays, totalNights, gradeTariffs, adminSettings]);
+
+  // Multi-Tiket Transport Handlers
+  const handleAddTiket = () => {
+    setFormData((prev) => {
+      const list = Array.isArray(prev.rincianTiket) ? [...prev.rincianTiket] : [];
+      list.push({ id: Date.now(), keterangan: '', nominal: 0 });
+      const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
+      return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
+    });
+  };
+
+  const handleUpdateTiket = (index, field, value) => {
+    setFormData((prev) => {
+      const list = Array.isArray(prev.rincianTiket) ? [...prev.rincianTiket] : [];
+      if (!list[index]) return prev;
+      list[index] = { ...list[index], [field]: field === 'nominal' ? Number(value) || 0 : value };
+      const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
+      return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
+    });
+  };
+
+  const handleRemoveTiket = (index) => {
+    setFormData((prev) => {
+      const list = Array.isArray(prev.rincianTiket) ? prev.rincianTiket.filter((_, i) => i !== index) : [];
+      const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
+      return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
+    });
+  };
+
+  // Multi-Hotel Handlers
+  const handleAddHotel = () => {
+    setFormData((prev) => {
+      const list = Array.isArray(prev.rincianHotel) ? [...prev.rincianHotel] : [];
+      list.push({ id: Date.now(), namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 });
+      const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
+      return { ...prev, rincianHotel: list, tiketHotel: total };
+    });
+  };
+
+  const handleUpdateHotel = (index, field, value) => {
+    setFormData((prev) => {
+      const list = Array.isArray(prev.rincianHotel) ? [...prev.rincianHotel] : [];
+      if (!list[index]) return prev;
+      const current = { ...list[index], [field]: (field === 'jumlahMalam' || field === 'tarifPerMalam' || field === 'totalBiaya') ? Number(value) || 0 : value };
+      if (field === 'jumlahMalam' || field === 'tarifPerMalam') {
+        current.totalBiaya = (Number(current.jumlahMalam) || 1) * (Number(current.tarifPerMalam) || 0);
+      }
+      list[index] = current;
+      const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
+      return { ...prev, rincianHotel: list, tiketHotel: total };
+    });
+  };
+
+  const handleRemoveHotel = (index) => {
+    setFormData((prev) => {
+      const list = Array.isArray(prev.rincianHotel) ? prev.rincianHotel.filter((_, i) => i !== index) : [];
+      const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
+      return { ...prev, rincianHotel: list, tiketHotel: total };
+    });
+  };
 
   const targetEstimasiTotal = calculations.totalBiaya;
 
@@ -777,12 +883,25 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       return;
     }
 
+    const totalTiketCalc = (Array.isArray(formData.rincianTiket) && formData.rincianTiket.length > 0)
+      ? formData.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
+      : Number(formData.tiketPesawatTaxi) || 0;
+
+    const totalHotelCalc = (Array.isArray(formData.rincianHotel) && formData.rincianHotel.length > 0)
+      ? formData.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
+      : (Number(formData.tiketHotel) || 0) * totalNights;
+
     const payload = sanitizeFormData({
       ...formData,
       docType: 'PDS',
       isPds: true,
       jumlahEstimasi: calculations.totalBiaya,
-      biayaTiket: Number(formData.tiketPesawatTaxi) + Number(formData.tiketHotel),
+      tiketPesawatTaxi: totalTiketCalc,
+      tiketHotel: (formData.rincianHotel && formData.rincianHotel.length > 0 && totalNights > 0) ? Math.round(totalHotelCalc / totalNights) : (Number(formData.tiketHotel) || 0),
+      totalBiayaHotel: totalHotelCalc,
+      rincianTiket: formData.rincianTiket || [],
+      rincianHotel: formData.rincianHotel || [],
+      biayaTiket: totalTiketCalc + totalHotelCalc,
       linkedSpsIds: selectedSpsIds,
       shipsDetail: shipsDetail.length > 0 ? shipsDetail.map((s, idx) => ({
         ...s,
@@ -1831,31 +1950,99 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   )}
                 </div>
 
-              {/* Section 6: Biaya Transportasi, Hotel & TAT */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
-                {/* Tiket Transportasi */}
-                <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Plane size={15} color="var(--accent-primary)" />
-                    <span>Tiket Pesawat / Transport (Rp)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    placeholder="0"
-                    value={formData.tiketPesawatTaxi || ''}
-                    onChange={(e) => setFormData({ ...formData, tiketPesawatTaxi: Number(e.target.value) })}
-                    style={{ fontWeight: 700, marginBottom: '0.35rem' }}
-                  />
-                  {/* Format Rupiah Preview */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(2, 132, 199, 0.08)', borderRadius: '4px', border: '1px solid rgba(2, 132, 199, 0.18)', marginBottom: '0.6rem' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
-                    <span style={{ fontSize: '0.82rem', color: '#0284c7', fontWeight: 800 }}>
-                      {formatRupiah(Number(formData.tiketPesawatTaxi) || 0)}
+              {/* Section 6: Biaya Transportasi & Hotel (Multi-Item) */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '1.25rem' }}>
+                {/* Tiket Transportasi Multi-Item */}
+                <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0 }}>
+                      <Plane size={16} color="#0284c7" />
+                      <span>Rincian Tiket Pesawat / Transport</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleAddTiket}
+                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', borderColor: '#0284c7', color: '#0284c7' }}
+                    >
+                      <Plus size={13} />
+                      Tambah Tiket
+                    </button>
+                  </div>
+
+                  {/* List of Tiket Items */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {(!formData.rincianTiket || formData.rincianTiket.length === 0) ? (
+                      <div style={{ padding: '0.75rem', textAlign: 'center', background: 'var(--bg-main)', borderRadius: '6px', border: '1px dashed var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Belum ada rincian tiket. Klik <b>+ Tambah Tiket</b> di atas jika ada tiket pesawat/transport PP.
+                      </div>
+                    ) : (
+                      formData.rincianTiket.map((tiket, idx) => (
+                        <div
+                          key={tiket.id || idx}
+                          style={{
+                            padding: '0.6rem',
+                            background: 'rgba(2, 132, 199, 0.04)',
+                            border: '1px solid rgba(2, 132, 199, 0.2)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.4rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#0284c7', width: '20px' }}>#{idx + 1}</span>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="Keterangan (cth: Tiket Berangkat / Tiket Pulang / Taxi)"
+                              value={tiket.keterangan || ''}
+                              onChange={(e) => handleUpdateTiket(idx, 'keterangan', e.target.value)}
+                              style={{ flex: 1, fontSize: '0.82rem', padding: '0.35rem 0.5rem' }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-icon btn-sm"
+                              onClick={() => handleRemoveTiket(idx)}
+                              title="Hapus baris tiket"
+                              style={{ color: '#ef4444', borderColor: 'transparent', padding: '4px' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                            <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                              <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#64748b' }}>Rp</span>
+                              <input
+                                type="number"
+                                min="0"
+                                className="form-input"
+                                placeholder="0"
+                                value={tiket.nominal || ''}
+                                onChange={(e) => handleUpdateTiket(idx, 'nominal', e.target.value)}
+                                style={{ flex: 1, fontWeight: 700, fontSize: '0.85rem', padding: '0.35rem 0.5rem' }}
+                              />
+                            </div>
+                            <span style={{ fontSize: '0.78rem', color: '#0284c7', fontWeight: 700, minWidth: '100px', textAlign: 'right' }}>
+                              {formatRupiah(Number(tiket.nominal) || 0)}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Total Summary of Tiket */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'rgba(2, 132, 199, 0.12)', borderRadius: '6px', border: '1px solid rgba(2, 132, 199, 0.3)' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#0369a1', fontWeight: 700 }}>
+                      Total Biaya Tiket ({formData.rincianTiket?.length || 0} Tiket):
+                    </span>
+                    <span style={{ fontSize: '0.92rem', color: '#0284c7', fontWeight: 800 }}>
+                      {formatRupiah(calculations.tiketTransport)}
                     </span>
                   </div>
-                  
+
+                  {/* Attachment Upload */}
                   <MultiDocUpload
                     value={formData.fileTiketTransportName}
                     onChange={(val) => setFormData((prev) => ({ ...prev, fileTiketTransportName: val }))}
@@ -1875,29 +2062,112 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   />
                 </div>
 
-                {/* Hotel / Penginapan */}
-                <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)' }}>
-                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                    <Receipt size={15} color="var(--accent-primary)" />
-                    <span>Biaya Hotel / Malam (Rp)</span>
-                  </label>
-                  <input
-                    type="number"
-                    min="0"
-                    className="form-input"
-                    placeholder="0"
-                    value={formData.tiketHotel || ''}
-                    onChange={(e) => setFormData({ ...formData, tiketHotel: Number(e.target.value) })}
-                    style={{ fontWeight: 700, marginBottom: '0.35rem' }}
-                  />
-                  {/* Format Rupiah Preview */}
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.2rem 0.5rem', background: 'rgba(5, 150, 105, 0.08)', borderRadius: '4px', border: '1px solid rgba(5, 150, 105, 0.18)', marginBottom: '0.6rem' }}>
-                    <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: 600 }}>Format Rupiah:</span>
-                    <span style={{ fontSize: '0.82rem', color: '#059669', fontWeight: 800 }}>
-                      {formatRupiah(Number(formData.tiketHotel) || 0)}
+                {/* Hotel / Penginapan Multi-Item */}
+                <div style={{ background: 'var(--bg-card)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-color)', display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0 }}>
+                      <Receipt size={16} color="#059669" />
+                      <span>Rincian Hotel / Penginapan</span>
+                    </label>
+                    <button
+                      type="button"
+                      className="btn btn-secondary btn-sm"
+                      onClick={handleAddHotel}
+                      style={{ fontSize: '0.75rem', padding: '0.2rem 0.5rem', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', borderColor: '#059669', color: '#059669' }}
+                    >
+                      <Plus size={13} />
+                      Tambah Hotel
+                    </button>
+                  </div>
+
+                  {/* List of Hotel Items */}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                    {(!formData.rincianHotel || formData.rincianHotel.length === 0) ? (
+                      <div style={{ padding: '0.75rem', textAlign: 'center', background: 'var(--bg-main)', borderRadius: '6px', border: '1px dashed var(--border-color)', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                        Belum ada rincian hotel. Klik <b>+ Tambah Hotel</b> di atas jika ada biaya menginap.
+                      </div>
+                    ) : (
+                      formData.rincianHotel.map((hotel, idx) => (
+                        <div
+                          key={hotel.id || idx}
+                          style={{
+                            padding: '0.6rem',
+                            background: 'rgba(5, 150, 105, 0.04)',
+                            border: '1px solid rgba(5, 150, 105, 0.2)',
+                            borderRadius: '6px',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: '0.4rem'
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 800, color: '#059669', width: '20px' }}>#{idx + 1}</span>
+                            <input
+                              type="text"
+                              className="form-input"
+                              placeholder="Nama Hotel / Keterangan (cth: Hotel Mercure)"
+                              value={hotel.namaHotel || ''}
+                              onChange={(e) => handleUpdateHotel(idx, 'namaHotel', e.target.value)}
+                              style={{ flex: 1, fontSize: '0.82rem', padding: '0.35rem 0.5rem' }}
+                            />
+                            <button
+                              type="button"
+                              className="btn btn-icon btn-sm"
+                              onClick={() => handleRemoveHotel(idx)}
+                              title="Hapus baris hotel"
+                              style={{ color: '#ef4444', borderColor: 'transparent', padding: '4px' }}
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '80px 1fr 1fr', gap: '0.4rem', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
+                              <input
+                                type="number"
+                                min="1"
+                                className="form-input"
+                                placeholder="Mlm"
+                                value={hotel.jumlahMalam || ''}
+                                onChange={(e) => handleUpdateHotel(idx, 'jumlahMalam', e.target.value)}
+                                style={{ width: '100%', fontSize: '0.8rem', padding: '0.35rem 0.4rem', textAlign: 'center' }}
+                                title="Jumlah Malam"
+                              />
+                              <span style={{ fontSize: '0.7rem', color: '#64748b' }}>mlm</span>
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                min="0"
+                                className="form-input"
+                                placeholder="Tarif / Mlm (Rp)"
+                                value={hotel.tarifPerMalam || ''}
+                                onChange={(e) => handleUpdateHotel(idx, 'tarifPerMalam', e.target.value)}
+                                style={{ width: '100%', fontSize: '0.8rem', padding: '0.35rem 0.4rem' }}
+                                title="Tarif per Malam"
+                              />
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <span style={{ fontSize: '0.8rem', color: '#059669', fontWeight: 800 }}>
+                                {formatRupiah(Number(hotel.totalBiaya) || ((Number(hotel.jumlahMalam) || 1) * (Number(hotel.tarifPerMalam) || 0)))}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    )}
+                  </div>
+
+                  {/* Total Summary of Hotel */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.4rem 0.6rem', background: 'rgba(5, 150, 105, 0.12)', borderRadius: '6px', border: '1px solid rgba(5, 150, 105, 0.3)' }}>
+                    <span style={{ fontSize: '0.78rem', color: '#047857', fontWeight: 700 }}>
+                      Total Biaya Hotel:
+                    </span>
+                    <span style={{ fontSize: '0.92rem', color: '#059669', fontWeight: 800 }}>
+                      {formatRupiah(calculations.uangHotelTotal)}
                     </span>
                   </div>
 
+                  {/* Attachment Upload */}
                   <MultiDocUpload
                     value={formData.fileKwitansiHotelName}
                     onChange={(val) => setFormData((prev) => ({ ...prev, fileKwitansiHotelName: val }))}

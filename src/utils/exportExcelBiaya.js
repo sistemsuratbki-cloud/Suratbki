@@ -39,10 +39,14 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
 
     const uangHarianRate = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (Number(gradeData.uangHarian) || 300000);
     const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
-    const uangHotelRate = Number(item.tiketHotel) || 0;
-    const uangHotelTotal = uangHotelRate * mlm;
+    const uangHotelTotal = (Array.isArray(item.rincianHotel) && item.rincianHotel.length > 0)
+      ? item.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
+      : (Number(item.totalBiayaHotel) || (Number(item.tiketHotel) || 0) * mlm);
+    const uangHotelRate = mlm > 0 ? Math.round(uangHotelTotal / mlm) : (Number(item.tiketHotel) || 0);
     const hrLbrTotal = (item.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (hrLbr * uangHarianRate * 0.5);
-    const tiketPesawatTaxi = Number(item.tiketPesawatTaxi) || Number(item.biayaTiket) || 0;
+    const tiketPesawatTaxi = (Array.isArray(item.rincianTiket) && item.rincianTiket.length > 0)
+      ? item.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
+      : (Number(item.tiketPesawatTaxi) || Number(item.biayaTiket) || 0);
     const biayaTAT = item.tanpaTAT ? 0 : (Number(item.biayaTAT) || 0);
     const rateSK = Number(item.tarifDasar) || 0;
 

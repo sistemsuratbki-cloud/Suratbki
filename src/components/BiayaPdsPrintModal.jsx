@@ -75,11 +75,14 @@ export const BiayaPdsPrintModal = ({
   const uangHarianRate = (suratTugas.tanpaUangHarian && sisaHariUangHarian === 0)
     ? 0
     : (Number(suratTugas.uangHarian) || Number(gradeData.uangHarian) || 300000);
-  const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
-  const uangHotelRate = Number(suratTugas.tiketHotel) || 0;
-  const uangHotelTotal = uangHotelRate * mlm;
+  const uangHotelTotal = (Array.isArray(suratTugas.rincianHotel) && suratTugas.rincianHotel.length > 0)
+    ? suratTugas.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
+    : (Number(suratTugas.totalBiayaHotel) || (Number(suratTugas.tiketHotel) || 0) * mlm);
+  const uangHotelRate = mlm > 0 ? Math.round(uangHotelTotal / mlm) : (Number(suratTugas.tiketHotel) || 0);
   const hrLbrTotal = (suratTugas.tanpaUangHarian && sisaHariUangHarian === 0) ? 0 : (hrLbr * uangHarianRate * 0.5);
-  const tiketPesawatTaxi = Number(suratTugas.tiketPesawatTaxi) || Number(suratTugas.biayaTiket) || 0;
+  const tiketPesawatTaxi = (Array.isArray(suratTugas.rincianTiket) && suratTugas.rincianTiket.length > 0)
+    ? suratTugas.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
+    : (Number(suratTugas.tiketPesawatTaxi) || Number(suratTugas.biayaTiket) || 0);
   const biayaTAT = suratTugas.tanpaTAT
     ? 0
     : (suratTugas.biayaTAT !== undefined && suratTugas.biayaTAT !== ''
