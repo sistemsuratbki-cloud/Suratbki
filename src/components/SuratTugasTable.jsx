@@ -124,15 +124,27 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   };
 
   // ACC / Revisi Handlers
-  const handleAccPds = (item) => {
-    updateSuratTugas(item.id, {
-      approvalStatus: 'ACC',
-      status: 'Selesai',
-      approvalNote: '',
-      approvalBy: currentUser?.name || 'Admin',
-      approvalAt: new Date().toISOString()
-    });
-    toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
+  const handleToggleAccPds = (item) => {
+    const isCurrentlyAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+    if (isCurrentlyAcc) {
+      updateSuratTugas(item.id, {
+        approvalStatus: 'Menunggu',
+        status: 'Berjalan',
+        approvalNote: '',
+        approvalBy: null,
+        approvalAt: null
+      });
+      toast.info(`Status ACC untuk PDS ${item.namaKapal || ''} dibatalkan (Menunggu ACC).`);
+    } else {
+      updateSuratTugas(item.id, {
+        approvalStatus: 'ACC',
+        status: 'Selesai',
+        approvalNote: '',
+        approvalBy: currentUser?.name || 'Admin',
+        approvalAt: new Date().toISOString()
+      });
+      toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
+    }
   };
 
   const handleOpenRevisi = (item) => {
@@ -226,8 +238,10 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     let revisi = 0;
 
     pdsList.forEach(item => {
-      if (item.approvalStatus === 'ACC') acc++;
-      else if (item.approvalStatus === 'Revisi') revisi++;
+      const isAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+      const isRev = item.approvalStatus === 'Revisi';
+      if (isAcc) acc++;
+      else if (isRev) revisi++;
       else menunggu++;
     });
 
@@ -289,13 +303,16 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         const isPds = item.docType === 'PDS' || item.isPds || (item.status !== 'Menunggu Survei' && !item.isSps);
         if (!isPds) return false;
 
+        const isAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+        const isRev = item.approvalStatus === 'Revisi';
+
         // PDS Status Switcher Tab Filter
         if (pdsStatusTab === 'acc') {
-          if (item.approvalStatus !== 'ACC') return false;
+          if (!isAcc) return false;
         } else if (pdsStatusTab === 'menunggu') {
-          if (item.approvalStatus === 'ACC' || item.approvalStatus === 'Revisi') return false;
+          if (isAcc || isRev) return false;
         } else if (pdsStatusTab === 'revisi') {
-          if (item.approvalStatus !== 'Revisi') return false;
+          if (!isRev) return false;
         }
       }
 
@@ -1374,34 +1391,111 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           )
                         )}
 
-                        {/* ACC / Revisi Buttons (Admin/Kacab only, PDS only) */}
-                        {filterType === 'PDS' && isAdminOrKacab && (
+                        {/* ACC / Revisi Buttons (PDS only) */}
+                        {effectiveFilterType === 'PDS' && (
                           <>
-                            <button
-                              className="btn btn-icon btn-sm"
-                              onClick={() => handleAccPds(item)}
-                              title={item.approvalStatus === 'ACC' ? 'Sudah di-ACC' : 'ACC / Setujui PDS ini'}
-                              style={{
-                                background: item.approvalStatus === 'ACC' ? '#dcfce7' : '#f0fdf4',
-                                color: '#15803d',
-                                borderColor: item.approvalStatus === 'ACC' ? '#86efac' : '#bbf7d0',
-                                opacity: item.approvalStatus === 'ACC' ? 0.7 : 1
-                              }}
-                            >
-                              <CheckCircle size={15} />
-                            </button>
-                            <button
-                              className="btn btn-icon btn-sm"
-                              onClick={() => handleOpenRevisi(item)}
-                              title="Minta Revisi PDS"
-                              style={{
-                                background: item.approvalStatus === 'Revisi' ? '#fef3c7' : '#fffbeb',
-                                color: '#b45309',
-                                borderColor: item.approvalStatus === 'Revisi' ? '#fde68a' : '#fef08a'
-                              }}
-                            >
-                              <MessageSquare size={15} />
-                            </button>
+                            {isAdminOrKacab ? (
+                              (item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi')) ? (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  onClick={() => handleToggleAccPds(item)}
+                                  title="PDS Sudah di-ACC (Klik untuk batalkan status ACC)"
+                                  style={{
+                                    background: '#ecfdf5',
+                                    color: '#047857',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontSize: '0.72rem',
+                                    padding: '0.25rem 0.55rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <CheckCheck size={13} color="#059669" />
+                                  <span>Sudah di-ACC</span>
+                                </button>
+                              ) : (
+                                <button
+                                  type="button"
+                                  className="btn btn-sm"
+                                  onClick={() => handleToggleAccPds(item)}
+                                  title="Klik untuk ACC / Menyetujui PDS ini"
+                                  style={{
+                                    background: '#059669',
+                                    color: '#ffffff',
+                                    border: 'none',
+                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontSize: '0.72rem',
+                                    padding: '0.25rem 0.6rem',
+                                    fontWeight: 700,
+                                    cursor: 'pointer'
+                                  }}
+                                >
+                                  <CheckCircle size={13} />
+                                  <span>ACC PDS</span>
+                                </button>
+                              )
+                            ) : (
+                              (item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi')) ? (
+                                <span
+                                  style={{
+                                    background: '#ecfdf5',
+                                    color: '#047857',
+                                    border: '1px solid #a7f3d0',
+                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontSize: '0.7rem',
+                                    padding: '0.2rem 0.45rem',
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  <CheckCircle size={12} color="#059669" />
+                                  <span>Sudah ACC</span>
+                                </span>
+                              ) : (
+                                <span
+                                  style={{
+                                    background: '#fef3c7',
+                                    color: '#b45309',
+                                    border: '1px solid #fde68a',
+                                    borderRadius: '4px',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    gap: '0.25rem',
+                                    fontSize: '0.7rem',
+                                    padding: '0.2rem 0.45rem',
+                                    fontWeight: 700
+                                  }}
+                                >
+                                  <Clock size={12} color="#d97706" />
+                                  <span>Menunggu ACC</span>
+                                </span>
+                              )
+                            )}
+
+                            {isAdminOrKacab && (
+                              <button
+                                className="btn btn-icon btn-sm"
+                                onClick={() => handleOpenRevisi(item)}
+                                title="Minta Revisi PDS"
+                                style={{
+                                  background: item.approvalStatus === 'Revisi' ? '#fef3c7' : '#fffbeb',
+                                  color: '#b45309',
+                                  borderColor: item.approvalStatus === 'Revisi' ? '#fde68a' : '#fef08a'
+                                }}
+                              >
+                                <MessageSquare size={14} />
+                              </button>
+                            )}
                           </>
                         )}
 
