@@ -11,7 +11,7 @@ import MultiShipInput from './MultiShipInput';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import { MultiDocUpload } from './MultiDocUpload';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
-import { getGoogleDriveConfig, uploadToGoogleDrive, deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+import { uploadUniversalFile } from '../utils/fileStorageHelper';
 
 export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTugas = null }) => {
   const { suratTugas, addLaporanSurvei, updateLaporanSurvei, updateSuratTugas, tariffs } = useData();
@@ -191,65 +191,29 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
       const baseKey = fieldKey.endsWith('Name') ? fieldKey.replace(/Name$/, '') : (fieldKey.endsWith('Data') ? fieldKey.replace(/Data$/, '') : fieldKey);
       const fileNameKey = `${baseKey}Name`;
       const fileDataKey = `${baseKey}Data`;
-      const base64 = await readFileAsBase64(file);
+
+      toast.loading(`Mengunggah ${file.name}...`, { id: 'upload-toast' });
+
+      const uploadRes = await uploadUniversalFile({
+        file,
+        folderContext: {
+          year: (formData.tglSurvey || '').split('-')[0] || new Date().getFullYear().toString(),
+          subFolder: `${formData.agenda || formData.noOrder || 'LAP'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+          category: '2_Bukti_Visit'
+        },
+        category: '2_Bukti_Visit'
+      });
 
       setFormData((prev) => ({
         ...prev,
-        [fileNameKey]: file.name,
-        [fileDataKey]: base64
+        [fileNameKey]: uploadRes.name || file.name,
+        [fileDataKey]: uploadRes.url
       }));
 
-      // Google Drive / Cloud Upload
-      const gdriveConfig = getGoogleDriveConfig();
-      if (gdriveConfig?.enabled && gdriveConfig?.webAppUrl) {
-        try {
-          const driveResult = await uploadToGoogleDrive({
-            file,
-            folderContext: {
-              year: (formData.tglSurvey || '').split('-')[0] || new Date().getFullYear().toString(),
-              subFolder: `${formData.agenda || formData.noOrder || 'LAP'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
-              category: '2_Bukti_Visit'
-            }
-          });
-          setFormData((prev) => ({
-            ...prev,
-            [fileNameKey]: driveResult.name || file.name,
-            [fileDataKey]: driveResult.url || driveResult.viewUrl
-          }));
-        } catch (driveErr) {
-          console.warn('Google Drive visit upload fallback:', driveErr);
-        }
-      } else {
-        try {
-          const fileExt = file.name.split('.').pop();
-          const filePath = `laporan/${Date.now()}_${fieldKey}.${fileExt}`;
-          const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
-          // Convert File to ArrayBuffer to prevent multipart form-data corruption
-          const fileBuffer = await file.arrayBuffer();
-          const { error: uploadError } = await supabase.storage
-            .from('attachments')
-            .upload(filePath, fileBuffer, { contentType: mimeType });
-
-          if (!uploadError) {
-            const { data: urlData } = supabase.storage
-              .from('attachments')
-              .getPublicUrl(filePath);
-
-            if (urlData?.publicUrl) {
-              setFormData((prev) => ({
-                ...prev,
-                [fileDataKey]: urlData.publicUrl
-              }));
-            }
-          }
-        } catch (storageErr) {
-          console.warn('Storage bucket upload optional fallback to base64:', storageErr);
-        }
-      }
-
-      toast.success(`${file.name} berhasil diunggah.`);
+      toast.success(`${file.name} berhasil diunggah.`, { id: 'upload-toast' });
     } catch (err) {
-      toast.error('Gagal membaca berkas lampiran.');
+      console.error('File upload error:', err);
+      toast.error('Gagal mengunggah berkas lampiran.', { id: 'upload-toast' });
     }
   };
 

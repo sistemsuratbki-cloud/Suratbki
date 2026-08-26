@@ -1,9 +1,9 @@
 import React, { useState, useRef, useMemo } from 'react';
 import { Camera, X, Plus, Image as ImageIcon, Eye, Trash2, Upload, FileText, CheckCircle2, HardDrive } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
 import { validateFileUpload } from '../utils/security';
-import { getGoogleDriveConfig, uploadToGoogleDrive, deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+import { uploadUniversalFile } from '../utils/fileStorageHelper';
+import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 
 export default function MultiPhotoUpload({
   fileNames = '',
@@ -92,81 +92,32 @@ export default function MultiPhotoUpload({
 
     const newUploaded = [];
     const gdriveConfig = getGoogleDriveConfig();
-    const isDriveActive = gdriveConfig?.enabled && gdriveConfig?.webAppUrl;
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       setUploadProgress(`${i + 1}/${files.length}`);
 
-      let uploadSuccess = false;
-
-      // Read local base64 preview data
-      const localBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-
-      // 1. Prioritize Google Drive if enabled
-      if (isDriveActive) {
-        try {
-          const driveResult = await uploadToGoogleDrive({
-            file,
-            folderContext: {
-              ...folderContext,
-              category: '1_Foto_Dokumentasi'
-            }
-          });
-
-          newUploaded.push({
-            name: driveResult.name || file.name,
-            data: driveResult.url || driveResult.viewUrl,
-            url: driveResult.url || driveResult.viewUrl,
-            viewUrl: driveResult.viewUrl,
-            downloadUrl: driveResult.downloadUrl,
-            thumbnailUrl: driveResult.thumbnailUrl,
-            storageProvider: 'gdrive'
-          });
-          uploadSuccess = true;
-        } catch (driveErr) {
-          console.warn('Google Drive photo upload error:', driveErr);
-          toast.error(`Google Drive: ${driveErr.message}`);
-        }
-      }
-
-      // 2. Fallback to Supabase Storage or Base64
-      if (!uploadSuccess) {
-        let supabaseUrl = null;
-        try {
-          if (supabase) {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `foto_${Date.now()}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-            const filePath = `documents/${fileName}`;
-
-            const mimeType = file.type || 'image/jpeg';
-            // Convert File to ArrayBuffer to prevent multipart form-data corruption
-            const fileBuffer = await file.arrayBuffer();
-            const { error: uploadError } = await supabase.storage
-              .from('surat-tugas')
-              .upload(filePath, fileBuffer, { contentType: mimeType, cacheControl: '3600', upsert: false });
-
-            if (!uploadError) {
-              const { data: publicUrlData } = supabase.storage
-                .from('surat-tugas')
-                .getPublicUrl(filePath);
-              supabaseUrl = publicUrlData?.publicUrl || null;
-            }
-          }
-        } catch (storageErr) {
-          console.warn('Supabase photo upload fallback:', storageErr);
-        }
+      try {
+        const uploadRes = await uploadUniversalFile({
+          file,
+          folderContext: {
+            ...folderContext,
+            category: '1_Foto_Dokumentasi'
+          },
+          category: '1_Foto_Dokumentasi'
+        });
 
         newUploaded.push({
-          name: file.name,
-          data: localBase64,
-          url: supabaseUrl || localBase64,
-          storageProvider: supabaseUrl ? 'supabase' : 'base64'
+          name: uploadRes.name || file.name,
+          data: uploadRes.url,
+          url: uploadRes.url,
+          viewUrl: uploadRes.viewUrl || uploadRes.url,
+          downloadUrl: uploadRes.downloadUrl || uploadRes.url,
+          thumbnailUrl: uploadRes.thumbnailUrl,
+          storageProvider: uploadRes.storageProvider
         });
+      } catch (uploadErr) {
+        console.error('Photo upload error:', uploadErr);
+        toast.error(`Gagal upload foto ${file.name}`);
       }
     }
 

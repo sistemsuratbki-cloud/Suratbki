@@ -320,7 +320,8 @@ export const AttachmentPreviewModal = ({
     (!fileNameLower.endsWith('.pdf') && (rawFile.startsWith('http') || rawFile.startsWith('blob:') || isGDrive))
   );
 
-  const displayName = currentFile.name || (isString && hasBase64OrUrl ? `Lampiran_${activeIndex + 1}` : rawFile) || 'Dokumen';
+  const isDataUrlStub = rawFile === '[DATA_URL_ATTACHMENT]' || currentFile.name === '[DATA_URL_ATTACHMENT]' || currentFile.url === '[DATA_URL_ATTACHMENT]';
+  const displayName = isDataUrlStub ? title : (currentFile.name && currentFile.name !== '[DATA_URL_ATTACHMENT]' ? currentFile.name : (isString && hasBase64OrUrl ? `Lampiran_${activeIndex + 1}` : (rawFile !== '[DATA_URL_ATTACHMENT]' ? rawFile : title))) || 'Dokumen';
 
   // Fetch as ArrayBuffer for PDF files; for images use direct URL
   useEffect(() => {
@@ -865,9 +866,9 @@ export const AttachmentPreviewModal = ({
               <div
                 style={{
                   background: 'var(--bg-card, #ffffff)',
-                  borderRadius: '10px',
+                  borderRadius: '12px',
                   padding: '2rem 1.5rem',
-                  maxWidth: '420px',
+                  maxWidth: '440px',
                   textAlign: 'center',
                   border: '1px solid #e2e8f0',
                   boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
@@ -879,33 +880,35 @@ export const AttachmentPreviewModal = ({
                     width: '56px',
                     height: '56px',
                     borderRadius: '50%',
-                    background: 'rgba(2, 132, 199, 0.12)',
+                    background: isDataUrlStub ? '#fef3c7' : 'rgba(2, 132, 199, 0.12)',
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
                     margin: '0 auto 1rem auto'
                   }}
                 >
-                  <FileText size={28} color="#0284c7" />
+                  <FileText size={28} color={isDataUrlStub ? '#d97706' : '#0284c7'} />
                 </div>
                 <h4 style={{ margin: '0 0 0.4rem 0', fontSize: '1rem', fontWeight: 800, color: '#0f172a' }}>
                   {displayName}
                 </h4>
-                <p style={{ fontSize: '0.8rem', color: '#64748b', margin: '0 0 1rem 0' }}>
-                  Lampiran telah terdaftar dan terverifikasi di sistem BKI oleh Surveyor.
+                <p style={{ fontSize: '0.82rem', color: '#64748b', margin: '0 0 1rem 0', lineHeight: 1.5 }}>
+                  {isDataUrlStub
+                    ? 'Berkas lampiran fisik (PDF / Foto) belum tersimpan permanen di Cloud Storage atau memori peramban sebelumnya telah dibersihkan. Silakan klik Edit Laporan / Edit Agenda untuk mengunggah ulang file fisik.'
+                    : 'Lampiran telah terdaftar dan terverifikasi di sistem BKI oleh Surveyor.'}
                 </p>
                 <div
                   style={{
-                    fontSize: '0.72rem',
-                    padding: '0.4rem 0.8rem',
-                    background: '#f0fdf4',
-                    border: '1px solid #bbf7d0',
-                    color: '#15803d',
+                    fontSize: '0.74rem',
+                    padding: '0.45rem 0.85rem',
+                    background: isDataUrlStub ? '#fffbeb' : '#f0fdf4',
+                    border: `1px solid ${isDataUrlStub ? '#fde68a' : '#bbf7d0'}`,
+                    color: isDataUrlStub ? '#b45309' : '#15803d',
                     borderRadius: '6px',
                     fontWeight: 700
                   }}
                 >
-                  ✓ Status: Terlampir & Siap Dicek Admin
+                  {isDataUrlStub ? '⚠️ Perlu Unggah Ulang Berkas Fisik' : '✓ Status: Terlampir & Siap Dicek Admin'}
                 </div>
               </div>
             )}

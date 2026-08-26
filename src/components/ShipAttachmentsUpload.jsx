@@ -3,7 +3,8 @@ import { FileText, Camera, Eye, Trash2, CheckCircle2, Upload, Anchor, FileCheck2
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { validateFileUpload } from '../utils/security';
-import { getGoogleDriveConfig, uploadToGoogleDrive, deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+import { uploadUniversalFile } from '../utils/fileStorageHelper';
+import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 
 export const ShipAttachmentsUpload = ({
   shipsDetail = [],
@@ -67,66 +68,18 @@ export const ShipAttachmentsUpload = ({
     const fieldNameKey = fileType === 'visit' ? 'fileVisitName' : 'fileFotoName';
     const fieldDataKey = fileType === 'visit' ? 'fileVisitData' : 'fileFotoData';
 
-    const gdriveConfig = getGoogleDriveConfig();
-    const isDriveActive = gdriveConfig?.enabled && gdriveConfig?.webAppUrl;
-    let uploadSuccess = false;
-
     try {
-      // Read local base64 preview data
-      const localBase64 = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
+      const uploadRes = await uploadUniversalFile({
+        file,
+        folderContext: {
+          ...folderContext,
+          subFolder: `${targetShip.noAgenda || defaultAgenda || 'SP'}_${shipName}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
+          category: fileType === 'visit' ? '2_Bukti_Visit_Selfie' : '1_Foto_Dokumentasi'
+        },
+        category: fileType === 'visit' ? '2_Bukti_Visit_Selfie' : '1_Foto_Dokumentasi'
       });
 
-      // 1. Prioritize Google Drive if enabled
-      if (isDriveActive) {
-        try {
-          const driveResult = await uploadToGoogleDrive({
-            file,
-            folderContext: {
-              ...folderContext,
-              subFolder: `${targetShip.noAgenda || defaultAgenda || 'SP'}_${shipName}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
-              category: fileType === 'visit' ? '2_Bukti_Visit_Selfie' : '1_Foto_Dokumentasi'
-            }
-          });
-
-          applyFileUpdate(shipIdx, fieldNameKey, fieldDataKey, driveResult.name || file.name, driveResult.url || driveResult.viewUrl);
-          uploadSuccess = true;
-        } catch (driveErr) {
-          console.warn('Google Drive ship file upload error:', driveErr);
-          toast.error(`Google Drive: ${driveErr.message}`);
-        }
-      }
-
-      // 2. Fallback to Supabase Storage or Base64
-      if (!uploadSuccess) {
-        const fileExt = file.name.split('.').pop();
-        const safeShipName = shipName.replace(/[^a-zA-Z0-9]/g, '_').toLowerCase();
-        const fileName = `${Date.now()}_${safeShipName}_${fileType}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-        const filePath = `documents/${fileName}`;
-
-        let fileUrl = '';
-        try {
-          if (supabase) {
-            const mimeType = file.type || 'image/jpeg';
-            // Convert File to ArrayBuffer to prevent multipart form-data corruption
-            const fileBuffer = await file.arrayBuffer();
-            const { error: uploadError } = await supabase.storage
-              .from('surat-tugas')
-              .upload(filePath, fileBuffer, { contentType: mimeType, cacheControl: '3600', upsert: false });
-            if (!uploadError) {
-              const { data: publicUrlData } = supabase.storage.from('surat-tugas').getPublicUrl(filePath);
-              fileUrl = publicUrlData?.publicUrl || '';
-            }
-          }
-        } catch (storageErr) {
-          console.warn('Supabase storage fallback to Base64:', storageErr);
-        }
-
-        applyFileUpdate(shipIdx, fieldNameKey, fieldDataKey, file.name, localBase64 || fileUrl);
-      }
-
+      applyFileUpdate(shipIdx, fieldNameKey, fieldDataKey, uploadRes.name || file.name, uploadRes.url);
       toast.success(`Berhasil upload ${fileType === 'visit' ? 'Bukti Visit' : 'Foto Selfie'} untuk ${shipName}`);
     } catch (err) {
       console.error('File upload error:', err);

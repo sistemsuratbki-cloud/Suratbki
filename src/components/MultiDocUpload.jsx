@@ -4,7 +4,8 @@ import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { validateFileUpload } from '../utils/security';
 import { parseAttachmentFiles, serializeAttachmentFiles } from '../utils/formatters';
-import { getGoogleDriveConfig, uploadToGoogleDrive, deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+import { uploadUniversalFile } from '../utils/fileStorageHelper';
+import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 
 export const MultiDocUpload = ({
   value = '',
@@ -59,81 +60,30 @@ export const MultiDocUpload = ({
       const file = validFiles[i];
       setUploadProgress(`${i + 1}/${validFiles.length}`);
 
-      let uploadSuccess = false;
-
-      // Read local base64 preview data first
-      const localDataUrl = await new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result);
-        reader.readAsDataURL(file);
-      });
-
-      // 1. Prioritize Google Drive if enabled
-      if (isDriveActive) {
-        try {
-          const driveResult = await uploadToGoogleDrive({
-            file,
-            folderContext: {
-              ...folderContext,
-              category: folderContext.category || title.replace(/[^a-zA-Z0-9_-]/g, '_')
-            }
-          });
-
-          newUploaded.push({
-            id: driveResult.id,
-            name: driveResult.name || file.name,
-            url: driveResult.url || driveResult.viewUrl,
-            data: driveResult.url || driveResult.viewUrl,
-            viewUrl: driveResult.viewUrl,
-            downloadUrl: driveResult.downloadUrl,
-            thumbnailUrl: driveResult.thumbnailUrl,
-            folderUrl: driveResult.folderUrl,
-            storageProvider: 'gdrive'
-          });
-
-          uploadSuccess = true;
-        } catch (driveErr) {
-          console.warn('Google Drive upload error:', driveErr);
-          toast.error(`Google Drive: ${driveErr.message}`);
-        }
-      }
-
-      // 2. Fallback to Supabase Storage or Base64 if Drive not active or failed
-      if (!uploadSuccess) {
-        let supabaseUrl = null;
-        try {
-          if (supabase) {
-            const fileExt = file.name.split('.').pop();
-            const cleanOriginalName = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const fileName = `${Date.now()}_${cleanOriginalName}`;
-            const filePath = `documents/${fileName}`;
-            const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
-
-            // Convert File to ArrayBuffer to prevent multipart form-data corruption
-            const fileBuffer = await file.arrayBuffer();
-            const { error: uploadError } = await supabase.storage.from(bucketName).upload(filePath, fileBuffer, {
-              contentType: mimeType,
-              cacheControl: '3600',
-              upsert: false
-            });
-
-            if (!uploadError) {
-              const { data: publicUrlData } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-              if (publicUrlData?.publicUrl) {
-                supabaseUrl = publicUrlData.publicUrl;
-              }
-            }
-          }
-        } catch (storageErr) {
-          console.warn('Supabase storage fallback:', storageErr);
-        }
+      try {
+        const uploadRes = await uploadUniversalFile({
+          file,
+          folderContext: {
+            ...folderContext,
+            category: folderContext.category || title.replace(/[^a-zA-Z0-9_-]/g, '_')
+          },
+          category: folderContext.category || title.replace(/[^a-zA-Z0-9_-]/g, '_')
+        });
 
         newUploaded.push({
-          name: file.name,
-          url: supabaseUrl || localDataUrl,
-          data: localDataUrl, // Always keep Base64 data for instantaneous local preview
-          storageProvider: supabaseUrl ? 'supabase' : 'base64'
+          id: uploadRes.id || `file_${Date.now()}_${i}`,
+          name: uploadRes.name || file.name,
+          url: uploadRes.url,
+          data: uploadRes.url,
+          viewUrl: uploadRes.viewUrl || uploadRes.url,
+          downloadUrl: uploadRes.downloadUrl || uploadRes.url,
+          thumbnailUrl: uploadRes.thumbnailUrl,
+          folderUrl: uploadRes.folderUrl,
+          storageProvider: uploadRes.storageProvider
         });
+      } catch (uploadErr) {
+        console.error('MultiDoc upload error:', uploadErr);
+        toast.error(`Gagal upload ${file.name}`);
       }
     }
 
