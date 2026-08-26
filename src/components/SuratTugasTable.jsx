@@ -51,7 +51,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('Semua');
   const [surveyorFilter, setSurveyorFilter] = useState('Semua');
-  const [pdsStatusTab, setPdsStatusTab] = useState('semua'); // 'semua' | 'acc' | 'menunggu' | 'revisi'
 
   // Multi-Month & Year Filter
   const [selectedMonth, setSelectedMonth] = useState('Semua');
@@ -225,39 +224,10 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     }
   };
 
-  // PDS Counts Calculation for Status Switcher Tabs
-  const { totalAccPdsCount, totalMenungguPdsCount, totalRevisiPdsCount, totalSemuaPdsCount } = useMemo(() => {
-    const roleFiltered = filterDataByRole(suratTugas, currentUser, role, 'petugas');
-    const pdsList = roleFiltered.filter(item => {
-      const isPds = item.docType === 'PDS' || item.isPds || (item.status !== 'Menunggu Survei' && !item.isSps);
-      return isPds;
-    });
-
-    let acc = 0;
-    let menunggu = 0;
-    let revisi = 0;
-
-    pdsList.forEach(item => {
-      const isAcc = item.approvalStatus === 'ACC';
-      const isRev = item.approvalStatus === 'Revisi';
-      if (isAcc) acc++;
-      else if (isRev) revisi++;
-      else menunggu++;
-    });
-
-    return {
-      totalAccPdsCount: acc,
-      totalMenungguPdsCount: menunggu,
-      totalRevisiPdsCount: revisi,
-      totalSemuaPdsCount: pdsList.length
-    };
-  }, [suratTugas, currentUser, role]);
-
   const handleResetFilters = () => {
     setSearchTerm('');
     setStatusFilter('Semua');
     setSurveyorFilter('Semua');
-    setPdsStatusTab('semua');
     setSelectedMonth('Semua');
     setSelectedYear(String(new Date().getFullYear()));
     setDatePreset('all');
@@ -270,7 +240,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     searchTerm !== '' ||
     statusFilter !== 'Semua' ||
     surveyorFilter !== 'Semua' ||
-    pdsStatusTab !== 'semua' ||
     selectedMonth !== 'Semua' ||
     selectedYear !== 'Semua' ||
     startDate !== '' ||
@@ -302,18 +271,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
       } else if (effectiveFilterType === 'PDS') {
         const isPds = item.docType === 'PDS' || item.isPds || (item.status !== 'Menunggu Survei' && !item.isSps);
         if (!isPds) return false;
-
-        const isAcc = item.approvalStatus === 'ACC';
-        const isRev = item.approvalStatus === 'Revisi';
-
-        // PDS Status Switcher Tab Filter
-        if (pdsStatusTab === 'acc') {
-          if (!isAcc) return false;
-        } else if (pdsStatusTab === 'menunggu') {
-          if (isAcc || isRev) return false;
-        } else if (pdsStatusTab === 'revisi') {
-          if (!isRev) return false;
-        }
       }
 
       // Search
@@ -528,153 +485,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
           )}
         </div>
       </div>
-
-      {/* Status Switcher Tabs: PDS Sudah di-ACC vs Menunggu ACC / Belum di-ACC */}
-      {effectiveFilterType === 'PDS' && (
-        <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.65rem', flexWrap: 'wrap' }}>
-          <button
-            type="button"
-            onClick={() => setPdsStatusTab('acc')}
-            style={{
-              padding: '0.45rem 0.95rem',
-              borderRadius: '6px',
-              border: 'none',
-              fontWeight: 800,
-              fontSize: '0.84rem',
-              cursor: 'pointer',
-              background: pdsStatusTab === 'acc' ? 'var(--accent-primary)' : 'var(--bg-main)',
-              color: pdsStatusTab === 'acc' ? '#ffffff' : 'var(--text-secondary)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              boxShadow: pdsStatusTab === 'acc' ? '0 2px 5px rgba(2, 132, 199, 0.25)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <CheckCircle2 size={16} />
-            <span>PDS Sudah di-ACC</span>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                padding: '0.1rem 0.45rem',
-                borderRadius: '10px',
-                background: pdsStatusTab === 'acc' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.07)',
-                color: pdsStatusTab === 'acc' ? '#ffffff' : 'inherit'
-              }}
-            >
-              {totalAccPdsCount}
-            </span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => setPdsStatusTab('menunggu')}
-            style={{
-              padding: '0.45rem 0.95rem',
-              borderRadius: '6px',
-              border: 'none',
-              fontWeight: 800,
-              fontSize: '0.84rem',
-              cursor: 'pointer',
-              background: pdsStatusTab === 'menunggu' ? '#f59e0b' : 'var(--bg-main)',
-              color: pdsStatusTab === 'menunggu' ? '#ffffff' : 'var(--text-secondary)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              boxShadow: pdsStatusTab === 'menunggu' ? '0 2px 5px rgba(245, 158, 11, 0.25)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <Clock size={16} />
-            <span>Menunggu ACC / Belum di-ACC</span>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                padding: '0.1rem 0.45rem',
-                borderRadius: '10px',
-                background: pdsStatusTab === 'menunggu' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.07)',
-                color: pdsStatusTab === 'menunggu' ? '#ffffff' : 'inherit'
-              }}
-            >
-              {totalMenungguPdsCount}
-            </span>
-          </button>
-
-          {totalRevisiPdsCount > 0 && (
-            <button
-              type="button"
-              onClick={() => setPdsStatusTab('revisi')}
-              style={{
-                padding: '0.45rem 0.95rem',
-                borderRadius: '6px',
-                border: 'none',
-                fontWeight: 800,
-                fontSize: '0.84rem',
-                cursor: 'pointer',
-                background: pdsStatusTab === 'revisi' ? '#e11d48' : 'var(--bg-main)',
-                color: pdsStatusTab === 'revisi' ? '#ffffff' : 'var(--text-secondary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.45rem',
-                boxShadow: pdsStatusTab === 'revisi' ? '0 2px 5px rgba(225, 29, 72, 0.25)' : 'none',
-                transition: 'all 0.15s ease'
-              }}
-            >
-              <AlertTriangle size={16} />
-              <span>Perlu Revisi</span>
-              <span
-                style={{
-                  fontSize: '0.72rem',
-                  fontWeight: 800,
-                  padding: '0.1rem 0.45rem',
-                  borderRadius: '10px',
-                  background: pdsStatusTab === 'revisi' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.07)',
-                  color: pdsStatusTab === 'revisi' ? '#ffffff' : 'inherit'
-                }}
-              >
-                {totalRevisiPdsCount}
-              </span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={() => setPdsStatusTab('semua')}
-            style={{
-              padding: '0.45rem 0.95rem',
-              borderRadius: '6px',
-              border: 'none',
-              fontWeight: 800,
-              fontSize: '0.84rem',
-              cursor: 'pointer',
-              background: pdsStatusTab === 'semua' ? '#334155' : 'var(--bg-main)',
-              color: pdsStatusTab === 'semua' ? '#ffffff' : 'var(--text-secondary)',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: '0.45rem',
-              boxShadow: pdsStatusTab === 'semua' ? '0 2px 5px rgba(51, 65, 85, 0.25)' : 'none',
-              transition: 'all 0.15s ease'
-            }}
-          >
-            <FileText size={16} />
-            <span>Semua PDS</span>
-            <span
-              style={{
-                fontSize: '0.72rem',
-                fontWeight: 800,
-                padding: '0.1rem 0.45rem',
-                borderRadius: '10px',
-                background: pdsStatusTab === 'semua' ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.07)',
-                color: pdsStatusTab === 'semua' ? '#ffffff' : 'inherit'
-              }}
-            >
-              {totalSemuaPdsCount}
-            </span>
-          </button>
-        </div>
-      )}
 
       {/* COMPACT FILTER & SORTING TOOLBAR (MULTI-HARI, MULTI-BULAN & TAHUN) */}
       <div
