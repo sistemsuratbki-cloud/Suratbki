@@ -80,6 +80,14 @@ export function testGoogleDriveConnection(webAppUrl) {
       return reject(new Error('URL harus berawalan "https://script.google.com/macros/s/..."'));
     }
 
+    if (url.includes('/edit')) {
+      return reject(new Error('URL yang dimasukkan adalah URL Editor script, bukan Web App. Di Google Apps Script, klik Deploy > New Deployment > Pilih jenis "Web App" > Set Who has access: "Anyone" > Copy Web App URL.'));
+    }
+
+    if (url.endsWith('/dev') || url.includes('/dev?')) {
+      return reject(new Error('URL berakhiran "/dev" adalah mode test developer dan terkunci login. Gunakan Web App URL berakhiran "/exec" dari menu Deploy > New deployment dengan akses "Anyone".'));
+    }
+
     const startTime = Date.now();
 
     try {
@@ -98,7 +106,7 @@ export function testGoogleDriveConnection(webAppUrl) {
         data = JSON.parse(text);
       } catch (jsonErr) {
         if (text.includes('accounts.google.com') || text.includes('ServiceLogin') || text.includes('<!DOCTYPE html>')) {
-          return reject(new Error('Akses Google Drive ditolak (memerlukan login). Buka Google Apps Script > Deploy > Manage deployments > Edit > ganti "Who has access" menjadi "Anyone" (Siapa saja), lalu klik Deploy.'));
+          return reject(new Error('Akses Google Drive ditolak (memerlukan login). Buka script.google.com > Deploy > Manage Deployments > Edit > Ubah "Who has access" menjadi "Anyone" (Siapa saja) > Klik Deploy.'));
         }
         return reject(new Error(`Respon Google Apps Script bukan JSON: ${text.substring(0, 120)}`));
       }
@@ -117,6 +125,9 @@ export function testGoogleDriveConnection(webAppUrl) {
       }
     } catch (err) {
       console.error('Google Drive ping failed:', err);
+      if (err.message && err.message.includes('Failed to fetch')) {
+        return reject(new Error('Akses Google Apps Script terblokir (Failed to fetch). Pastikan saat Deploy di Google Apps Script:\n1. Execute as: "Me" (Saya)\n2. Who has access: "Anyone" (Siapa saja)\n3. Gunakan URL berakhiran "/exec"'));
+      }
       reject(new Error(`Gagal terhubung ke Google Drive: ${err.message || 'Periksa koneksi internet atau izin Web App'}`));
     }
   });
