@@ -146,7 +146,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     badge: null
   });
 
-  if (role === 'admin' || role === 'developer' || role === 'kacab') {
+  if (role === 'admin' || role === 'developer') {
     menuItems.push({
       id: 'tv-display',
       label: 'Layar Monitor (TV)',

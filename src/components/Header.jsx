@@ -57,7 +57,7 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen, setActiveTab }) =
       </div>
 
       <div className="header-right">
-        {(currentUser?.role === 'developer' || currentUser?.role === 'admin' || currentUser?.role === 'kacab') && (
+        {(currentUser?.role === 'developer' || currentUser?.role === 'admin') && (
           <button
             onClick={() => setActiveTab && setActiveTab('tv-display')}
             className="btn btn-primary btn-sm"
