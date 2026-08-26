@@ -18,11 +18,20 @@
  */
 
 function doGet(e) {
-  return handleResponse({
+  var callback = (e && e.parameter && e.parameter.callback) || "";
+  var data = {
     success: true,
     message: "Google Drive API BKI Pontianak aktif dan siap digunakan!",
+    userEmail: Session.getActiveUser().getEmail() || "Google Drive Account",
     timestamp: new Date().toISOString()
-  });
+  };
+
+  if (callback) {
+    return ContentService.createTextOutput(callback + "(" + JSON.stringify(data) + ");")
+      .setMimeType(ContentService.MimeType.JAVASCRIPT);
+  }
+
+  return handleResponse(data);
 }
 
 function doPost(e) {

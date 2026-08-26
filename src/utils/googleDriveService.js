@@ -154,12 +154,54 @@ export function testGoogleDriveConnection(webAppUrl) {
         return reject(new Error(data?.message || 'Respon Google Drive tidak sesuai format'));
       }
     } catch (err) {
-      console.error('Google Drive ping failed:', err);
-      if (err.message && err.message.includes('Failed to fetch')) {
-        return reject(new Error('Akses Google Apps Script terblokir (Failed to fetch). Pastikan saat Deploy di Google Apps Script:\n1. Execute as: "Me" (Saya)\n2. Who has access: "Anyone" (Siapa saja)\n3. Gunakan URL berakhiran "/exec"'));
-      }
-      reject(new Error(`Gagal terhubung ke Google Drive: ${err.message || 'Periksa koneksi internet atau izin Web App'}`));
+      console.warn('POST ping strategy fallback, trying JSONP:', err);
     }
+
+    // Strategy 3: JSONP Script-tag Ping (Bypasses all CORS preflights and restrictions)
+    try {
+      const jsonpResult = await new Promise((res, rej) => {
+        const callbackName = 'gdrive_ping_' + Math.floor(Math.random() * 1000000);
+        const script = document.createElement('script');
+        let timer = null;
+
+        const cleanup = () => {
+          if (timer) clearTimeout(timer);
+          try { delete window[callbackName]; } catch (e) {}
+          if (script.parentNode) script.parentNode.removeChild(script);
+        };
+
+        timer = setTimeout(() => {
+          cleanup();
+          rej(new Error('Timeout'));
+        }, 6000);
+
+        window[callbackName] = (gasData) => {
+          cleanup();
+          res(gasData);
+        };
+
+        script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName + '&action=ping&t=' + Date.now();
+        script.onerror = () => {
+          cleanup();
+          rej(new Error('Script load error'));
+        };
+        document.body.appendChild(script);
+      });
+
+      if (jsonpResult && jsonpResult.success) {
+        const latencyMs = Date.now() - startTime;
+        return resolve({
+          success: true,
+          message: jsonpResult.message || 'Koneksi ke Google Drive aktif!',
+          latencyMs,
+          userEmail: jsonpResult.userEmail || 'Akun Google'
+        });
+      }
+    } catch (jsonpErr) {
+      console.error('All ping strategies failed:', jsonpErr);
+    }
+
+    return reject(new Error('Akses Google Apps Script terblokir (Failed to fetch).\n\nLangkah perbaikan di Google Apps Script (script.google.com):\n1. Buka Deploy > Manage Deployments > Edit\n2. Ubah "Who has access" menjadi "Anyone" (Siapa saja)\n3. Jika menggunakan akun kantor/organisasi Google Workspace, gunakan akun Gmail pribadi (@gmail.com) agar izin "Anyone" terbuka penuh.'));
   });
 }
 
