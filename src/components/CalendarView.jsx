@@ -272,22 +272,48 @@ export const CalendarView = ({ surveyorFilter }) => {
 
               <div className="calendar-chips-wrapper">
                 {stList.map((st) => {
+                  const isAcc = st.approvalStatus === 'ACC' || (st.status === 'Selesai' && st.approvalStatus !== 'Revisi');
+                  const isRevisi = st.approvalStatus === 'Revisi';
                   const portShort = st.lokasi ? st.lokasi.split(',')[0] : 'Pelabuhan';
                   const startDateStr = st.tglMulai ? st.tglMulai.split('-').slice(1).join('/') : '';
                   const endDateStr = st.tglSelesai ? st.tglSelesai.split('-').slice(1).join('/') : '';
 
+                  const chipClass = isAcc
+                    ? 'calendar-chip chip-acc'
+                    : isRevisi
+                    ? 'calendar-chip chip-revisi'
+                    : 'calendar-chip chip-pending';
+
+                  const statusTitle = isAcc
+                    ? `[SUDAH DI-ACC ADMIN]\nDisetujui oleh: ${st.approvalBy || 'Admin'}`
+                    : isRevisi
+                    ? `[PERLU REVISI]\nCatatan: ${st.approvalNote || '-'}`
+                    : '[MENUNGGU ACC ADMIN]';
+
                   return (
                     <div
                       key={st.id}
-                      className="calendar-chip chip-blue"
-                      style={{
-                        borderLeft: '3px solid var(--accent-primary)'
-                      }}
-                      title={`🚢 PDS - Kapal: ${st.namaKapal || 'KAPAL SURVEY'}\n📍 Lokasi: ${st.lokasi}\n📅 Periode: ${formatDateIndo(st.tglMulai)} s/d ${formatDateIndo(st.tglSelesai)}\n👤 Surveyor: ${st.petugas}`}
+                      className={chipClass}
+                      title={`🚢 PDS ${statusTitle}\nKapal: ${st.namaKapal || 'KAPAL SURVEY'}\n📍 Lokasi: ${st.lokasi}\n📅 Periode: ${formatDateIndo(st.tglMulai)} s/d ${formatDateIndo(st.tglSelesai)}\n👤 Surveyor: ${st.petugas}`}
                     >
-                      <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
-                        <span>🚢</span>
-                        <span>{st.namaKapal || 'KAPAL SURVEY'}</span>
+                      <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.2rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <span>🚢</span>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.namaKapal || 'KAPAL SURVEY'}</span>
+                        </div>
+                        {isAcc ? (
+                          <span style={{ fontSize: '0.525rem', fontWeight: 800, background: '#10b981', color: '#ffffff', padding: '0.05rem 0.25rem', borderRadius: '3px', flexShrink: 0 }}>
+                            ✓ ACC
+                          </span>
+                        ) : isRevisi ? (
+                          <span style={{ fontSize: '0.525rem', fontWeight: 800, background: '#f43f5e', color: '#ffffff', padding: '0.05rem 0.25rem', borderRadius: '3px', flexShrink: 0 }}>
+                            ⚠️ Revisi
+                          </span>
+                        ) : (
+                          <span style={{ fontSize: '0.525rem', fontWeight: 800, background: '#f59e0b', color: '#ffffff', padding: '0.05rem 0.25rem', borderRadius: '3px', flexShrink: 0 }}>
+                            🕒 Belum ACC
+                          </span>
+                        )}
                       </div>
                       <div style={{ fontSize: '0.6rem', opacity: 0.9, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         📍 {portShort} (PDS)
@@ -309,10 +335,18 @@ export const CalendarView = ({ surveyorFilter }) => {
       </div>
 
       {/* Legend Footer */}
-      <div className="calendar-legend-footer" style={{ display: 'flex', gap: '1.5rem', flexWrap: 'wrap' }}>
-        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-          <span className="legend-dot dot-blue" />
-          <span>🚢 Perjalanan Dinas Surveyor (PDS Aktif & Terbit)</span>
+      <div className="calendar-legend-footer" style={{ display: 'flex', gap: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#065f46', border: '1px solid #10b981', display: 'inline-block' }} />
+          <span style={{ fontWeight: 600 }}>🚢 PDS Sudah di-ACC (Disetujui Admin)</span>
+        </div>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#1e293b', border: '1px solid #f59e0b', display: 'inline-block' }} />
+          <span style={{ fontWeight: 600 }}>🕒 PDS Belum di-ACC (Menunggu Persetujuan)</span>
+        </div>
+        <div className="legend-item" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.8rem' }}>
+          <span style={{ width: '12px', height: '12px', borderRadius: '3px', background: '#881337', border: '1px solid #f43f5e', display: 'inline-block' }} />
+          <span style={{ fontWeight: 600 }}>⚠️ PDS Perlu Revisi</span>
         </div>
       </div>
 

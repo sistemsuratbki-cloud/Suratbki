@@ -1047,26 +1047,27 @@ body {
   border-left: 3px solid #3b82f6;
 }
 
-.chip-green {
-  background: #065f46;
+.chip-green,
+.chip-acc {
+  background: linear-gradient(135deg, #064e3b 0%, #047857 100%);
   color: #ffffff;
   border-left: 3px solid #10b981;
+  box-shadow: 0 1px 3px rgba(6, 95, 70, 0.25);
 }
 
-.chip-red {
-  background: #fee2e2;
-  color: #dc2626;
-  border-left: 3px solid #ef4444;
-}
-
-.chip-green {
-  background: #065f46;
+.chip-pending {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
   color: #ffffff;
+  border-left: 3px solid #f59e0b;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
 }
 
-.chip-red {
-  background: #fee2e2;
-  color: #dc2626;
+.chip-red,
+.chip-revisi {
+  background: linear-gradient(135deg, #881337 0%, #9f1239 100%);
+  color: #ffffff;
+  border-left: 3px solid #f43f5e;
+  box-shadow: 0 1px 3px rgba(136, 19, 55, 0.25);
 }
 
 .calendar-legend-footer {
