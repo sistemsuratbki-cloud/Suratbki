@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Download, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Files, ExternalLink, Loader2, ZoomIn, ZoomOut, RotateCw, HardDrive } from 'lucide-react';
+import { X, Download, FileText, Image as ImageIcon, ChevronLeft, ChevronRight, Files, ExternalLink, Loader2, ZoomIn, ZoomOut, RotateCw, HardDrive, AlertCircle } from 'lucide-react';
 import { ModalPortal } from './ModalPortal';
 import { parseAttachmentFiles } from '../utils/formatters';
 import { isGoogleDriveUrl, extractGDriveFileId } from '../utils/googleDriveService';
@@ -13,7 +13,7 @@ try {
 }
 
 // Sub-component for rendering PDF onto HTML5 Canvas
-const PdfCanvasViewer = ({ arrayBuffer, pdfUrl, onErrorFallback, onOpenExternal, displayName }) => {
+const PdfCanvasViewer = ({ arrayBuffer, pdfUrl, onOpenExternal, displayName, gdriveId }) => {
   const containerRef = useRef(null);
   const [numPages, setNumPages] = useState(0);
   const [currentPage, setCurrentPage] = useState(1);
@@ -111,13 +111,37 @@ const PdfCanvasViewer = ({ arrayBuffer, pdfUrl, onErrorFallback, onOpenExternal,
   }, [currentPage, scale, loading, renderError]);
 
   if (renderError) {
-    const gdriveId = extractGDriveFileId(pdfUrl);
-    if (gdriveId) {
+    const effectiveGId = gdriveId || extractGDriveFileId(pdfUrl);
+    if (effectiveGId) {
       return (
-        <div style={{ width: '100%', height: '70vh', minHeight: '400px', background: '#0f172a' }}>
+        <div style={{ width: '100%', height: '74vh', minHeight: '440px', background: '#0f172a', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ background: '#1e293b', padding: '0.6rem 1rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#94a3b8', fontSize: '0.78rem' }}>
+              <HardDrive size={15} color="#38bdf8" />
+              <span>Dokumen PDF (Google Drive)</span>
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <button
+                type="button"
+                onClick={() => window.open(`https://drive.google.com/file/d/${effectiveGId}/view`, '_blank')}
+                className="btn btn-primary btn-sm"
+                style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.75rem' }}
+              >
+                <ExternalLink size={13} /> Buka di Tab Baru
+              </button>
+              <button
+                type="button"
+                onClick={() => window.open(`https://drive.google.com/uc?export=download&id=${effectiveGId}`, '_blank')}
+                className="btn btn-secondary btn-sm"
+                style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.75rem' }}
+              >
+                <Download size={13} /> Unduh
+              </button>
+            </div>
+          </div>
           <iframe
-            src={`https://drive.google.com/file/d/${gdriveId}/preview`}
-            style={{ width: '100%', height: '100%', border: 'none', borderRadius: '4px' }}
+            src={`https://drive.google.com/file/d/${effectiveGId}/preview`}
+            style={{ width: '100%', flex: 1, border: 'none', background: '#0f172a' }}
             title={displayName || 'Pratinjau Dokumen Google Drive'}
             allow="autoplay"
           />
@@ -132,8 +156,8 @@ const PdfCanvasViewer = ({ arrayBuffer, pdfUrl, onErrorFallback, onOpenExternal,
       }}>
         <FileText size={48} color="#38bdf8" style={{ marginBottom: '1rem' }} />
         <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.05rem', color: '#ffffff' }}>Dokumen PDF Terlampir</h4>
-        <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '380px', marginBottom: '1.25rem' }}>
-          Dokumen siap dibuka langsung di browser atau diunduh.
+        <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '420px', marginBottom: '1.25rem' }}>
+          Dokumen siap dibuka langsung di tab baru browser atau diunduh ke perangkat Anda.
         </p>
         <button
           type="button"
@@ -279,16 +303,21 @@ export const AttachmentPreviewModal = ({
   const isString = typeof rawFile === 'string';
   const hasBase64OrUrl = isString && (rawFile.startsWith('data:') || rawFile.startsWith('http://') || rawFile.startsWith('https://') || rawFile.startsWith('blob:'));
   
+  const isGDrive = isGoogleDriveUrl(rawFile) || isGoogleDriveUrl(currentFile.url) || isGoogleDriveUrl(currentFile.data);
+  const gdriveId = isGDrive ? (extractGDriveFileId(rawFile) || extractGDriveFileId(currentFile.url) || extractGDriveFileId(currentFile.data)) : null;
+
+  const fileNameLower = (currentFile.name || rawFile).toLowerCase();
+  
   const isPdf = isString && (
     rawFile.startsWith('data:application/pdf') ||
-    /\.pdf$/i.test(currentFile.name || rawFile) ||
-    rawFile.toLowerCase().includes('.pdf')
+    fileNameLower.endsWith('.pdf') ||
+    fileNameLower.includes('.pdf')
   );
 
   const isImage = !isPdf && isString && (
     rawFile.startsWith('data:image/') ||
-    /\.(jpg|jpeg|png|webp|gif|svg)$/i.test(currentFile.name || rawFile) ||
-    hasBase64OrUrl
+    /\.(jpg|jpeg|png|webp|gif|svg|bmp)$/i.test(fileNameLower) ||
+    (!fileNameLower.endsWith('.pdf') && (rawFile.startsWith('http') || rawFile.startsWith('blob:') || isGDrive))
   );
 
   const displayName = currentFile.name || (isString && hasBase64OrUrl ? `Lampiran_${activeIndex + 1}` : rawFile) || 'Dokumen';
@@ -299,8 +328,8 @@ export const AttachmentPreviewModal = ({
     let createdUrl = null;
 
     if (isOpen && hasBase64OrUrl) {
-      if (isGoogleDriveUrl(rawFile)) {
-        // Direct Google Drive embedded viewer — no need to fetch
+      if (isGDrive) {
+        // Direct Google Drive: if image, use CDN directly; if PDF, we can attempt direct preview or canvas
         setBlobUrl(rawFile);
         setIsLoadingFile(false);
       } else if (isPdf && (rawFile.startsWith('http://') || rawFile.startsWith('https://'))) {
@@ -366,15 +395,12 @@ export const AttachmentPreviewModal = ({
             const uint8 = new Uint8Array(buffer);
 
             // Detect multipart form-data corruption (WebKitFormBoundary)
-            // Check first 200 bytes for '------WebKit' signature
             const headerStr = new TextDecoder('utf-8', { fatal: false }).decode(uint8.slice(0, 200));
             if (headerStr.includes('WebKitFormBoundary') || headerStr.includes('Content-Disposition: form-data')) {
               console.warn('Detected multipart-corrupted Supabase file, extracting image bytes...');
               
-              // Find the actual image data after double CRLF following Content-Type header
               let imgStart = -1;
               for (let i = 0; i < Math.min(uint8.length - 4, 2048); i++) {
-                // Look for \r\n\r\n (0x0D 0x0A 0x0D 0x0A) after Content-Type
                 if (uint8[i] === 0x0D && uint8[i+1] === 0x0A && uint8[i+2] === 0x0D && uint8[i+3] === 0x0A) {
                   const preceding = new TextDecoder('utf-8', { fatal: false }).decode(uint8.slice(Math.max(0, i-100), i));
                   if (preceding.includes('Content-Type: image/') || preceding.includes('filename=')) {
@@ -385,7 +411,6 @@ export const AttachmentPreviewModal = ({
               }
 
               if (imgStart > 0) {
-                // Find the trailing boundary (starts with \r\n------)
                 let imgEnd = uint8.length;
                 for (let i = uint8.length - 100; i > imgStart; i--) {
                   if (uint8[i] === 0x0D && uint8[i+1] === 0x0A && uint8[i+2] === 0x2D && uint8[i+3] === 0x2D && uint8[i+4] === 0x2D) {
@@ -395,7 +420,6 @@ export const AttachmentPreviewModal = ({
                 }
 
                 const cleanBytes = uint8.slice(imgStart, imgEnd);
-                // Detect mime from header
                 let mime = 'image/png';
                 if (headerStr.includes('image/jpeg')) mime = 'image/jpeg';
                 else if (headerStr.includes('image/webp')) mime = 'image/webp';
@@ -409,12 +433,11 @@ export const AttachmentPreviewModal = ({
               }
             }
 
-            // Not corrupted: create normal blob URL
-            const fileNameLower = (currentFile.name || rawFile).toLowerCase();
+            const fileNameLowerLocal = (currentFile.name || rawFile).toLowerCase();
             let mime = 'image/png';
-            if (fileNameLower.includes('.jpg') || fileNameLower.includes('.jpeg')) mime = 'image/jpeg';
-            else if (fileNameLower.includes('.webp')) mime = 'image/webp';
-            else if (fileNameLower.includes('.gif')) mime = 'image/gif';
+            if (fileNameLowerLocal.includes('.jpg') || fileNameLowerLocal.includes('.jpeg')) mime = 'image/jpeg';
+            else if (fileNameLowerLocal.includes('.webp')) mime = 'image/webp';
+            else if (fileNameLowerLocal.includes('.gif')) mime = 'image/gif';
 
             const blob = new Blob([uint8], { type: mime });
             createdUrl = URL.createObjectURL(blob);
@@ -462,11 +485,15 @@ export const AttachmentPreviewModal = ({
         URL.revokeObjectURL(createdUrl);
       }
     };
-  }, [isOpen, rawFile, hasBase64OrUrl, isPdf]);
+  }, [isOpen, rawFile, hasBase64OrUrl, isPdf, isGDrive]);
 
   if (!isOpen) return null;
 
   const handleDownload = () => {
+    if (gdriveId) {
+      window.open(`https://drive.google.com/uc?export=download&id=${gdriveId}`, '_blank');
+      return;
+    }
     if (hasBase64OrUrl) {
       const a = document.createElement('a');
       a.href = blobUrl || rawFile;
@@ -478,8 +505,11 @@ export const AttachmentPreviewModal = ({
   };
 
   const handleOpenExternal = () => {
+    if (gdriveId) {
+      window.open(`https://drive.google.com/file/d/${gdriveId}/view`, '_blank', 'noopener,noreferrer');
+      return;
+    }
     if (hasBase64OrUrl) {
-      // Always prefer the original URL (rawFile) over blob URL for external tabs
       const targetUrl = rawFile.startsWith('http') ? rawFile : (blobUrl || rawFile);
       window.open(targetUrl, '_blank', 'noopener,noreferrer');
     }
@@ -561,18 +591,17 @@ export const AttachmentPreviewModal = ({
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
               {hasBase64OrUrl && (
                 <>
-                  {isGoogleDriveUrl(activeSrc) && (
-                    <a
-                      href={activeSrc}
-                      target="_blank"
-                      rel="noreferrer"
+                  {isGDrive && gdriveId && (
+                    <button
+                      type="button"
+                      onClick={() => window.open(`https://drive.google.com/file/d/${gdriveId}/view`, '_blank')}
                       className="btn btn-secondary btn-sm"
                       style={{ fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: '0.25rem', padding: '0.3rem 0.55rem', color: '#1d4ed8', background: '#eff6ff', borderColor: '#bfdbfe' }}
                       title="Buka File di Google Drive"
                     >
                       <HardDrive size={13} color="#2563eb" />
                       <span>Google Drive</span>
-                    </a>
+                    </button>
                   )}
                   <button
                     type="button"
@@ -694,16 +723,106 @@ export const AttachmentPreviewModal = ({
                 <Loader2 size={32} className="spinner" color="#38bdf8" />
                 <span style={{ fontSize: '0.85rem' }}>Memuat dokumen pratinjau...</span>
               </div>
-            ) : (isGoogleDriveUrl(rawFile) || isGoogleDriveUrl(activeSrc)) ? (
-              /* Google Drive Direct Native Embedded Viewer (Supports PDF, PNG, JPG, Documents) */
-              <div style={{ width: '100%', height: '74vh', minHeight: '480px', background: '#0f172a', position: 'relative' }}>
+            ) : isImage ? (
+              /* Image Viewer (Includes Google Drive Direct CDN images, Base64, Supabase URLs) */
+              <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
+                <img
+                  src={(() => {
+                    if (gdriveId) {
+                      return `https://lh3.googleusercontent.com/d/${gdriveId}=s1600`;
+                    }
+                    if (imgLoadError && activeSrc !== rawFile && rawFile.startsWith('http')) {
+                      return rawFile;
+                    }
+                    return activeSrc;
+                  })()}
+                  alt={displayName}
+                  style={{
+                    maxWidth: '100%',
+                    maxHeight: '68vh',
+                    objectFit: 'contain',
+                    borderRadius: '6px',
+                    boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
+                  }}
+                  onError={(e) => {
+                    if (gdriveId && !imgLoadError) {
+                      // Fallback Google Drive view URL
+                      setImgLoadError(true);
+                      e.target.src = `https://drive.google.com/uc?export=view&id=${gdriveId}`;
+                    } else if (!imgLoadError && activeSrc !== rawFile && rawFile.startsWith('http')) {
+                      setImgLoadError(true);
+                      e.target.src = rawFile;
+                    } else {
+                      console.warn('Image render failed, showing fallback card');
+                      e.target.style.display = 'none';
+                      const container = e.target.parentElement;
+                      if (container && !container.querySelector('.img-fallback-box')) {
+                        const fallbackDiv = document.createElement('div');
+                        fallbackDiv.className = 'img-fallback-box';
+                        fallbackDiv.style.cssText = 'text-align:center;color:#94a3b8;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1rem;';
+                        fallbackDiv.innerHTML = `
+                          <div style="width:48px;height:48px;border-radius:50%;background:rgba(56,189,248,0.15);display:flex;align-items:center;justify-content:center;margin:0 auto">
+                            <span style="font-size:1.5rem">🖼️</span>
+                          </div>
+                          <div>
+                            <p style="font-size:0.95rem;font-weight:700;color:#ffffff;margin:0 0 0.3rem 0">${displayName}</p>
+                            <p style="font-size:0.8rem;color:#94a3b8;margin:0">Pratinjau gambar dapat dibuka langsung di tab baru.</p>
+                          </div>
+                        `;
+                        const openBtn = document.createElement('button');
+                        openBtn.className = 'btn btn-primary';
+                        openBtn.style.cssText = 'display:inline-flex;align-items:center;gap:0.4rem;padding:0.55rem 1.25rem;font-weight:700;border-radius:8px;cursor:pointer;';
+                        openBtn.innerHTML = '<span>Buka Gambar di Tab Baru ↗</span>';
+                        openBtn.onclick = handleOpenExternal;
+                        fallbackDiv.appendChild(openBtn);
+                        container.appendChild(fallbackDiv);
+                      }
+                    }
+                  }}
+                />
+              </div>
+            ) : isPdf ? (
+              /* PDF Viewer */
+              <PdfCanvasViewer
+                arrayBuffer={pdfArrayBuffer}
+                pdfUrl={activeSrc}
+                onOpenExternal={handleOpenExternal}
+                displayName={displayName}
+                gdriveId={gdriveId}
+              />
+            ) : isGDrive && gdriveId ? (
+              /* Google Drive Document / Generic file */
+              <div style={{ width: '100%', height: '74vh', minHeight: '440px', background: '#0f172a', display: 'flex', flexDirection: 'column', position: 'relative' }}>
+                <div style={{ background: '#1e293b', padding: '0.6rem 1rem', borderBottom: '1px solid #334155', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', color: '#94a3b8', fontSize: '0.78rem' }}>
+                    <HardDrive size={15} color="#38bdf8" />
+                    <span>Dokumen Google Drive</span>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => window.open(`https://drive.google.com/file/d/${gdriveId}/view`, '_blank')}
+                      className="btn btn-primary btn-sm"
+                      style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.75rem' }}
+                    >
+                      <ExternalLink size={13} /> Buka di Tab Baru
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => window.open(`https://drive.google.com/uc?export=download&id=${gdriveId}`, '_blank')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: '0.35rem', padding: '0.3rem 0.75rem' }}
+                    >
+                      <Download size={13} /> Unduh
+                    </button>
+                  </div>
+                </div>
                 <iframe
-                  src={`https://drive.google.com/file/d/${extractGDriveFileId(rawFile) || extractGDriveFileId(activeSrc)}/preview`}
+                  src={`https://drive.google.com/file/d/${gdriveId}/preview`}
                   style={{
                     width: '100%',
-                    height: '100%',
+                    flex: 1,
                     border: 'none',
-                    borderRadius: '0 0 8px 8px',
                     background: '#0f172a'
                   }}
                   title={displayName}
@@ -711,63 +830,36 @@ export const AttachmentPreviewModal = ({
                 />
               </div>
             ) : hasBase64OrUrl ? (
-              isPdf ? (
-                <PdfCanvasViewer
-                  arrayBuffer={pdfArrayBuffer}
-                  pdfUrl={activeSrc}
-                  onOpenExternal={handleOpenExternal}
-                  displayName={displayName}
-                />
-              ) : (
-                <div style={{ padding: '1.25rem', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', height: '100%' }}>
-                  <img
-                    src={(() => {
-                      if (isGoogleDriveUrl(activeSrc)) {
-                        const gId = extractGDriveFileId(activeSrc);
-                        if (gId) return `https://lh3.googleusercontent.com/d/${gId}=s1600`;
-                      }
-                      // If blobUrl failed, try rawFile directly
-                      if (imgLoadError && activeSrc !== rawFile && rawFile.startsWith('http')) {
-                        return rawFile;
-                      }
-                      return activeSrc;
-                    })()}
-                    alt={displayName}
-                    style={{
-                      maxWidth: '100%',
-                      maxHeight: '68vh',
-                      objectFit: 'contain',
-                      borderRadius: '6px',
-                      boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                    }}
-                    onError={(e) => {
-                      if (!imgLoadError && activeSrc !== rawFile && rawFile.startsWith('http')) {
-                        // First error: try raw URL directly as fallback
-                        console.warn('Image blobUrl failed, trying rawFile directly');
-                        setImgLoadError(true);
-                      } else {
-                        // Second error or no fallback available: show embedded iframe
-                        console.warn('Image render failed completely, showing as embedded object');
-                        e.target.style.display = 'none';
-                        // Replace with embedded object
-                        const container = e.target.parentElement;
-                        if (container && !container.querySelector('object')) {
-                          const obj = document.createElement('object');
-                          obj.data = rawFile.startsWith('http') ? rawFile : activeSrc;
-                          obj.type = 'image/png';
-                          obj.style.cssText = 'max-width:100%;max-height:68vh;border-radius:6px;';
-                          // Final fallback content
-                          const fallbackDiv = document.createElement('div');
-                          fallbackDiv.style.cssText = 'text-align:center;color:#94a3b8;padding:2rem;';
-                          fallbackDiv.innerHTML = `<p style="font-size:0.85rem;margin-bottom:1rem">${displayName}</p><a href="${rawFile.startsWith('http') ? rawFile : activeSrc}" target="_blank" rel="noreferrer" style="color:#38bdf8;text-decoration:underline;font-size:0.82rem">Klik untuk membuka file</a>`;
-                          obj.appendChild(fallbackDiv);
-                          container.appendChild(obj);
-                        }
-                      }
-                    }}
-                  />
+              <div style={{
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+                height: '100%', minHeight: '320px', color: '#ffffff', padding: '2rem', textAlign: 'center'
+              }}>
+                <FileText size={48} color="#38bdf8" style={{ marginBottom: '1rem' }} />
+                <h4 style={{ margin: '0 0 0.5rem 0', fontSize: '1.05rem', color: '#ffffff' }}>{displayName}</h4>
+                <p style={{ fontSize: '0.85rem', color: '#94a3b8', maxWidth: '420px', marginBottom: '1.25rem' }}>
+                  Dokumen lampiran siap dibuka atau diunduh.
+                </p>
+                <div style={{ display: 'flex', gap: '0.6rem' }}>
+                  <button
+                    type="button"
+                    onClick={handleOpenExternal}
+                    className="btn btn-primary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.25rem', fontWeight: 700, borderRadius: '8px' }}
+                  >
+                    <ExternalLink size={16} />
+                    <span>Buka Dokumen di Tab Baru</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDownload}
+                    className="btn btn-secondary"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.45rem', padding: '0.6rem 1.25rem', fontWeight: 700, borderRadius: '8px' }}
+                  >
+                    <Download size={16} />
+                    <span>Unduh</span>
+                  </button>
                 </div>
-              )
+              </div>
             ) : (
               /* Fallback Card for Mock / Text filename */
               <div
@@ -847,6 +939,3 @@ export const AttachmentPreviewModal = ({
     </ModalPortal>
   );
 };
-
-
-
