@@ -57,11 +57,11 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen, setActiveTab }) =
       </div>
 
       <div className="header-right">
-        {(currentUser?.role === 'developer' || currentUser?.role === 'admin' || currentUser?.role === 'kacab') && (
+        {currentUser?.role === 'developer' && (
           <button
             onClick={() => setIsResetConfirmOpen(true)}
             className="btn btn-secondary btn-sm"
-            title="Reset data ke kondisi awal"
+            title="Reset data ke kondisi awal (Akses Khusus Developer)"
           >
             <RotateCcw size={14} />
             <span>Reset Data</span>
