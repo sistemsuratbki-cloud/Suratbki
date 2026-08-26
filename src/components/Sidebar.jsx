@@ -55,7 +55,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     }
   ];
 
-  if (!isFinance && (role === 'admin' || role === 'developer' || role === 'kacab')) {
+  if (!isFinance && (role === 'admin' || role === 'developer')) {
     suratSubItems.push({
       id: 'surat_pds',
       label: 'PDS',
@@ -82,8 +82,8 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     });
   }
 
-  // Restricted Access for Laporan: Admin, Developer, Kacab, and Finance (Keuangan)
-  if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
+  // Restricted Access for Laporan: Admin, Developer, and Finance (Keuangan)
+  if (role === 'admin' || role === 'developer' || role === 'keuangan') {
     menuItems.push({
       id: 'laporan',
       label: 'Laporan BKI',
@@ -111,8 +111,8 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     });
   }
 
-  // Restricted Access: Admin, Kacab, and Finance (Keuangan)
-  if (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
+  // Restricted Access: Admin, Developer, and Finance (Keuangan)
+  if (role === 'admin' || role === 'developer' || role === 'keuangan') {
     menuItems.push({
       id: 'tariffs',
       label: 'Manajemen Tarif',
