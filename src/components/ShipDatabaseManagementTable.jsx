@@ -1,8 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Ship, Plus, Search, Pencil, Trash2, X, Check, Anchor, Building2,
-  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Layers,
-  Filter, RotateCcw, ArrowUpDown
+  ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, RotateCcw
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../context/DataContext';
@@ -11,7 +10,6 @@ import { DEFAULT_SURVEY_TYPES } from './MultiSurveySelect';
 import { MASTER_COMPANIES } from '../data/defaultMasterKapal';
 
 const EMPTY_FORM = { namaKapal: '', noAgenda: '', pemohon: '', jenisSurvey: '' };
-const ALPHABET = ['ALL', '0-9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z'];
 
 const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEdit = false }) => {
   const [form, setForm] = useState(initialData);
@@ -193,7 +191,6 @@ export const ShipDatabaseManagementTable = () => {
 
   // Search, Filters & Sorting
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedLetter, setSelectedLetter] = useState('ALL');
   const [companyFilter, setCompanyFilter] = useState('ALL');
   const [sortBy, setSortBy] = useState('nama_asc');
 
@@ -225,20 +222,6 @@ export const ShipDatabaseManagementTable = () => {
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [masterKapal]);
 
-  // Letter count mapping for badge indicator
-  const letterCounts = useMemo(() => {
-    const counts = {};
-    masterKapal.forEach((k) => {
-      const ch = (k.namaKapal || '').trim().charAt(0).toUpperCase();
-      if (/[0-9]/.test(ch)) {
-        counts['0-9'] = (counts['0-9'] || 0) + 1;
-      } else if (/[A-Z]/.test(ch)) {
-        counts[ch] = (counts[ch] || 0) + 1;
-      }
-    });
-    return counts;
-  }, [masterKapal]);
-
   // Filtered and Sorted Data
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -254,17 +237,7 @@ export const ShipDatabaseManagementTable = () => {
         if (!matches) return false;
       }
 
-      // 2. Letter Filter
-      if (selectedLetter !== 'ALL') {
-        const firstChar = (k.namaKapal || '').trim().charAt(0).toUpperCase();
-        if (selectedLetter === '0-9') {
-          if (!/[0-9]/.test(firstChar)) return false;
-        } else {
-          if (firstChar !== selectedLetter) return false;
-        }
-      }
-
-      // 3. Company Filter
+      // 2. Company Filter
       if (companyFilter !== 'ALL') {
         if ((k.pemohon || '').trim().toUpperCase() !== companyFilter.toUpperCase()) {
           return false;
@@ -274,7 +247,7 @@ export const ShipDatabaseManagementTable = () => {
       return true;
     });
 
-    // 4. Sort
+    // 3. Sort
     list.sort((a, b) => {
       if (sortBy === 'nama_asc') return (a.namaKapal || '').localeCompare(b.namaKapal || '');
       if (sortBy === 'nama_desc') return (b.namaKapal || '').localeCompare(a.namaKapal || '');
@@ -285,7 +258,7 @@ export const ShipDatabaseManagementTable = () => {
     });
 
     return list;
-  }, [masterKapal, searchTerm, selectedLetter, companyFilter, sortBy]);
+  }, [masterKapal, searchTerm, companyFilter, sortBy]);
 
   // Total pages calculation
   const effectiveRowsPerPage = Number(rowsPerPage) || (filtered.length || 1);
@@ -294,7 +267,7 @@ export const ShipDatabaseManagementTable = () => {
   // Reset page when filter changes
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchTerm, selectedLetter, companyFilter, rowsPerPage]);
+  }, [searchTerm, companyFilter, rowsPerPage]);
 
   // Paginated Data
   const paginatedData = useMemo(() => {
@@ -333,7 +306,6 @@ export const ShipDatabaseManagementTable = () => {
 
   const handleResetFilters = () => {
     setSearchTerm('');
-    setSelectedLetter('ALL');
     setCompanyFilter('ALL');
     setSortBy('nama_asc');
     setCurrentPage(1);
@@ -367,7 +339,7 @@ export const ShipDatabaseManagementTable = () => {
     setConfirmDeleteId(null);
   };
 
-  const hasActiveFilters = searchTerm !== '' || selectedLetter !== 'ALL' || companyFilter !== 'ALL' || sortBy !== 'nama_asc';
+  const hasActiveFilters = searchTerm !== '' || companyFilter !== 'ALL' || sortBy !== 'nama_asc';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
@@ -405,103 +377,6 @@ export const ShipDatabaseManagementTable = () => {
           <Plus size={15} />
           Tambah Kapal
         </button>
-      </div>
-
-      {/* FAST NAVIGATION: A-Z ALPHABET CHIPS BAR */}
-      <div
-        style={{
-          background: 'var(--bg-card,#fff)',
-          border: '1px solid var(--border-color,#e2e8f0)',
-          borderRadius: '10px',
-          padding: '0.65rem 0.85rem',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '0.45rem'
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)' }}>
-            <Layers size={14} color="var(--accent-primary)" />
-            <span>Navigasi Cepat Abjad (A - Z):</span>
-          </div>
-          {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={handleResetFilters}
-              style={{
-                background: 'transparent',
-                border: 'none',
-                color: '#ef4444',
-                fontSize: '0.72rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                padding: '0.15rem 0.4rem',
-                borderRadius: '4px'
-              }}
-            >
-              <RotateCcw size={11} /> Reset Filter
-            </button>
-          )}
-        </div>
-
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.3rem',
-            overflowX: 'auto',
-            paddingBottom: '0.25rem',
-            scrollbarWidth: 'thin'
-          }}
-        >
-          {ALPHABET.map((letter) => {
-            const isSelected = selectedLetter === letter;
-            const count = letter === 'ALL' ? masterKapal.length : (letterCounts[letter] || 0);
-
-            return (
-              <button
-                key={letter}
-                type="button"
-                onClick={() => setSelectedLetter(letter)}
-                style={{
-                  padding: '0.25rem 0.55rem',
-                  fontSize: '0.74rem',
-                  fontWeight: isSelected ? 800 : 600,
-                  borderRadius: '6px',
-                  border: isSelected ? '1px solid var(--accent-primary)' : '1px solid var(--border-color,#e2e8f0)',
-                  background: isSelected ? 'var(--accent-primary)' : 'var(--bg-main,#f8fafc)',
-                  color: isSelected ? '#ffffff' : (count > 0 ? 'var(--text-primary)' : 'var(--text-muted)'),
-                  cursor: 'pointer',
-                  flexShrink: 0,
-                  transition: 'all 0.15s ease',
-                  opacity: count === 0 && letter !== 'ALL' ? 0.45 : 1,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.25rem'
-                }}
-                title={letter === 'ALL' ? 'Tampilkan Semua Abjad' : `Abjad ${letter} (${count} kapal)`}
-              >
-                <span>{letter === 'ALL' ? 'Semua' : letter}</span>
-                {letter !== 'ALL' && count > 0 && (
-                  <span
-                    style={{
-                      fontSize: '0.62rem',
-                      padding: '0.05rem 0.3rem',
-                      borderRadius: '8px',
-                      background: isSelected ? 'rgba(255,255,255,0.25)' : 'rgba(0,0,0,0.06)',
-                      color: isSelected ? '#ffffff' : 'inherit'
-                    }}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
       </div>
 
       {/* Main Table Card */}
@@ -598,7 +473,26 @@ export const ShipDatabaseManagementTable = () => {
         >
           <div>
             Menampilkan <strong>{filtered.length > 0 ? startIndex + 1 : 0}</strong> - <strong>{endIndex}</strong> dari <strong>{filtered.length}</strong> data kapal
-            {selectedLetter !== 'ALL' && <span style={{ marginLeft: '0.35rem', color: 'var(--accent-primary)', fontWeight: 700 }}>(Abjad {selectedLetter})</span>}
+            {hasActiveFilters && (
+              <button
+                type="button"
+                onClick={handleResetFilters}
+                style={{
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#ef4444',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  marginLeft: '0.5rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.2rem'
+                }}
+              >
+                <RotateCcw size={11} /> Reset Filter
+              </button>
+            )}
           </div>
           {totalPages > 1 && (
             <div style={{ fontWeight: 600 }}>
@@ -631,7 +525,7 @@ export const ShipDatabaseManagementTable = () => {
                           {hasActiveFilters ? 'Tidak ada data kapal yang sesuai filter' : 'Belum ada data kapal'}
                         </p>
                         <p style={{ margin: '0.25rem 0 0', fontSize: '0.78rem' }}>
-                          {hasActiveFilters ? 'Klik "Reset Filter" atau pilih abjad lain' : 'Klik "Tambah Kapal" untuk menambahkan data baru'}
+                          {hasActiveFilters ? 'Klik "Reset Filter" atau ubah kata kunci pencarian' : 'Klik "Tambah Kapal" untuk menambahkan data baru'}
                         </p>
                       </div>
                     </div>
@@ -758,7 +652,7 @@ export const ShipDatabaseManagementTable = () => {
           </table>
         </div>
 
-        {/* BOTTOM PAGINATION CONTROLLER (NO MORE ENDLESS SCROLLING) */}
+        {/* BOTTOM PAGINATION CONTROLLER */}
         {totalPages > 1 && (
           <div
             style={{
