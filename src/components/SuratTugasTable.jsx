@@ -294,6 +294,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         if (item.approvalStatus !== 'Revisi') return false;
       } else if (statusFilter === 'ACC') {
         if (item.approvalStatus !== 'ACC') return false;
+      } else if (statusFilter === 'Belum di-ACC') {
+        if (item.approvalStatus === 'ACC' || item.approvalStatus === 'Revisi') return false;
       } else if (statusFilter !== 'Semua' && item.status !== statusFilter) {
         return false;
       }
@@ -545,6 +547,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
               {effectiveFilterType === 'PDS' && (
                 <>
                   <option value="ACC">✅ ACC (Disetujui)</option>
+                  <option value="Belum di-ACC">🕒 Belum di-ACC</option>
                   <option value="Perlu Revisi">🔄 Perlu Revisi</option>
                 </>
               )}
