@@ -112,7 +112,7 @@ export const BiayaPdsPrintModal = ({
   // Signatures Lookup
   const kacabUser = usersList?.find((u) => u.name === kepalaCabang || u.role === 'kacab') || {};
   const kacabSignature = adminSettings?.kacabSignatureUrl || kacabUser.signatureUrl || '/signatures/kacab_muhson_signature.png';
-  const pembuatSignature = adminSettings?.pembuatSignatureUrl || pembuatUser.signatureUrl || '';
+  const pembuatSignature = adminSettings?.pembuatSignatureUrl || pembuatUser.signatureUrl || '/signatures/pembuat_renza_signature.png';
 
   const isSurveyorMuhson = (suratTugas.petugas || '').toUpperCase().includes('MUHSON');
   let surveyorSignature = null;
@@ -600,14 +600,11 @@ export const BiayaPdsPrintModal = ({
                         src={pembuatSignature}
                         alt="TTD Pembuat Daftar"
                         style={{
-                          height: '90px',
+                          height: '85px',
                           maxHeight: '90px',
-                          maxWidth: '250px',
+                          maxWidth: '220px',
                           width: 'auto',
-                          objectFit: 'contain',
-                          transform: 'scale(2.2)',
-                          transformOrigin: 'center',
-                          filter: 'contrast(1.15)'
+                          objectFit: 'contain'
                         }}
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />

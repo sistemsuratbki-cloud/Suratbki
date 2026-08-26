@@ -181,8 +181,8 @@ export const DataProvider = ({ children }) => {
       nup: '48199-KI',
       pembuatDaftar: 'RENZA MUHARAM',
       nupPembuatDaftar: '50382-KI',
-      namaCabang: 'CABANG MADYA KLAS PONTIANAK',
       kacabSignatureUrl: '/signatures/kacab_muhson_signature.png',
+      pembuatSignatureUrl: '/signatures/pembuat_renza_signature.png',
       tatLuarKota: 750000,
       ...parsed
     };
