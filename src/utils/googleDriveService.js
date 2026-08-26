@@ -22,7 +22,7 @@ export function getGoogleDriveConfig() {
       const parsed = JSON.parse(saved);
       return {
         enabled: parsed.enabled ?? true,
-        webAppUrl: parsed.webAppUrl || 'https://script.google.com/macros/s/AKfycbw8MtPCK1zTcIBexpB8PuRn6mihrpV8PHQbMtEL61FONUH-edgHGh9XlgmEpCwYTw4C/exec',
+        webAppUrl: parsed.webAppUrl || 'https://script.google.com/macros/s/AKfycbxMYYfKw5rwpj_G1HoGh4lIXQxh6KI8mMZo7SEBWDQHTzoQbbGou1e8I58K3yer5xrSmg/exec',
         rootFolder: parsed.rootFolder || 'BKI_DOKUMEN_SURAT',
         autoMigrate: parsed.autoMigrate || false
       };
@@ -33,7 +33,7 @@ export function getGoogleDriveConfig() {
 
   return {
     enabled: true,
-    webAppUrl: 'https://script.google.com/macros/s/AKfycbw8MtPCK1zTcIBexpB8PuRn6mihrpV8PHQbMtEL61FONUH-edgHGh9XlgmEpCwYTw4C/exec',
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbxMYYfKw5rwpj_G1HoGh4lIXQxh6KI8mMZo7SEBWDQHTzoQbbGou1e8I58K3yer5xrSmg/exec',
     rootFolder: 'BKI_DOKUMEN_SURAT',
     autoMigrate: false
   };
