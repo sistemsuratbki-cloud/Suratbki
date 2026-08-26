@@ -968,9 +968,9 @@ export const BukuAgendaTable = () => {
             onChange={(e) => setStatusFilter(e.target.value)}
           >
             <option value="Semua">-- Semua Status --</option>
+            <option value="Belum Dicek">⏳ Belum Dicek</option>
             <option value="Sudah Dicek">🔍 Sudah Dicek</option>
             <option value="Selesai">✅ Selesai</option>
-            <option value="Belum Dicek">⏳ Belum Dicek</option>
           </select>
 
           {/* Month Selector */}
@@ -1441,6 +1441,29 @@ export const BukuAgendaTable = () => {
 
                               <button
                                 type="button"
+                                onClick={() => handleSetStatusAgenda(item, 'Belum Dicek')}
+                                style={{
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  gap: '0.5rem',
+                                  width: '100%',
+                                  padding: '6px 8px',
+                                  fontSize: '0.78rem',
+                                  fontWeight: !isSelesai && !isSudahDicek ? 700 : 500,
+                                  color: !isSelesai && !isSudahDicek ? '#64748b' : 'var(--text-primary)',
+                                  background: !isSelesai && !isSudahDicek ? 'var(--bg-main)' : 'transparent',
+                                  border: 'none',
+                                  borderRadius: '5px',
+                                  cursor: 'pointer',
+                                  textAlign: 'left'
+                                }}
+                              >
+                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', flexShrink: 0 }}></span>
+                                <span>⏳ Belum Dicek</span>
+                              </button>
+
+                              <button
+                                type="button"
                                 onClick={() => handleSetStatusAgenda(item, 'Sudah Dicek')}
                                 style={{
                                   display: 'flex',
@@ -1483,29 +1506,6 @@ export const BukuAgendaTable = () => {
                               >
                                 <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', flexShrink: 0 }}></span>
                                 <span>✅ Selesai</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => handleSetStatusAgenda(item, 'Belum Dicek')}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.5rem',
-                                  width: '100%',
-                                  padding: '6px 8px',
-                                  fontSize: '0.78rem',
-                                  fontWeight: !isSelesai && !isSudahDicek ? 700 : 500,
-                                  color: !isSelesai && !isSudahDicek ? '#64748b' : 'var(--text-primary)',
-                                  background: !isSelesai && !isSudahDicek ? 'var(--bg-main)' : 'transparent',
-                                  border: 'none',
-                                  borderRadius: '5px',
-                                  cursor: 'pointer',
-                                  textAlign: 'left'
-                                }}
-                              >
-                                <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#94a3b8', flexShrink: 0 }}></span>
-                                <span>⏳ Belum Dicek</span>
                               </button>
                             </div>
                           )}
