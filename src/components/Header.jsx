@@ -57,18 +57,6 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen, setActiveTab }) =
       </div>
 
       <div className="header-right">
-        {(currentUser?.role === 'developer' || currentUser?.role === 'admin') && (
-          <button
-            onClick={() => setActiveTab && setActiveTab('tv-display')}
-            className="btn btn-primary btn-sm"
-            title="Buka Layar Monitor Kegiatan Survei"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
-          >
-            <Monitor size={14} />
-            <span>Monitor Survei</span>
-          </button>
-        )}
-
         {(currentUser?.role === 'developer' || currentUser?.role === 'admin' || currentUser?.role === 'kacab') && (
           <button
             onClick={() => setIsResetConfirmOpen(true)}

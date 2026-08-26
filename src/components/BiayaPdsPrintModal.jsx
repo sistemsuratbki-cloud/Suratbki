@@ -89,14 +89,17 @@ export const BiayaPdsPrintModal = ({
     : (suratTugas.biayaTAT !== undefined && suratTugas.biayaTAT !== ''
         ? Number(suratTugas.biayaTAT)
         : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
-  const rateSK = Number(suratTugas.tarifDasar) || 0;
+    const rateSK = Number(suratTugas.tarifDasar) || 0;
+    const biayaExpertise = suratTugas.isSmc
+      ? ((Number(suratTugas.jumlahPendamping) || 2) * (Number(suratTugas.tarifExpertise) || 1500000))
+      : (Number(suratTugas.biayaExpertise) || 0);
 
-  let calculatedJumlah = 0;
-  if (isLuarKota) {
-    calculatedJumlah = tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
-  } else {
-    calculatedJumlah = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
-  }
+    let calculatedJumlah = 0;
+    if (isLuarKota) {
+      calculatedJumlah = tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
+    } else {
+      calculatedJumlah = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
+    }
 
   const jumlah = suratTugas.jumlahEstimasi && Number(suratTugas.jumlahEstimasi) > 0
     ? Number(suratTugas.jumlahEstimasi)
@@ -548,7 +551,12 @@ export const BiayaPdsPrintModal = ({
                   {/* Total Row */}
                   <tr style={{ fontWeight: 'bold', background: '#f8fafc' }}>
                     <td colSpan={18} style={{ border: '1px solid black', padding: '6px 8px', textAlign: 'left', fontStyle: 'italic' }}>
-                      Terbilang: {terbilang(jumlah).replace(/\b\w/g, l => l.toUpperCase())} Rupiah
+                      <div>Terbilang: {terbilang(jumlah).replace(/\b\w/g, l => l.toUpperCase())} Rupiah</div>
+                      {biayaExpertise > 0 && (
+                        <div style={{ fontSize: '7.5pt', color: '#047857', marginTop: '2px', fontWeight: 'bold' }}>
+                          *Termasuk Biaya Expertise Petugas Flag State / Syahbandar (Audit SMC): {suratTugas.jumlahPendamping || 2} Orang x Rp 1.500.000 = Rp {fmtNum(biayaExpertise)}
+                        </div>
+                      )}
                     </td>
                   </tr>
                 </tbody>

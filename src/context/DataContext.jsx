@@ -188,6 +188,21 @@ export const DataProvider = ({ children }) => {
     };
   });
 
+  const [visitSurvei, setVisitSurvei] = useState(() => {
+    const saved = localStorage.getItem('st_visit_survei');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (e) {}
+    }
+    return [];
+  });
+
+  useEffect(() => {
+    safeSetLocalStorage('st_visit_survei', visitSurvei);
+  }, [visitSurvei]);
+
   // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
   const refreshAllFromCloud = useCallback(async () => {
     try {
@@ -570,6 +585,32 @@ export const DataProvider = ({ children }) => {
   const deleteMasterKapal = (id) => {
     setMasterKapal((prev) => prev.filter((item) => item.id !== id));
     deleteMasterKapalFromCloud(id);
+  };
+
+  // ====== VISIT SURVEI (LAYAR MONITOR) ======
+  const addVisitSurvei = (data) => {
+    const newVisit = {
+      id: `visit-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
+      createdAt: new Date().toISOString(),
+      tanggal: data.tanggal || new Date().toISOString().split('T')[0],
+      nama: (data.nama || '').trim(),
+      lokasi: (data.lokasi || '').trim(),
+      namaKapal: (data.namaKapal || '').trim().toUpperCase(),
+      jamBerangkat: (data.jamBerangkat || '').trim(),
+      jamSelesai: (data.jamSelesai || '').trim(),
+      status: data.status || 'Sedang Berjalan',
+      keterangan: (data.keterangan || '').trim()
+    };
+    setVisitSurvei((prev) => [newVisit, ...prev]);
+    return newVisit;
+  };
+
+  const updateVisitSurvei = (id, updatedData) => {
+    setVisitSurvei((prev) => prev.map((item) => (item.id === id ? { ...item, ...updatedData } : item)));
+  };
+
+  const deleteVisitSurvei = (id) => {
+    setVisitSurvei((prev) => prev.filter((item) => item.id !== id));
   };
 
   // ====== 1. ADMIN INPUT SPS (Batch or Single Ship) ======
@@ -1223,6 +1264,10 @@ export const DataProvider = ({ children }) => {
         gradeTariffs,
         masterKapal,
         adminSettings,
+        visitSurvei,
+        addVisitSurvei,
+        updateVisitSurvei,
+        deleteVisitSurvei,
         updateAdminSettings,
         addTariff,
         updateTariff,

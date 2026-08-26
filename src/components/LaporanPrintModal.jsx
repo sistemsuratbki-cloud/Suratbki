@@ -132,27 +132,22 @@ export const LaporanPrintModal = ({
                       allData.map((item, index) => {
                         const linkedSurat = (suratTugas || []).find((s) => s.id === item.suratId || s.id === item.suratTugasId || (Array.isArray(item.linkedSpsIds) && item.linkedSpsIds.includes(s.id)));
                         const rawDate =
-                          item.tglLapor ||
-                          item.tanggal ||
                           item.tglMulai ||
-                          item.tglSelesai ||
-                          item.tanggalMulai ||
-                          item.tanggalBuat ||
-                          item.tgl_mulai ||
-                          item.tgl_selesai ||
-                          item.tgl_lapor ||
+                          item.tglSurvey ||
                           item.originalItem?.tglMulai ||
-                          item.originalItem?.tglSelesai ||
-                          item.originalItem?.tglLapor ||
-                          item.originalItem?.tanggal ||
-                          item.originalItem?.tgl_mulai ||
-                          item.originalItem?.tgl_selesai ||
+                          item.originalItem?.tglSurvey ||
                           linkedSurat?.tglMulai ||
                           linkedSurat?.tgl_mulai ||
+                          item.tanggalMulai ||
+                          item.tgl_mulai ||
+                          item.tglLapor ||
+                          item.tanggal ||
+                          item.tglSelesai ||
+                          item.originalItem?.tglLapor ||
+                          item.originalItem?.tanggal ||
                           linkedSurat?.tanggal ||
                           linkedSurat?.tglLapor ||
                           item.createdAt ||
-                          item.created_at ||
                           '';
                         const dateFormatted = rawDate ? formatDateIndo(rawDate) : '-';
                         const vesselName = (item.namaKapal || (linkedSurat ? linkedSurat.namaKapal : '-')).toUpperCase();

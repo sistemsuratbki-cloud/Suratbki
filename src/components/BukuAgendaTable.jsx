@@ -18,7 +18,12 @@ import {
   Camera,
   Plane,
   Receipt,
-  X
+  X,
+  CheckCheck,
+  MessageSquare,
+  Clock,
+  AlertTriangle,
+  Ship
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { toast } from 'react-hot-toast';
@@ -31,10 +36,12 @@ import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { BukuAgendaPrintModal } from './BukuAgendaPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
+import { TandaTerimaSmcPrintModal } from './TandaTerimaSmcPrintModal';
 
 export const BukuAgendaTable = () => {
   const { suratTugas, updateSuratTugas, laporanSurvei, kwitansiHonor, gradeTariffs, adminSettings } = useData();
   const { currentUser, role, usersList } = useAuth();
+  const isAdminOrKacab = role === 'admin' || role === 'kacab' || role === 'developer';
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -49,7 +56,9 @@ export const BukuAgendaTable = () => {
   const [isPrintModalOpen, setIsPrintModalOpen] = useState(false);
   const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
   const [isBiayaPrintModalOpen, setIsBiayaPrintModalOpen] = useState(false);
+  const [isSmcPrintModalOpen, setIsSmcPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
+  const [selectedSmcItem, setSelectedSmcItem] = useState(null);
 
   // Status Menu State
   const [activeStatusMenuId, setActiveStatusMenuId] = useState(null);
@@ -61,6 +70,59 @@ export const BukuAgendaTable = () => {
   const [lampiranModalItem, setLampiranModalItem] = useState(null);
   const [isLampiranModalOpen, setIsLampiranModalOpen] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
+
+  // Revisi Modal State
+  const [isRevisiModalOpen, setIsRevisiModalOpen] = useState(false);
+  const [revisiItem, setRevisiItem] = useState(null);
+  const [revisiNote, setRevisiNote] = useState('');
+
+  // ACC / Revisi Handlers
+  const handleToggleAccPds = (item) => {
+    const isCurrentlyAcc = item.approvalStatus === 'ACC';
+    if (isCurrentlyAcc) {
+      updateSuratTugas(item.id, {
+        approvalStatus: 'Menunggu',
+        status: 'Berjalan',
+        approvalNote: '',
+        approvalBy: null,
+        approvalAt: null
+      });
+      toast.info(`Status ACC untuk PDS ${item.namaKapal || ''} dibatalkan (Menunggu ACC).`);
+    } else {
+      updateSuratTugas(item.id, {
+        approvalStatus: 'ACC',
+        status: 'Selesai',
+        approvalNote: '',
+        approvalBy: currentUser?.name || 'Admin',
+        approvalAt: new Date().toISOString()
+      });
+      toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
+    }
+  };
+
+  const handleOpenRevisi = (item) => {
+    setRevisiItem(item);
+    setRevisiNote('');
+    setIsRevisiModalOpen(true);
+  };
+
+  const handleSubmitRevisi = () => {
+    if (!revisiItem) return;
+    if (!revisiNote.trim()) {
+      toast.error('Keterangan revisi wajib diisi.');
+      return;
+    }
+    updateSuratTugas(revisiItem.id, {
+      approvalStatus: 'Revisi',
+      approvalNote: revisiNote.trim(),
+      approvalBy: currentUser?.name || 'Admin',
+      approvalAt: new Date().toISOString()
+    });
+    toast.success(`🔄 Revisi diminta untuk PDS ${revisiItem.namaKapal || ''}. Notifikasi akan muncul di dashboard surveyor.`);
+    setIsRevisiModalOpen(false);
+    setRevisiItem(null);
+    setRevisiNote('');
+  };
 
   // Close floating menus on global click
   useEffect(() => {
@@ -430,10 +492,14 @@ export const BukuAgendaTable = () => {
           : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(item.tarifDasar) || 0;
 
+    const biayaExpertise = item.isSmc
+      ? ((Number(item.jumlahPendamping) || 2) * (Number(item.tarifExpertise) || 1500000))
+      : (Number(item.biayaExpertise) || 0);
+
     if (isLuarKota) {
-      return tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+      return tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
     } else {
-      return rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+      return rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
     }
   };
 
@@ -882,6 +948,27 @@ export const BukuAgendaTable = () => {
 
           <button
             className="btn btn-secondary btn-sm"
+            onClick={() => {
+              const smcItem = selectedRowIds.length > 0
+                ? filteredData.find(d => selectedRowIds.includes(d.id) && (d.isSmc || (d.perihal || '').toUpperCase().includes('SMC') || (d.jenisSurvey || '').toUpperCase().includes('SMC') || Number(d.biayaExpertise) > 0)) || filteredData.find(d => selectedRowIds.includes(d.id))
+                : filteredData.find(d => (d.isSmc || (d.perihal || '').toUpperCase().includes('SMC') || (d.jenisSurvey || '').toUpperCase().includes('SMC') || Number(d.biayaExpertise) > 0)) || filteredData[0];
+              
+              if (smcItem) {
+                setSelectedPrintItem(smcItem);
+                setIsSmcPrintModalOpen(true);
+              } else {
+                toast.error('Pilih atau pastikan ada data kegiatan untuk mencetak Tanda Terima SMC');
+              }
+            }}
+            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#047857', color: '#ffffff', borderColor: '#047857', fontWeight: 700 }}
+            title="Cetak Tanda Terima Expertise Petugas Flag State (SMC)"
+          >
+            <Ship size={15} />
+            <span>Cetak SMC</span>
+          </button>
+
+          <button
+            className="btn btn-secondary btn-sm"
             onClick={handleExportExcel}
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#059669', color: '#ffffff', borderColor: '#059669' }}
             title={selectedRowIds.length > 0 ? `Export ${selectedRowIds.length} item terpilih ke Excel` : 'Export seluruh Buku Agenda ke format Excel'}
@@ -1204,7 +1291,7 @@ export const BukuAgendaTable = () => {
                   <ArrowUpDown size={12} color={sortBy.startsWith('surveyor') ? '#fef08a' : '#ffffff'} />
                 </div>
               </th>
-              <th rowSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '100px' }}>
+              <th rowSpan={2} style={{ textAlign: 'center', background: '#4f81bd', color: '#ffffff', border: '1px solid #3b6ea5', width: '230px' }}>
                 AKSI
               </th>
             </tr>
@@ -1555,6 +1642,111 @@ export const BukuAgendaTable = () => {
                           );
                         })()}
 
+                        {/* ACC & Revisi Action Buttons untuk PDS */}
+                        {isAdminOrKacab ? (
+                          (item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi')) ? (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => handleToggleAccPds(item)}
+                              title="PDS Sudah di-ACC (Klik untuk batalkan status ACC)"
+                              style={{
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.72rem',
+                                padding: '0.25rem 0.55rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <CheckCheck size={13} color="#059669" />
+                              <span>Sudah di-ACC</span>
+                            </button>
+                          ) : (
+                            <button
+                              type="button"
+                              className="btn btn-sm"
+                              onClick={() => handleToggleAccPds(item)}
+                              title="Klik untuk ACC / Menyetujui PDS ini"
+                              style={{
+                                background: '#059669',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.72rem',
+                                padding: '0.25rem 0.6rem',
+                                fontWeight: 700,
+                                cursor: 'pointer'
+                              }}
+                            >
+                              <CheckCircle2 size={13} />
+                              <span>ACC PDS</span>
+                            </button>
+                          )
+                        ) : (
+                          (item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi')) ? (
+                            <span
+                              style={{
+                                background: '#ecfdf5',
+                                color: '#047857',
+                                border: '1px solid #a7f3d0',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.7rem',
+                                padding: '0.2rem 0.45rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              <CheckCircle2 size={12} color="#059669" />
+                              <span>Sudah ACC</span>
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                background: '#fef3c7',
+                                color: '#b45309',
+                                border: '1px solid #fde68a',
+                                borderRadius: '4px',
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                gap: '0.25rem',
+                                fontSize: '0.7rem',
+                                padding: '0.2rem 0.45rem',
+                                fontWeight: 700
+                              }}
+                            >
+                              <Clock size={12} color="#d97706" />
+                              <span>Menunggu ACC</span>
+                            </span>
+                          )
+                        )}
+
+                        {isAdminOrKacab && (
+                          <button
+                            type="button"
+                            className="btn btn-icon btn-sm"
+                            onClick={() => handleOpenRevisi(item)}
+                            title="Minta Revisi PDS"
+                            style={{
+                              background: item.approvalStatus === 'Revisi' ? '#fef3c7' : '#fffbeb',
+                              color: '#b45309',
+                              borderColor: item.approvalStatus === 'Revisi' ? '#fde68a' : '#fef08a'
+                            }}
+                          >
+                            <MessageSquare size={14} />
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           className="btn btn-secondary btn-icon btn-sm"
@@ -1572,6 +1764,20 @@ export const BukuAgendaTable = () => {
                         >
                           <FileText size={15} />
                         </button>
+                        {(item.isSmc || (item.perihal || '').toUpperCase().includes('SMC') || (item.jenisSurvey || '').toUpperCase().includes('SMC') || Number(item.biayaExpertise) > 0 || (item.noSap && item.noSap !== '-')) && (
+                          <button
+                            type="button"
+                            className="btn btn-secondary btn-icon btn-sm"
+                            onClick={() => {
+                              setSelectedPrintItem(item);
+                              setIsSmcPrintModalOpen(true);
+                            }}
+                            title="Cetak Tanda Terima Expertise Petugas Flag State (SMC)"
+                            style={{ background: '#059669', color: '#ffffff', borderColor: '#059669' }}
+                          >
+                            <Ship size={15} />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -1613,6 +1819,12 @@ export const BukuAgendaTable = () => {
       <SuratTugasPdsPrintModal
         isOpen={isPdsPrintModalOpen}
         onClose={() => setIsPdsPrintModalOpen(false)}
+        suratTugas={selectedPrintItem}
+      />
+
+      <TandaTerimaSmcPrintModal
+        isOpen={isSmcPrintModalOpen}
+        onClose={() => setIsSmcPrintModalOpen(false)}
         suratTugas={selectedPrintItem}
       />
 
@@ -1839,6 +2051,94 @@ export const BukuAgendaTable = () => {
         title={previewAttachment.title}
         fileData={previewAttachment.fileData}
         fileName={previewAttachment.fileName}
+      />
+
+      {/* Modal Minta Revisi PDS */}
+      {isRevisiModalOpen && (
+        <ModalPortal>
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              background: 'rgba(0, 0, 0, 0.5)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 9999,
+              padding: '1rem'
+            }}
+            onClick={() => setIsRevisiModalOpen(false)}
+          >
+            <div
+              style={{
+                background: 'var(--bg-card, #ffffff)',
+                borderRadius: 'var(--radius-lg, 12px)',
+                padding: '1.5rem',
+                width: '100%',
+                maxWidth: '480px',
+                boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)'
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                <AlertTriangle size={20} color="#b45309" />
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+                  Minta Revisi PDS (Buku Agenda)
+                </h3>
+              </div>
+
+              <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '0.75rem' }}>
+                Nomor PDS: <strong>{cleanDocNumber(revisiItem?.nomor) || '-'}</strong><br />
+                Kapal: <strong>{revisiItem?.namaKapal || '-'}</strong><br />
+                Surveyor: <strong>{revisiItem?.petugas || '-'}</strong>
+              </div>
+
+              <label style={{ display: 'block', fontSize: '0.82rem', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '0.35rem' }}>
+                Keterangan Revisi <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <textarea
+                className="form-input"
+                rows={3}
+                placeholder="Contoh: Lampiran belum lengkap, rincian biaya tiket perlu diperbaiki..."
+                value={revisiNote}
+                onChange={(e) => setRevisiNote(e.target.value)}
+                style={{ width: '100%', fontSize: '0.85rem', resize: 'vertical', marginBottom: '1rem' }}
+                autoFocus
+              />
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  onClick={() => setIsRevisiModalOpen(false)}
+                  style={{ fontSize: '0.82rem' }}
+                >
+                  Batal
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={handleSubmitRevisi}
+                  style={{ fontSize: '0.82rem', background: '#f59e0b', color: '#ffffff', borderColor: '#f59e0b', fontWeight: 700 }}
+                >
+                  🔄 Kirim Revisi
+                </button>
+              </div>
+            </div>
+          </div>
+        </ModalPortal>
+      )}
+      {/* Modal Cetak Tanda Terima SMC */}
+      <TandaTerimaSmcPrintModal
+        isOpen={isSmcPrintModalOpen}
+        onClose={() => {
+          setIsSmcPrintModalOpen(false);
+          setSelectedSmcItem(null);
+        }}
+        suratTugas={selectedSmcItem}
       />
     </div>
   );

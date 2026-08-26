@@ -84,7 +84,8 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
     if (editItem) {
       setFormData({
         ...editItem,
-        tglLapor: editItem.tglLapor || editItem.tanggal || new Date().toISOString().split('T')[0],
+        tglLapor: editItem.tglMulai || editItem.tglSurvey || editItem.tglLapor || editItem.tanggal || new Date().toISOString().split('T')[0],
+        tanggalBuat: editItem.tanggalBuat || editItem.tglLapor || editItem.createdAt?.split('T')[0] || new Date().toISOString().split('T')[0],
         namaKapal: editItem.namaKapal || '',
         lokasi: editItem.lokasi || editItem.lokasiSurvey || defaultLoc,
         nilai: editItem.nilai || editItem.tarifDasar || defaultRate,
@@ -115,6 +116,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
       setFormData({
         suratId: defaultSurat?.id || '',
         tglLapor: defaultSurat?.tglMulai || todayDate,
+        tanggalBuat: todayDate,
         namaKapal: defaultSurat?.namaKapal || '',
         lokasi: defaultSurat?.lokasi || defaultLoc,
         nilai: defaultSurat?.jumlahEstimasi || defaultSurat?.tarifDasar || defaultRate,
@@ -476,17 +478,37 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                 {/* Baris 1: TANGGAL, NAMA KAPAL, LOKASI SURVEY */}
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                      <Calendar size={14} color="var(--accent-primary)" />
-                      <span>2. TANGGAL *</span>
+                    <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.35rem' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                        <Calendar size={14} color="var(--accent-primary)" />
+                        <span>2. TANGGAL *</span>
+                      </span>
+                      <span style={{ fontSize: '0.68rem', color: '#059669', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '2px', background: '#ecfdf5', padding: '1px 6px', borderRadius: '4px', border: '1px solid #a7f3d0' }}>
+                        <Lock size={10} />
+                        Terkunci Tanggal Survei
+                      </span>
                     </label>
                     <input
                       type="date"
                       className="form-input"
                       value={formData.tglLapor}
-                      onChange={(e) => setFormData({ ...formData, tglLapor: e.target.value })}
+                      readOnly
+                      style={{
+                        background: '#f8fafc',
+                        cursor: 'not-allowed',
+                        fontWeight: 700,
+                        color: 'var(--text-primary)',
+                        border: '1.5px solid #cbd5e1'
+                      }}
+                      title="Tanggal terkunci mengikuti tanggal pelaksanaan survei"
                       required
                     />
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                      <span>Tgl Pembuatan:</span>
+                      <strong style={{ color: 'var(--text-secondary)' }}>
+                        {formatDateIndo(formData.tanggalBuat || new Date().toISOString().split('T')[0])}
+                      </strong>
+                    </div>
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>

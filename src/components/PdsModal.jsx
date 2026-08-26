@@ -244,7 +244,12 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         status: editItem.status || 'Berjalan',
         catatan: editItem.catatan || '',
         visit: editItem.visit || '1',
-        tembusan: editItem.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
+        tembusan: editItem.tembusan || '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026',
+        isSmc: !!editItem.isSmc,
+        noSuratSmc: editItem.noSuratSmc || '1857/KU.604/KI-21',
+        noSap: editItem.noSap || '',
+        jumlahPendamping: editItem.jumlahPendamping !== undefined ? Number(editItem.jumlahPendamping) : 2,
+        tarifExpertise: editItem.tarifExpertise !== undefined ? Number(editItem.tarifExpertise) : 1500000
       });
     } else {
       const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
@@ -303,7 +308,12 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         status: 'Berjalan',
         catatan: '',
         visit: '1',
-        tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026'
+        tembusan: '1. Yth. Kepala Divisi keuangan\nC:/surat tugas kacab/~srt/2026',
+        isSmc: false,
+        noSuratSmc: '1857/KU.604/KI-21',
+        noSap: '',
+        jumlahPendamping: 2,
+        tarifExpertise: 1500000
       });
     }
   }, [editItem, isOpen, defaultLocation, defaultRate, currentUser, surveyorUsers, adminSettings]);
@@ -699,11 +709,15 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     const tat = formData.tanpaTAT ? 0 : Number(formData.biayaTAT || (isLuarKota ? (adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(formData.tarifDasar) || 0;
 
+    const biayaExpertise = formData.isSmc
+      ? (Number(formData.jumlahPendamping !== undefined ? formData.jumlahPendamping : 2) * Number(formData.tarifExpertise !== undefined ? formData.tarifExpertise : 1500000))
+      : (Number(formData.biayaExpertise) || 0);
+
     let totalBiaya = 0;
     if (isLuarKota) {
-      totalBiaya = tiketTransport + tat + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+      totalBiaya = tiketTransport + tat + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
     } else {
-      totalBiaya = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+      totalBiaya = rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
     }
 
     return {
@@ -717,6 +731,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       tiketTransport,
       tat,
       rateSK,
+      biayaExpertise,
       totalBiaya
     };
   }, [formData, totalDays, totalNights, gradeTariffs, adminSettings]);
@@ -902,6 +917,12 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       docType: 'PDS',
       isPds: true,
       jumlahEstimasi: calculations.totalBiaya,
+      isSmc: !!formData.isSmc,
+      noSuratSmc: formData.isSmc ? (formData.noSuratSmc || '1857/KU.604/KI-21') : '',
+      noSap: formData.noSap || '',
+      jumlahPendamping: formData.isSmc ? (Number(formData.jumlahPendamping) || 2) : 0,
+      tarifExpertise: formData.isSmc ? (Number(formData.tarifExpertise) || 1500000) : 0,
+      biayaExpertise: calculations.biayaExpertise || 0,
       tiketPesawatTaxi: totalTiketCalc,
       tiketHotel: (formData.rincianHotel && formData.rincianHotel.length > 0 && totalNights > 0) ? Math.round(totalHotelCalc / totalNights) : (Number(formData.tiketHotel) || 0),
       totalBiayaHotel: totalHotelCalc,
@@ -1096,6 +1117,168 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     style={{ background: 'var(--bg-main)', color: 'var(--text-secondary)' }}
                   />
                 </div>
+              </div>
+
+              {/* Section Quick Preset: Tombol Isi SMC / Statutory (Flag State Expertise) */}
+              <div
+                style={{
+                  background: formData.isSmc ? 'linear-gradient(135deg, #ecfdf5 0%, #f0fdf4 100%)' : '#f8fafc',
+                  border: formData.isSmc ? '1.5px solid #10b981' : '1px dashed #cbd5e1',
+                  borderRadius: 'var(--radius-md)',
+                  padding: '0.85rem 1rem',
+                  marginBottom: '1.25rem',
+                  transition: 'all 0.2s ease'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.65rem' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap' }}>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const newSmc = !formData.isSmc;
+                        setFormData((prev) => ({
+                          ...prev,
+                          isSmc: newSmc,
+                          perihal: newSmc ? 'AUDIT SMC / STATUTORY NON KONVENSI' : prev.perihal,
+                          jenisSurvey: newSmc ? 'AUDIT SMC / STATUTORY NON KONVENSI' : prev.jenisSurvey,
+                          noSap: newSmc ? '' : prev.noSap,
+                          jumlahPendamping: newSmc ? 2 : (prev.jumlahPendamping || 2),
+                          tarifExpertise: 1500000
+                        }));
+                        if (newSmc) {
+                          toast.success('Mode Audit SMC & Expertise Pendamping Syahbandar Aktif');
+                        }
+                      }}
+                      className="btn btn-sm"
+                      style={{
+                        background: formData.isSmc ? '#059669' : '#ffffff',
+                        color: formData.isSmc ? '#ffffff' : '#059669',
+                        border: '1.5px solid #059669',
+                        fontWeight: 800,
+                        fontSize: '0.78rem',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.4rem',
+                        padding: '0.35rem 0.75rem',
+                        borderRadius: '6px',
+                        boxShadow: formData.isSmc ? '0 2px 8px rgba(5, 150, 105, 0.25)' : 'none'
+                      }}
+                    >
+                      <Ship size={15} />
+                      <span>{formData.isSmc ? '✓ Mode Audit SMC Aktif' : '+ Isi SMC (Audit Statutory)'}</span>
+                    </button>
+
+                    <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      {formData.isSmc
+                        ? 'Form disesuaikan untuk Tanda Terima Expertise Petugas Flag State / Syahbandar.'
+                        : 'Klik untuk mengisi data SMC & Expertise Pendamping Syahbandar.'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Form Rincian SMC jika Aktif */}
+                {formData.isSmc && (
+                  <div
+                    style={{
+                      marginTop: '0.85rem',
+                      paddingTop: '0.85rem',
+                      borderTop: '1px dashed #6ee7b7',
+                      display: 'grid',
+                      gridTemplateColumns: '1.4fr 1.1fr 1fr 1.2fr 1.3fr',
+                      gap: '0.75rem',
+                      alignItems: 'flex-end'
+                    }}
+                  >
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: '0.76rem' }}>
+                        No. Dasar Surat SMC
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Contoh: 1857/KU.604/KI-21"
+                        value={formData.noSuratSmc || ''}
+                        onChange={(e) => setFormData({ ...formData, noSuratSmc: e.target.value })}
+                        style={{ fontWeight: 700, height: '32px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: '0.76rem' }}>
+                        No. SAP (Bisa Diisi Manual)
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        placeholder="Contoh: 5100010"
+                        value={formData.noSap || ''}
+                        onChange={(e) => setFormData({ ...formData, noSap: e.target.value })}
+                        style={{ fontWeight: 700, height: '32px', fontSize: '0.82rem' }}
+                      />
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: '0.76rem' }}>
+                        Jml Pendamping
+                      </label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <input
+                          type="number"
+                          min="1"
+                          max="15"
+                          className="form-input"
+                          value={formData.jumlahPendamping !== undefined ? formData.jumlahPendamping : 2}
+                          onChange={(e) => setFormData({ ...formData, jumlahPendamping: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                          style={{ fontWeight: 800, textAlign: 'center', height: '32px', fontSize: '0.85rem', color: '#047857' }}
+                        />
+                        <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-muted)' }}>Org</span>
+                      </div>
+                    </div>
+
+                    <div className="form-group" style={{ margin: 0 }}>
+                      <label className="form-label" style={{ fontWeight: 700, fontSize: '0.76rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                        <Lock size={11} color="#047857" />
+                        <span>Tarif (Terkunci)</span>
+                      </label>
+                      <input
+                        type="text"
+                        className="form-input"
+                        value="Rp 1.500.000 / org"
+                        readOnly
+                        style={{
+                          fontWeight: 800,
+                          height: '32px',
+                          fontSize: '0.82rem',
+                          color: '#047857',
+                          background: '#f8fafc',
+                          cursor: 'not-allowed',
+                          border: '1px solid #cbd5e1'
+                        }}
+                      />
+                    </div>
+
+                    <div
+                      style={{
+                        background: '#ffffff',
+                        padding: '0.4rem 0.65rem',
+                        borderRadius: '6px',
+                        border: '1px solid #a7f3d0',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        justifyContent: 'center',
+                        height: '32px',
+                        boxSizing: 'border-box'
+                      }}
+                    >
+                      <span style={{ fontSize: '0.65rem', color: '#047857', fontWeight: 700 }}>
+                        Total ({formData.jumlahPendamping || 2} x 1,5 jt):
+                      </span>
+                      <strong style={{ fontSize: '0.85rem', color: '#047857' }}>
+                        {formatRupiah((Number(formData.jumlahPendamping) || 2) * 1500000)}
+                      </strong>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Section 2: Dropbox Pemilihan Kapal dari SPS yang Ditugaskan Admin */}
@@ -2278,6 +2461,21 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                       </div>
                     )}
                   </div>
+
+                  {/* Row 5: Biaya Expertise Flag State (SMC) jika Aktif */}
+                  {(formData.isSmc || calculations.biayaExpertise > 0) && (
+                    <div>
+                      <div style={{ fontSize: '0.8rem', color: '#047857', marginBottom: '0.2rem', fontWeight: 700 }}>
+                        Biaya Expertise Flag State (SMC):
+                      </div>
+                      <div style={{ fontWeight: 800, fontSize: '1.05rem', color: '#047857' }}>
+                        {formatRupiah(calculations.biayaExpertise)}
+                      </div>
+                      <div style={{ fontSize: '0.7rem', color: '#059669', fontWeight: 600, marginTop: '0.2rem' }}>
+                        *{formData.jumlahPendamping || 2} Pendamping x Rp 1.500.000
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Dotted Divider & Total */}

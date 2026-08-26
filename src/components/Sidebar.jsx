@@ -6,7 +6,7 @@ import { filterDataByRole } from '../utils/filterData';
 import { BKILogo } from './BKILogo';
 
 export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobileMenuOpen }) => {
-  const { suratTugas, kwitansiHonor, laporanSurvei, tariffs } = useData();
+  const { suratTugas, kwitansiHonor, laporanSurvei, tariffs, visitSurvei = [] } = useData();
   const { currentUser, role, usersList, logout } = useAuth();
   
   const [expandedMenus, setExpandedMenus] = useState({ surat: true, laporan: true });
@@ -24,6 +24,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
 
   const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS' && !st.isPds).length;
   const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
+  const visitCount = (visitSurvei || []).filter((v) => v.status !== 'Selesai').length;
   
   // Laporan Paraf Terkirim count (SPS visit 1 yang terkirim)
   const parafCount = filteredSurat.filter((item) => {
@@ -60,6 +61,15 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
       id: 'surat_pds',
       label: 'PDS',
       badge: pdsCount
+    });
+  }
+
+  if (!isFinance) {
+    suratSubItems.push({
+      id: 'visit_survei',
+      label: 'Visit Survei',
+      badge: visitCount > 0 ? visitCount : null,
+      badgeColor: '#0284c7'
     });
   }
 
@@ -146,7 +156,7 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
     badge: null
   });
 
-  if (role === 'admin' || role === 'developer') {
+  if (role === 'admin' || role === 'developer' || role === 'kacab') {
     menuItems.push({
       id: 'tv-display',
       label: 'Layar Monitor (TV)',

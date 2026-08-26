@@ -20,7 +20,6 @@ import SearchableLocationSelect from './SearchableLocationSelect';
 import { getLocationCategory } from '../utils/tariffData';
 import { MASTER_COMPANIES } from '../data/defaultMasterKapal';
 
-
 export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
   const { addSpsBatch, updateSuratTugas, suratTugas, laporanSurvei, tariffs, masterKapal } = useData();
   const { usersList, currentUser, role } = useAuth();

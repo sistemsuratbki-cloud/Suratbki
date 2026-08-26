@@ -77,10 +77,14 @@ export const BukuAgendaPrintModal = ({
           : (isLuarKota ? Number(adminSettings?.tatLuarKota || 750000) : 0));
     const rateSK = Number(item.tarifDasar) || 0;
 
+    const biayaExpertise = item.isSmc
+      ? ((Number(item.jumlahPendamping) || 2) * (Number(item.tarifExpertise) || 1500000))
+      : (Number(item.biayaExpertise) || 0);
+
     if (isLuarKota) {
-      return tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+      return tiketPesawatTaxi + biayaTAT + rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
     } else {
-      return rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal;
+      return rateSK + uangHarianTotal + uangHotelTotal + hrLbrTotal + biayaExpertise;
     }
   };
 

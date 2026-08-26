@@ -211,10 +211,10 @@ export const LaporanTable = () => {
     ? `TAHUN ${selectedYear}`
     : `BULAN ${monthNames.find(m => m.value === selectedMonth)?.label?.toUpperCase() || 'MEI'} ${selectedYear}`;
 
-  // Helper untuk mendapatkan tanggal item secara konsisten
+  // Helper untuk mendapatkan tanggal item secara konsisten mengikuti tanggal survei (tglMulai)
   const getItemDate = (item) => {
     if (!item) return '';
-    return item.tglLapor || item.tanggal || item.tglMulai || item.tglSelesai || item.createdAt || '';
+    return item.tglMulai || item.tglSurvey || item.originalItem?.tglMulai || item.tglLapor || item.tanggal || item.tglSelesai || item.createdAt || '';
   };
 
   // Filter & Sort Data
@@ -464,8 +464,8 @@ export const LaporanTable = () => {
       : flattenedData;
 
     return targetData.map((item, index) => {
-      // Item sudah PDS langsung
-      const dateVal = item.tglLapor || item.tanggal || item.tglMulai || '';
+      // Item sudah PDS langsung - utamakan tanggal pelaksanaan survei
+      const dateVal = item.tglMulai || item.tglSurvey || item.originalItem?.tglMulai || item.tglLapor || item.tanggal || '';
       const dateFormatted = dateVal ? formatDateIndo(dateVal) : '-';
       const vesselName = (item.namaKapal || '-').toUpperCase();
       const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || '-';
@@ -1375,7 +1375,7 @@ export const LaporanTable = () => {
                 // Item sudah PDS langsung, tidak perlu linkedSurat
                 const rowKey = item._flatKey || item.id || `row-${index}`;
                 const isSelected = selectedRowKeys.includes(rowKey);
-                const dateVal = item.tglLapor || item.tanggal || item.tglMulai;
+                const dateVal = item.tglMulai || item.tglSurvey || item.originalItem?.tglMulai || item.tglLapor || item.tanggal;
                 const vesselName = item.namaKapal || '-';
                 const lokasi = item.lokasi || item.lokasiSurvey || item.tempatSurvey || '-';
                 const nilaiNum = Number(item.nilai) || Number(item.jumlahEstimasi) || 0;
@@ -1401,7 +1401,21 @@ export const LaporanTable = () => {
                       {index + 1}
                     </td>
                     <td style={{ textAlign: 'center', whiteSpace: 'nowrap' }}>
-                      {formatDateIndo(dateVal)}
+                      <div style={{ fontWeight: 700, color: 'var(--text-primary)' }}>
+                        {formatDateIndo(dateVal)}
+                      </div>
+                      {(() => {
+                        const tglBuat = item.tanggalBuat || item.tglLapor || item.createdAt?.split('T')[0] || item.created_at?.split('T')[0];
+                        if (tglBuat) {
+                          return (
+                            <div style={{ fontSize: '0.68rem', color: 'var(--text-muted)', marginTop: '2px', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '3px' }} title="Tanggal Pembuatan / Diterbitkan">
+                              <span style={{ opacity: 0.8 }}>Dibuat:</span>
+                              <span style={{ fontWeight: 600 }}>{formatDateIndo(tglBuat)}</span>
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
                     </td>
                     <td>
                       <div style={{ fontWeight: 800, color: 'var(--text-primary)', textTransform: 'uppercase' }}>
@@ -1457,53 +1471,6 @@ export const LaporanTable = () => {
                             <Trash2 size={14} />
                           </button>
                         )}
-
-                        {(() => {
-                          const targetItem = item.originalItem || item;
-                          const photos = (Array.isArray(targetItem.fotoList) && targetItem.fotoList.length > 0)
-                            ? targetItem.fotoList
-                            : (targetItem.fileFotoData || targetItem.fileFotoName)
-                              ? (targetItem.fileFotoName || '').split(',').map((name, i) => ({
-                                  name: name.trim(),
-                                  data: (targetItem.fileFotoData || '').split('|||')[i] || targetItem.fileFotoData || ''
-                                })).filter(p => p.name || p.data)
-                              : [];
-
-                          if (photos.length === 0) return null;
-
-                          return (
-                            <button
-                              type="button"
-                              onClick={() => setViewPhotosItem({ ...targetItem, parsedPhotos: photos })}
-                              className="btn btn-secondary btn-icon btn-sm"
-                              title={`Lihat / Unduh ${photos.length} Foto Dokumentasi`}
-                              style={{ borderColor: '#0284c7', color: '#0284c7', position: 'relative' }}
-                            >
-                              <Camera size={14} />
-                              {photos.length > 1 && (
-                                <span
-                                  style={{
-                                    position: 'absolute',
-                                    top: '-4px',
-                                    right: '-4px',
-                                    background: '#0284c7',
-                                    color: '#ffffff',
-                                    fontSize: '0.6rem',
-                                    fontWeight: 800,
-                                    width: '14px',
-                                    height: '14px',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center'
-                                  }}
-                                >
-                                  {photos.length}
-                                </span>
-                              )}
-                            </button>
-                          );
-                        })()}
                       </div>
                     </td>
                   </tr>

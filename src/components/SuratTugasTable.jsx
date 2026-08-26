@@ -25,7 +25,8 @@ import {
   MessageSquare,
   AlertTriangle,
   Send,
-  CheckCheck
+  CheckCheck,
+  Ship
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
@@ -38,6 +39,7 @@ import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
+import { TandaTerimaSmcPrintModal } from './TandaTerimaSmcPrintModal';
 import { ConfirmModal } from './ConfirmModal';
 import { exportBiayaPerjalananDinas } from '../utils/exportExcelBiaya';
 
@@ -73,8 +75,10 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [isPdsPrintModalOpen, setIsPdsPrintModalOpen] = useState(false);
   const [isParafModalOpen, setIsParafModalOpen] = useState(false);
   const [isBiayaPrintModalOpen, setIsBiayaPrintModalOpen] = useState(false);
+  const [isSmcPrintModalOpen, setIsSmcPrintModalOpen] = useState(false);
   const [selectedPrintItem, setSelectedPrintItem] = useState(null);
   const [selectedParafItem, setSelectedParafItem] = useState(null);
+  const [selectedSmcItem, setSelectedSmcItem] = useState(null);
 
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -1338,6 +1342,19 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                             >
                               <FileText size={15} />
                             </button>
+                            {(item.isSmc || (item.perihal || '').toUpperCase().includes('SMC') || (item.jenisSurvey || '').toUpperCase().includes('SMC')) && (
+                              <button
+                                className="btn btn-secondary btn-icon btn-sm"
+                                onClick={() => {
+                                  setSelectedSmcItem(item);
+                                  setIsSmcPrintModalOpen(true);
+                                }}
+                                title="Download / Cetak PDF Tanda Terima Expertise Flag State (SMC)"
+                                style={{ background: '#059669', color: '#ffffff', borderColor: '#059669' }}
+                              >
+                                <Ship size={15} />
+                              </button>
+                            )}
                           </>
                         )}
 
@@ -1426,6 +1443,12 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         isOpen={isBiayaPrintModalOpen}
         onClose={() => setIsBiayaPrintModalOpen(false)}
         suratTugas={selectedPrintItem}
+      />
+
+      <TandaTerimaSmcPrintModal
+        isOpen={isSmcPrintModalOpen}
+        onClose={() => setIsSmcPrintModalOpen(false)}
+        suratTugas={selectedSmcItem}
       />
 
       <LampiranParafPrintModal
@@ -1521,6 +1544,15 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
           </div>
         </div>
       )}
+      {/* Modal Cetak Tanda Terima SMC */}
+      <TandaTerimaSmcPrintModal
+        isOpen={isSmcPrintModalOpen}
+        onClose={() => {
+          setIsSmcPrintModalOpen(false);
+          setSelectedSmcItem(null);
+        }}
+        suratTugas={selectedSmcItem}
+      />
     </div>
   );
 };

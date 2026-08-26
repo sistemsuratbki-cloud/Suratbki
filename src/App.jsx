@@ -18,6 +18,7 @@ import { SettingsTab } from './components/SettingsTab';
 import { LoginScreen } from './components/LoginScreen';
 import { TvDisplay } from './components/TvDisplay';
 import { ShipDatabaseManagementTable } from './components/ShipDatabaseManagementTable';
+import { VisitSurveiTable } from './components/VisitSurveiTable';
 
 function AppContent() {
   const { isAuthenticated, role, logout, usersList } = useAuth();
@@ -56,8 +57,9 @@ function AppContent() {
     return <LoginScreen />;
   }
 
-  // Force TV Display mode for monitor role
-  if (role === 'monitor' || activeTab === 'tv-display') {
+  // Layar Monitor TV hanya dapat diakses oleh Kepala Cabang, Admin, Developer, dan Akun Monitor
+  const canAccessMonitor = role === 'admin' || role === 'kacab' || role === 'developer' || role === 'monitor';
+  if (role === 'monitor' || (activeTab === 'tv-display' && canAccessMonitor)) {
     return <TvDisplay onClose={role === 'monitor' ? logout : () => setActiveTab(isFinance ? 'laporan_pds' : 'calendar')} isMonitorRole={role === 'monitor'} />;
   }
 
@@ -113,6 +115,7 @@ function AppContent() {
 
           {activeTab === 'surat_sps' && !isFinance && <SuratTugasTable filterType="SPS" />}
           {activeTab === 'surat_pds' && !isFinance && <SuratTugasTable filterType="PDS" />}
+          {activeTab === 'visit_survei' && !isFinance && <VisitSurveiTable onOpenMonitor={() => setActiveTab('tv-display')} />}
           {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}
           {activeTab === 'laporan_paraf' && <LaporanParafTable />}
           {activeTab === 'buku_agenda' && <BukuAgendaTable />}
