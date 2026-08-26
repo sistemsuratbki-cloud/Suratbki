@@ -19,15 +19,21 @@ export function getGoogleDriveConfig() {
   try {
     const saved = localStorage.getItem(STORAGE_KEY_GDRIVE_CONFIG);
     if (saved) {
-      return JSON.parse(saved);
+      const parsed = JSON.parse(saved);
+      return {
+        enabled: parsed.enabled ?? true,
+        webAppUrl: parsed.webAppUrl || 'https://script.google.com/macros/s/AKfycbw8MtPCK1zTcIBexpB8PuRn6mihrpV8PHQbMtEL61FONUH-edgHGh9XlgmEpCwYTw4C/exec',
+        rootFolder: parsed.rootFolder || 'BKI_DOKUMEN_SURAT',
+        autoMigrate: parsed.autoMigrate || false
+      };
     }
   } catch (e) {
     console.warn('Error reading gdrive config:', e);
   }
 
   return {
-    enabled: false,
-    webAppUrl: '',
+    enabled: true,
+    webAppUrl: 'https://script.google.com/macros/s/AKfycbw8MtPCK1zTcIBexpB8PuRn6mihrpV8PHQbMtEL61FONUH-edgHGh9XlgmEpCwYTw4C/exec',
     rootFolder: 'BKI_DOKUMEN_SURAT',
     autoMigrate: false
   };
