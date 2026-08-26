@@ -605,8 +605,9 @@ export const BiayaPdsPrintModal = ({
                           maxWidth: '250px',
                           width: 'auto',
                           objectFit: 'contain',
-                          transform: 'scale(1.35)',
-                          transformOrigin: 'center'
+                          transform: 'scale(2.2)',
+                          transformOrigin: 'center',
+                          filter: 'contrast(1.15)'
                         }}
                         onError={(e) => { e.target.style.display = 'none'; }}
                       />
