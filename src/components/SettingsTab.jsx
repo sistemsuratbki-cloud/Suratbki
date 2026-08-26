@@ -913,26 +913,45 @@ export const SettingsTab = () => {
             {gdriveTestResult && (
               <div
                 style={{
-                  padding: '0.75rem 1rem',
-                  borderRadius: '6px',
-                  fontSize: '0.8rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
                   display: 'flex',
-                  alignItems: 'center',
+                  flexDirection: 'column',
                   gap: '0.5rem',
                   background: gdriveTestResult.success ? '#ecfdf5' : '#fef2f2',
                   border: `1px solid ${gdriveTestResult.success ? '#a7f3d0' : '#fecaca'}`,
                   color: gdriveTestResult.success ? '#065f46' : '#991b1b'
                 }}
               >
-                {gdriveTestResult.success ? <CheckCircle2 size={16} color="#059669" /> : <AlertCircle size={16} color="#dc2626" />}
-                <div style={{ flex: 1 }}>
-                  <strong>{gdriveTestResult.success ? 'Koneksi Berhasil!' : 'Koneksi Gagal'}</strong> — {gdriveTestResult.message}
-                  {gdriveTestResult.latencyMs && (
-                    <span style={{ fontSize: '0.72rem', opacity: 0.8, marginLeft: '0.4rem' }}>
-                      ({gdriveTestResult.latencyMs} ms)
-                    </span>
-                  )}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {gdriveTestResult.success ? <CheckCircle2 size={18} color="#059669" /> : <AlertCircle size={18} color="#dc2626" />}
+                  <div style={{ flex: 1 }}>
+                    <strong>{gdriveTestResult.success ? 'Koneksi Berhasil!' : 'Koneksi Gagal'}</strong>
+                    {gdriveTestResult.latencyMs && (
+                      <span style={{ fontSize: '0.72rem', opacity: 0.8, marginLeft: '0.4rem' }}>
+                        ({gdriveTestResult.latencyMs} ms)
+                      </span>
+                    )}
+                  </div>
                 </div>
+
+                <div style={{ fontSize: '0.78rem', whiteSpace: 'pre-line', lineHeight: '1.45', paddingLeft: '1.6rem' }}>
+                  {gdriveTestResult.message}
+                </div>
+
+                {!gdriveTestResult.success && gdriveConfig.webAppUrl && (
+                  <div style={{ paddingLeft: '1.6rem', marginTop: '0.25rem', display: 'flex', gap: '0.5rem' }}>
+                    <button
+                      type="button"
+                      onClick={() => window.open(gdriveConfig.webAppUrl, '_blank')}
+                      className="btn btn-secondary btn-sm"
+                      style={{ fontSize: '0.74rem', padding: '0.25rem 0.65rem', display: 'inline-flex', alignItems: 'center', gap: '0.3rem', borderColor: '#fca5a5', color: '#991b1b' }}
+                    >
+                      <ExternalLink size={12} /> Buka URL Script di Tab Baru
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 

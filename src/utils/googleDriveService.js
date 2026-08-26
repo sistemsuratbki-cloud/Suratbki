@@ -71,7 +71,9 @@ export function fileToBase64(file) {
  */
 export function testGoogleDriveConnection(webAppUrl) {
   return new Promise(async (resolve, reject) => {
-    const url = (webAppUrl || getGoogleDriveConfig().webAppUrl || '').trim();
+    let url = (webAppUrl || getGoogleDriveConfig().webAppUrl || '').trim();
+    url = url.replace(/[\r\n\t]/g, '').trim();
+
     if (!url) {
       return reject(new Error('URL Google Apps Script Web App belum diisi'));
     }
@@ -90,8 +92,36 @@ export function testGoogleDriveConnection(webAppUrl) {
 
     const startTime = Date.now();
 
+    // Strategy 1: GET Ping Test (Most compatible with Google Apps Script CORS)
     try {
-      const response = await fetch(url, {
+      const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping&t=' + Date.now();
+      const getRes = await fetch(getUrl, {
+        method: 'GET',
+        redirect: 'follow'
+      });
+
+      const getText = await getRes.text();
+      let getData;
+      try {
+        getData = JSON.parse(getText);
+      } catch (e) {}
+
+      if (getData && getData.success) {
+        const latencyMs = Date.now() - startTime;
+        return resolve({
+          success: true,
+          message: getData.message || 'Koneksi ke Google Drive aktif!',
+          latencyMs,
+          userEmail: getData.userEmail || 'Akun Google'
+        });
+      }
+    } catch (getErr) {
+      console.warn('GET ping strategy fallback:', getErr);
+    }
+
+    // Strategy 2: POST Ping Test with text/plain
+    try {
+      const postRes = await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'text/plain;charset=utf-8'
@@ -100,7 +130,7 @@ export function testGoogleDriveConnection(webAppUrl) {
         redirect: 'follow'
       });
 
-      const text = await response.text();
+      const text = await postRes.text();
       let data;
       try {
         data = JSON.parse(text);
@@ -114,14 +144,14 @@ export function testGoogleDriveConnection(webAppUrl) {
       const latencyMs = Date.now() - startTime;
 
       if (data && data.success) {
-        resolve({
+        return resolve({
           success: true,
           message: data.message || 'Koneksi ke Google Drive aktif!',
           latencyMs,
           userEmail: data.userEmail || 'Akun Google'
         });
       } else {
-        reject(new Error(data?.message || 'Respon Google Drive tidak sesuai'));
+        return reject(new Error(data?.message || 'Respon Google Drive tidak sesuai format'));
       }
     } catch (err) {
       console.error('Google Drive ping failed:', err);
