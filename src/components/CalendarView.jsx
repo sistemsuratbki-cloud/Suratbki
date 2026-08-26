@@ -272,7 +272,7 @@ export const CalendarView = ({ surveyorFilter }) => {
 
               <div className="calendar-chips-wrapper">
                 {stList.map((st) => {
-                  const isAcc = st.approvalStatus === 'ACC' || (st.status === 'Selesai' && st.approvalStatus !== 'Revisi');
+                  const isAcc = st.approvalStatus === 'ACC';
                   const isRevisi = st.approvalStatus === 'Revisi';
                   const portShort = st.lokasi ? st.lokasi.split(',')[0] : 'Pelabuhan';
                   const startDateStr = st.tglMulai ? st.tglMulai.split('-').slice(1).join('/') : '';

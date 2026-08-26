@@ -125,7 +125,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
   // ACC / Revisi Handlers
   const handleToggleAccPds = (item) => {
-    const isCurrentlyAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+    const isCurrentlyAcc = item.approvalStatus === 'ACC';
     if (isCurrentlyAcc) {
       updateSuratTugas(item.id, {
         approvalStatus: 'Menunggu',
@@ -238,7 +238,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     let revisi = 0;
 
     pdsList.forEach(item => {
-      const isAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+      const isAcc = item.approvalStatus === 'ACC';
       const isRev = item.approvalStatus === 'Revisi';
       if (isAcc) acc++;
       else if (isRev) revisi++;
@@ -303,7 +303,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         const isPds = item.docType === 'PDS' || item.isPds || (item.status !== 'Menunggu Survei' && !item.isSps);
         if (!isPds) return false;
 
-        const isAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+        const isAcc = item.approvalStatus === 'ACC';
         const isRev = item.approvalStatus === 'Revisi';
 
         // PDS Status Switcher Tab Filter
