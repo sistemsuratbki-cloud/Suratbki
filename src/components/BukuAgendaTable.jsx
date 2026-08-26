@@ -1012,27 +1012,6 @@ export const BukuAgendaTable = () => {
 
           <button
             className="btn btn-secondary btn-sm"
-            onClick={() => {
-              const smcItem = selectedRowIds.length > 0
-                ? filteredData.find(d => selectedRowIds.includes(d.id) && (d.isSmc || (d.perihal || '').toUpperCase().includes('SMC') || (d.jenisSurvey || '').toUpperCase().includes('SMC') || Number(d.biayaExpertise) > 0)) || filteredData.find(d => selectedRowIds.includes(d.id))
-                : filteredData.find(d => (d.isSmc || (d.perihal || '').toUpperCase().includes('SMC') || (d.jenisSurvey || '').toUpperCase().includes('SMC') || Number(d.biayaExpertise) > 0)) || filteredData[0];
-              
-              if (smcItem) {
-                setSelectedPrintItem(smcItem);
-                setIsSmcPrintModalOpen(true);
-              } else {
-                toast.error('Pilih atau pastikan ada data kegiatan untuk mencetak Tanda Terima SMC');
-              }
-            }}
-            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#047857', color: '#ffffff', borderColor: '#047857', fontWeight: 700 }}
-            title="Cetak Tanda Terima Expertise Petugas Flag State (SMC)"
-          >
-            <Ship size={15} />
-            <span>Cetak SMC</span>
-          </button>
-
-          <button
-            className="btn btn-secondary btn-sm"
             onClick={handleExportExcel}
             style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#059669', color: '#ffffff', borderColor: '#059669' }}
             title={selectedRowIds.length > 0 ? `Export ${selectedRowIds.length} item terpilih ke Excel` : 'Export seluruh Buku Agenda ke format Excel'}
