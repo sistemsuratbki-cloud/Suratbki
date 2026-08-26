@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
-import { Sun, Moon, RotateCcw, LogOut, User, Menu } from 'lucide-react';
+import { Sun, Moon, RotateCcw, LogOut, User, Menu, Monitor } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { ConfirmModal } from './ConfirmModal';
 import { BKILogo } from './BKILogo';
 
-export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
+export const Header = ({ theme, setTheme, setIsMobileMenuOpen, setActiveTab }) => {
   const { resetData } = useData();
   const { currentUser, logout } = useAuth();
   const [isResetConfirmOpen, setIsResetConfirmOpen] = useState(false);
@@ -57,6 +57,18 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen }) => {
       </div>
 
       <div className="header-right">
+        {(currentUser?.role === 'developer' || currentUser?.role === 'admin' || currentUser?.role === 'kacab') && (
+          <button
+            onClick={() => setActiveTab && setActiveTab('tv-display')}
+            className="btn btn-primary btn-sm"
+            title="Buka Layar Monitor Kegiatan Survei"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+          >
+            <Monitor size={14} />
+            <span>Monitor Survei</span>
+          </button>
+        )}
+
         {(currentUser?.role === 'developer' || currentUser?.role === 'admin' || currentUser?.role === 'kacab') && (
           <button
             onClick={() => setIsResetConfirmOpen(true)}

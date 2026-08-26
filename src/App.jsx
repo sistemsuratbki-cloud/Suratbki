@@ -82,6 +82,7 @@ function AppContent() {
           theme={theme} 
           setTheme={setTheme} 
           setIsMobileMenuOpen={setIsMobileMenuOpen}
+          setActiveTab={setActiveTab}
         />
 
         <main className="main-content-v2">
@@ -103,7 +104,7 @@ function AppContent() {
                   </select>
                 </div>
               )}
-              <SummaryCards surveyorFilter={dashboardSurveyorFilter} />
+              <SummaryCards surveyorFilter={dashboardSurveyorFilter} onOpenMonitor={() => setActiveTab('tv-display')} />
               <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                 <CalendarView surveyorFilter={dashboardSurveyorFilter} />
               </div>

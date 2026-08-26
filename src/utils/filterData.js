@@ -1,9 +1,9 @@
 export const filterDataByRole = (list = [], currentUser = null, role = null, fieldName = 'petugas') => {
-  if (!role || role === 'admin' || role === 'developer' || role === 'kacab' || role === 'keuangan') {
-    return list; // Full visibility for Admin, Kacab, and Keuangan
+  if (!role || role === 'admin' || role === 'developer' || role === 'keuangan') {
+    return list; // Full visibility for Admin, Developer, and Keuangan
   }
 
-  if (role === 'surveyor' && currentUser && currentUser.name) {
+  if ((role === 'surveyor' || role === 'kacab') && currentUser && currentUser.name) {
     const surveyorFullName = currentUser.name.toLowerCase();
     const surveyorFirstName = surveyorFullName.split(' ')[0].toLowerCase();
 
