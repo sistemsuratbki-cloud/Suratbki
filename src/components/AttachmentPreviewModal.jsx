@@ -490,18 +490,58 @@ export const AttachmentPreviewModal = ({
 
   if (!isOpen) return null;
 
-  const handleDownload = () => {
+  const handleDownload = async () => {
     if (gdriveId) {
       window.open(`https://drive.google.com/uc?export=download&id=${gdriveId}`, '_blank');
       return;
     }
     if (hasBase64OrUrl) {
-      const a = document.createElement('a');
-      a.href = blobUrl || rawFile;
-      a.download = displayName.includes('.') ? displayName : `${displayName}.${isPdf ? 'pdf' : 'png'}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
+      try {
+        let dlUrl = rawFile;
+        let shouldRevoke = false;
+
+        if (rawFile.startsWith('data:')) {
+          const parts = rawFile.split(',');
+          const mimeMatch = (parts[0] || '').match(/:(.*?);/);
+          const mime = (mimeMatch && mimeMatch[1]) || (isPdf ? 'application/pdf' : 'image/png');
+          const bstr = atob(parts[1] || parts[0]);
+          let n = bstr.length;
+          const u8arr = new Uint8Array(n);
+          while (n--) {
+            u8arr[n] = bstr.charCodeAt(n);
+          }
+          const blob = new Blob([u8arr], { type: mime });
+          dlUrl = URL.createObjectURL(blob);
+          shouldRevoke = true;
+        } else if (rawFile.startsWith('http://') || rawFile.startsWith('https://')) {
+          try {
+            const res = await fetch(rawFile);
+            if (res.ok) {
+              const blob = await res.blob();
+              dlUrl = URL.createObjectURL(blob);
+              shouldRevoke = true;
+            }
+          } catch (fetchErr) {
+            // If CORS restricts fetch, use rawFile URL directly
+          }
+        }
+
+        const a = document.createElement('a');
+        a.href = dlUrl;
+        const ext = isPdf ? 'pdf' : (isImage ? 'png' : 'bin');
+        const finalName = displayName.includes('.') ? displayName : `${displayName}.${ext}`;
+        a.download = finalName;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        if (shouldRevoke) {
+          setTimeout(() => URL.revokeObjectURL(dlUrl), 8000);
+        }
+      } catch (err) {
+        console.error('Download error:', err);
+        toast.error('Gagal mengunduh file');
+      }
     }
   };
 
@@ -511,8 +551,32 @@ export const AttachmentPreviewModal = ({
       return;
     }
     if (hasBase64OrUrl) {
-      const targetUrl = rawFile.startsWith('http') ? rawFile : (blobUrl || rawFile);
-      window.open(targetUrl, '_blank', 'noopener,noreferrer');
+      if (rawFile.startsWith('http://') || rawFile.startsWith('https://')) {
+        window.open(rawFile, '_blank', 'noopener,noreferrer');
+        return;
+      }
+
+      // Convert Base64 to Blob URL to prevent Chrome from blocking top-level data URL navigation
+      try {
+        const parts = rawFile.split(',');
+        const mimeMatch = (parts[0] || '').match(/:(.*?);/);
+        const mime = (mimeMatch && mimeMatch[1]) || (isPdf ? 'application/pdf' : 'image/png');
+        const bstr = atob(parts[1] || parts[0]);
+        let n = bstr.length;
+        const u8arr = new Uint8Array(n);
+        while (n--) {
+          u8arr[n] = bstr.charCodeAt(n);
+        }
+        const blob = new Blob([u8arr], { type: mime });
+        const blobUrlObj = URL.createObjectURL(blob);
+        const newWin = window.open(blobUrlObj, '_blank');
+        if (!newWin) {
+          handleDownload();
+        }
+      } catch (err) {
+        console.warn('Open external fallback to download:', err);
+        handleDownload();
+      }
     }
   };
 
