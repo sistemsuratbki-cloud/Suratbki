@@ -278,22 +278,53 @@ export const CalendarView = ({ surveyorFilter }) => {
                   const startDateStr = st.tglMulai ? st.tglMulai.split('-').slice(1).join('/') : '';
                   const endDateStr = st.tglSelesai ? st.tglSelesai.split('-').slice(1).join('/') : '';
 
-                  const chipClass = isAcc
-                    ? 'calendar-chip chip-acc'
+                  const chipStyle = isAcc
+                    ? {
+                        background: 'linear-gradient(135deg, #065f46 0%, #047857 100%)',
+                        borderLeft: '4px solid #10b981',
+                        color: '#ffffff',
+                        boxShadow: '0 2px 4px rgba(6, 95, 70, 0.35)',
+                        padding: '0.25rem 0.4rem',
+                        borderRadius: '5px',
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        lineHeight: 1.3
+                      }
                     : isRevisi
-                    ? 'calendar-chip chip-revisi'
-                    : 'calendar-chip chip-pending';
+                    ? {
+                        background: 'linear-gradient(135deg, #881337 0%, #9f1239 100%)',
+                        borderLeft: '4px solid #f43f5e',
+                        color: '#ffffff',
+                        boxShadow: '0 2px 4px rgba(136, 19, 55, 0.35)',
+                        padding: '0.25rem 0.4rem',
+                        borderRadius: '5px',
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        lineHeight: 1.3
+                      }
+                    : {
+                        background: 'linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%)',
+                        borderLeft: '4px solid #f59e0b',
+                        color: '#ffffff',
+                        boxShadow: '0 2px 4px rgba(30, 58, 138, 0.35)',
+                        padding: '0.25rem 0.4rem',
+                        borderRadius: '5px',
+                        fontSize: '0.65rem',
+                        fontWeight: 600,
+                        lineHeight: 1.3
+                      };
 
                   const statusTitle = isAcc
                     ? `[SUDAH DI-ACC ADMIN]\nDisetujui oleh: ${st.approvalBy || 'Admin'}`
                     : isRevisi
                     ? `[PERLU REVISI]\nCatatan: ${st.approvalNote || '-'}`
-                    : '[MENUNGGU ACC ADMIN]';
+                    : '[MENUNGGU ACC ADMIN / BELUM ACC]';
 
                   return (
                     <div
                       key={st.id}
-                      className={chipClass}
+                      className="calendar-chip"
+                      style={chipStyle}
                       title={`🚢 PDS ${statusTitle}\nKapal: ${st.namaKapal || 'KAPAL SURVEY'}\n📍 Lokasi: ${st.lokasi}\n📅 Periode: ${formatDateIndo(st.tglMulai)} s/d ${formatDateIndo(st.tglSelesai)}\n👤 Surveyor: ${st.petugas}`}
                     >
                       <div style={{ fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '0.2rem' }}>
