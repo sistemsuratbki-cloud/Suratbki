@@ -92,34 +92,51 @@ export function testGoogleDriveConnection(webAppUrl) {
 
     const startTime = Date.now();
 
-    // Strategy 1: GET Ping Test (Most compatible with Google Apps Script CORS)
+    // Strategy 1: JSONP Script-tag Ping (Bypasses all CORS preflights and 302 echo redirect blocks)
     try {
-      const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping&t=' + Date.now();
-      const getRes = await fetch(getUrl, {
-        method: 'GET',
-        redirect: 'follow'
+      const jsonpResult = await new Promise((res, rej) => {
+        const callbackName = 'gdrive_ping_' + Math.floor(Math.random() * 1000000);
+        const script = document.createElement('script');
+        let timer = null;
+
+        const cleanup = () => {
+          if (timer) clearTimeout(timer);
+          try { delete window[callbackName]; } catch (e) {}
+          if (script.parentNode) script.parentNode.removeChild(script);
+        };
+
+        timer = setTimeout(() => {
+          cleanup();
+          rej(new Error('JSONP Timeout'));
+        }, 5000);
+
+        window[callbackName] = (gasData) => {
+          cleanup();
+          res(gasData);
+        };
+
+        script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName + '&action=ping&t=' + Date.now();
+        script.onerror = (e) => {
+          cleanup();
+          rej(new Error('Script load error'));
+        };
+        document.body.appendChild(script);
       });
 
-      const getText = await getRes.text();
-      let getData;
-      try {
-        getData = JSON.parse(getText);
-      } catch (e) {}
-
-      if (getData && getData.success) {
+      if (jsonpResult && jsonpResult.success) {
         const latencyMs = Date.now() - startTime;
         return resolve({
           success: true,
-          message: getData.message || 'Koneksi ke Google Drive aktif!',
+          message: jsonpResult.message || 'Koneksi ke Google Drive aktif!',
           latencyMs,
-          userEmail: getData.userEmail || 'Akun Google'
+          userEmail: jsonpResult.userEmail || 'Akun Google'
         });
       }
-    } catch (getErr) {
-      console.warn('GET ping strategy fallback:', getErr);
+    } catch (jsonpErr) {
+      console.warn('JSONP ping strategy fallback, trying POST:', jsonpErr);
     }
 
-    // Strategy 2: POST Ping Test with text/plain
+    // Strategy 2: POST Ping Test with text/plain (CORS Simple Request)
     try {
       const postRes = await fetch(url, {
         method: 'POST',
@@ -153,55 +170,38 @@ export function testGoogleDriveConnection(webAppUrl) {
       } else {
         return reject(new Error(data?.message || 'Respon Google Drive tidak sesuai format'));
       }
-    } catch (err) {
-      console.warn('POST ping strategy fallback, trying JSONP:', err);
+    } catch (postErr) {
+      console.warn('POST ping strategy fallback, trying GET:', postErr);
     }
 
-    // Strategy 3: JSONP Script-tag Ping (Bypasses all CORS preflights and restrictions)
+    // Strategy 3: GET Ping Test with redirect follow
     try {
-      const jsonpResult = await new Promise((res, rej) => {
-        const callbackName = 'gdrive_ping_' + Math.floor(Math.random() * 1000000);
-        const script = document.createElement('script');
-        let timer = null;
-
-        const cleanup = () => {
-          if (timer) clearTimeout(timer);
-          try { delete window[callbackName]; } catch (e) {}
-          if (script.parentNode) script.parentNode.removeChild(script);
-        };
-
-        timer = setTimeout(() => {
-          cleanup();
-          rej(new Error('Timeout'));
-        }, 6000);
-
-        window[callbackName] = (gasData) => {
-          cleanup();
-          res(gasData);
-        };
-
-        script.src = url + (url.includes('?') ? '&' : '?') + 'callback=' + callbackName + '&action=ping&t=' + Date.now();
-        script.onerror = () => {
-          cleanup();
-          rej(new Error('Script load error'));
-        };
-        document.body.appendChild(script);
+      const getUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping&t=' + Date.now();
+      const getRes = await fetch(getUrl, {
+        method: 'GET',
+        redirect: 'follow'
       });
 
-      if (jsonpResult && jsonpResult.success) {
+      const getText = await getRes.text();
+      let getData;
+      try {
+        getData = JSON.parse(getText);
+      } catch (e) {}
+
+      if (getData && getData.success) {
         const latencyMs = Date.now() - startTime;
         return resolve({
           success: true,
-          message: jsonpResult.message || 'Koneksi ke Google Drive aktif!',
+          message: getData.message || 'Koneksi ke Google Drive aktif!',
           latencyMs,
-          userEmail: jsonpResult.userEmail || 'Akun Google'
+          userEmail: getData.userEmail || 'Akun Google'
         });
       }
-    } catch (jsonpErr) {
-      console.error('All ping strategies failed:', jsonpErr);
+    } catch (getErr) {
+      console.warn('GET ping strategy fallback:', getErr);
     }
 
-    return reject(new Error('Akses Google Apps Script terblokir (Failed to fetch).\n\nLangkah perbaikan di Google Apps Script (script.google.com):\n1. Buka Deploy > Manage Deployments > Edit\n2. Ubah "Who has access" menjadi "Anyone" (Siapa saja)\n3. Jika menggunakan akun kantor/organisasi Google Workspace, gunakan akun Gmail pribadi (@gmail.com) agar izin "Anyone" terbuka penuh.'));
+    return reject(new Error('Akses Google Apps Script terblokir (Failed to fetch).\n\nLangkah perbaikan di Google Apps Script (script.google.com):\n1. Buka Deploy > Manage Deployments > Edit\n2. Ubah "Who has access" menjadi "Anyone" (Siapa saja)\n3. Pastikan sudah menyalin kode Code.gs terbaru ke script.google.com dan deploy "New version".'));
   });
 }
 

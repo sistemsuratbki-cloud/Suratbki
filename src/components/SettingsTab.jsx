@@ -16,79 +16,144 @@ import {
 } from '../utils/googleDriveService';
 import { toast } from 'react-hot-toast';
 
-const GDRIVE_SCRIPT_CODE = `function doGet(e) {
+const GDRIVE_SCRIPT_CODE = `/**
+ * Google Apps Script Web App Template (Versi Terupdate & Paling Stabil)
+ * Sistem Surat Tugas BKI Pontianak — Integrasi Google Drive
+ */
+
+function doGet(e) {
   var callback = (e && e.parameter && e.parameter.callback) || "";
-  var data = {
+  var action = (e && e.parameter && e.parameter.action) || "ping";
+  
+  var activeUser = "";
+  try {
+    activeUser = Session.getActiveUser().getEmail();
+  } catch (err) {}
+  if (!activeUser) {
+    try {
+      activeUser = Session.getEffectiveUser().getEmail();
+    } catch (err) {}
+  }
+  
+  var responseData = {
     success: true,
     message: "Google Drive API BKI Pontianak aktif dan siap digunakan!",
-    userEmail: Session.getActiveUser().getEmail() || "Google Drive Account",
+    action: action,
+    userEmail: activeUser || "Akun Google Terhubung",
+    quotaRemaining: getDriveQuotaInfo(),
     timestamp: new Date().toISOString()
   };
 
   if (callback) {
-    return ContentService.createTextOutput(callback + "(" + JSON.stringify(data) + ");")
+    return ContentService.createTextOutput(callback + "(" + JSON.stringify(responseData) + ");")
       .setMimeType(ContentService.MimeType.JAVASCRIPT);
   }
 
-  return handleResponse(data);
+  return ContentService.createTextOutput(JSON.stringify(responseData))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 function doPost(e) {
   try {
-    if (!e || !e.postData || !e.postData.contents) {
-      return handleResponse({ success: false, message: "Payload kosong" }, 400);
+    var payload = {};
+
+    if (e && e.postData && e.postData.contents) {
+      try {
+        payload = JSON.parse(e.postData.contents);
+      } catch (jsonErr) {
+        payload = e.parameter || {};
+      }
+    } else if (e && e.parameter) {
+      payload = e.parameter;
     }
 
-    var payload = JSON.parse(e.postData.contents);
-    var action = payload.action || "uploadFile";
+    var action = payload.action || "ping";
 
+    // 1. PING / TEST KONEKSI
     if (action === "ping") {
-      return handleResponse({
+      var userEmail = "";
+      try {
+        userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
+      } catch (err) {}
+
+      return createJsonResponse({
         success: true,
-        message: "Koneksi ke Google Drive sukses!",
-        userEmail: Session.getActiveUser().getEmail() || "Google Drive Account"
+        message: "Koneksi ke Google Drive BKI berhasil terhubung!",
+        userEmail: userEmail || "Akun Google Terhubung",
+        quota: getDriveQuotaInfo(),
+        timestamp: new Date().toISOString()
       });
     }
 
-    if (action === "uploadFile") {
+    // 2. UPLOAD FILE KE GOOGLE DRIVE
+    if (action === "uploadFile" || action === "upload") {
       var rootFolderName = payload.rootFolder || "BKI_DOKUMEN_SURAT";
       var year = payload.year || new Date().getFullYear().toString();
-      var month = payload.month || Utilities.formatDate(new Date(), Session.getScriptTimeZone(), "MM-MMMM");
+      var month = payload.month || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT+7", "MM-MMMM");
       var subFolder = payload.subFolder || "UMUM";
-      var category = payload.category || "Dokumen";
-      
+      var category = payload.category || "Dokumen_Lampiran";
+
       var fileName = payload.fileName || ("file_" + Date.now());
       var mimeType = payload.mimeType || "application/octet-stream";
       var base64Data = payload.base64Data || "";
 
-      if (base64Data.indexOf(",") > -1) {
-        base64Data = base64Data.split(",")[1];
+      if (!base64Data) {
+        return createJsonResponse({
+          success: false,
+          message: "Data file (base64) tidak ditemukan atau kosong."
+        }, 400);
       }
 
-      var decodedBlob = Utilities.newBlob(Utilities.base64Decode(base64Data), mimeType, fileName);
+      // Bersihkan prefix data URL (contoh: data:image/jpeg;base64,xxxx)
+      if (base64Data.indexOf(",") > -1) {
+        var parts = base64Data.split(",");
+        base64Data = parts[1];
+        if (parts[0].indexOf(":") > -1 && parts[0].indexOf(";") > -1) {
+          mimeType = parts[0].split(":")[1].split(";")[0] || mimeType;
+        }
+      }
+
+      // Decode base64 menjadi Blob
+      var decodedBytes = Utilities.base64Decode(base64Data);
+      var decodedBlob = Utilities.newBlob(decodedBytes, mimeType, fileName);
+
+      // Cari atau buat folder berjenjang: Root -> Tahun -> Bulan -> SubFolder -> Kategori
       var targetFolder = getOrCreateFolderPath([rootFolderName, year, month, subFolder, category]);
+
+      // Simpan file
       var createdFile = targetFolder.createFile(decodedBlob);
-      
+
+      try {
+        createdFile.setDescription("Diunggah via Sistem Surat Tugas BKI Pontianak pada " + new Date().toLocaleString());
+      } catch (eDesc) {}
+
+      // Set izin sharing
       try {
         createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      } catch (errSharing) {}
+      } catch (errSharing) {
+        Logger.log("Sharing notice: " + errSharing);
+      }
 
       var fileId = createdFile.getId();
-      var viewUrl = "https://drive.google.com/file/d/" + fileId + "/view";
+      var viewUrl = "https://drive.google.com/file/d/" + fileId + "/view?usp=sharing";
+      var previewUrl = "https://drive.google.com/file/d/" + fileId + "/preview";
+      var directUrl = "https://lh3.googleusercontent.com/d/" + fileId;
       var downloadUrl = "https://drive.google.com/uc?export=download&id=" + fileId;
-      var directUrl = "https://drive.google.com/uc?export=view&id=" + fileId;
       var thumbnailUrl = "https://lh3.googleusercontent.com/d/" + fileId + "=s800";
+      var folderUrl = targetFolder.getUrl();
 
-      return handleResponse({
+      return createJsonResponse({
         success: true,
         fileId: fileId,
         fileName: createdFile.getName(),
         url: viewUrl,
         viewUrl: viewUrl,
-        downloadUrl: downloadUrl,
+        previewUrl: previewUrl,
         directUrl: directUrl,
+        downloadUrl: downloadUrl,
         thumbnailUrl: thumbnailUrl,
-        folderUrl: targetFolder.getUrl(),
+        folderUrl: folderUrl,
+        folderName: targetFolder.getName(),
         size: createdFile.getSize(),
         mimeType: createdFile.getMimeType(),
         storageProvider: "gdrive",
@@ -96,9 +161,46 @@ function doPost(e) {
       });
     }
 
-    return handleResponse({ success: false, message: "Aksi tidak dikenal" }, 400);
+    // 3. HAPUS FILE DARI GOOGLE DRIVE
+    if (action === "deleteFile" || action === "delete") {
+      var rawId = payload.fileId || payload.fileUrl || "";
+      if (!rawId) {
+        return createJsonResponse({ success: false, message: "fileId atau URL tidak ditemukan" }, 400);
+      }
+
+      var fileId = rawId;
+      var match = rawId.match(/\\/file\\/d\\/([a-zA-Z0-9_-]{20,})/) ||
+                  rawId.match(/\\/d\\/([a-zA-Z0-9_-]{20,})/) ||
+                  rawId.match(/id=([a-zA-Z0-9_-]{20,})/);
+      if (match && match[1]) {
+        fileId = match[1];
+      }
+
+      try {
+        var file = DriveApp.getFileById(fileId);
+        var fileName = file.getName();
+        file.setTrashed(true);
+        return createJsonResponse({
+          success: true,
+          message: "File '" + fileName + "' berhasil dipindahkan ke Sampah Google Drive",
+          fileId: fileId,
+          fileName: fileName
+        });
+      } catch (delErr) {
+        return createJsonResponse({
+          success: false,
+          message: "Gagal menghapus file (" + fileId + "): " + delErr.toString()
+        }, 500);
+      }
+    }
+
+    return createJsonResponse({ success: false, message: "Aksi tidak dikenali." }, 400);
+
   } catch (error) {
-    return handleResponse({ success: false, message: error.toString() }, 500);
+    return createJsonResponse({
+      success: false,
+      message: "Terjadi kesalahan di server Google Apps Script: " + error.toString()
+    }, 500);
   }
 }
 
@@ -118,7 +220,20 @@ function getOrCreateFolderPath(folderNames) {
   return currentFolder;
 }
 
-function handleResponse(data, statusCode) {
+function getDriveQuotaInfo() {
+  try {
+    var storageUsed = DriveApp.getStorageUsed();
+    var storageLimit = DriveApp.getStorageLimit();
+    return {
+      usedMB: Math.round(storageUsed / (1024 * 1024)),
+      limitMB: Math.round(storageLimit / (1024 * 1024))
+    };
+  } catch (e) {
+    return null;
+  }
+}
+
+function createJsonResponse(data) {
   return ContentService.createTextOutput(JSON.stringify(data))
     .setMimeType(ContentService.MimeType.JSON);
 }`;
