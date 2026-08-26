@@ -1,11 +1,12 @@
 import React, { useState, useMemo } from 'react';
-import { Ship, Plus, Search, Pencil, Trash2, X, Check, Anchor, ClipboardList } from 'lucide-react';
+import { Ship, Plus, Search, Pencil, Trash2, X, Check, Anchor, Building2, Briefcase } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
 import { DEFAULT_SURVEY_TYPES } from './MultiSurveySelect';
+import { MASTER_COMPANIES } from '../data/defaultMasterKapal';
 
-const EMPTY_FORM = { namaKapal: '', noAgenda: '', jenisSurvey: '' };
+const EMPTY_FORM = { namaKapal: '', noAgenda: '', pemohon: '', jenisSurvey: '' };
 
 const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEdit = false }) => {
   const [form, setForm] = useState(initialData);
@@ -54,7 +55,7 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
           style={{
             background: 'var(--bg-card,#fff)', borderRadius: '14px',
             border: '1px solid var(--border-color,#e2e8f0)',
-            width: '100%', maxWidth: '480px',
+            width: '100%', maxWidth: '520px',
             boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
             overflow: 'hidden'
           }}
@@ -88,19 +89,42 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
                 value={form.namaKapal}
                 onChange={(e) => setForm((p) => ({ ...p, namaKapal: e.target.value.toUpperCase() }))}
                 autoFocus
-                style={{ textTransform: 'uppercase' }}
+                style={{ textTransform: 'uppercase', fontWeight: 700 }}
               />
             </div>
 
-            <div className="form-group">
-              <label className="form-label" style={{ fontWeight: 700 }}>No. Agenda</label>
-              <input
-                className="form-input"
-                type="text"
-                placeholder="Contoh: 01001PK26"
-                value={form.noAgenda}
-                onChange={(e) => setForm((p) => ({ ...p, noAgenda: e.target.value }))}
-              />
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.2fr', gap: '0.75rem' }}>
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700 }}>No. Agenda</label>
+                <input
+                  className="form-input"
+                  type="text"
+                  placeholder="Contoh: 00002PK26"
+                  value={form.noAgenda}
+                  onChange={(e) => setForm((p) => ({ ...p, noAgenda: e.target.value }))}
+                />
+              </div>
+
+              <div className="form-group" style={{ margin: 0 }}>
+                <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                  <Building2 size={14} color="var(--accent-primary)" />
+                  <span>Perusahaan (Pemohon)</span>
+                </label>
+                <input
+                  className="form-input"
+                  type="text"
+                  list="master-companies-autocomplete-list"
+                  placeholder="Contoh: PT. PELAYARAN ARI DUTA BAHARI"
+                  value={form.pemohon || ''}
+                  onChange={(e) => setForm((p) => ({ ...p, pemohon: e.target.value.toUpperCase() }))}
+                  style={{ textTransform: 'uppercase' }}
+                />
+                <datalist id="master-companies-autocomplete-list">
+                  {MASTER_COMPANIES.map((comp, idx) => (
+                    <option key={idx} value={comp} />
+                  ))}
+                </datalist>
+              </div>
             </div>
 
             <div className="form-group">
@@ -167,6 +191,14 @@ export const ShipDatabaseManagementTable = () => {
   const [editingKapal, setEditingKapal] = useState(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState(null);
 
+  const uniqueCompanies = useMemo(() => {
+    const set = new Set();
+    masterKapal.forEach((k) => {
+      if (k.pemohon && k.pemohon.trim()) set.add(k.pemohon.trim());
+    });
+    return set.size;
+  }, [masterKapal]);
+
   const filtered = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
     if (!q) return masterKapal;
@@ -174,6 +206,7 @@ export const ShipDatabaseManagementTable = () => {
       (k) =>
         k.namaKapal.toLowerCase().includes(q) ||
         (k.noAgenda || '').toLowerCase().includes(q) ||
+        (k.pemohon || '').toLowerCase().includes(q) ||
         (k.jenisSurvey || '').toLowerCase().includes(q)
     );
   }, [masterKapal, searchTerm]);
@@ -227,9 +260,9 @@ export const ShipDatabaseManagementTable = () => {
             <Ship size={24} color="#38bdf8" />
           </div>
           <div>
-            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#ffffff' }}>Database Kapal</h2>
+            <h2 style={{ margin: 0, fontSize: '1.2rem', fontWeight: 800, color: '#ffffff' }}>Database Kapal & Perusahaan</h2>
             <p style={{ margin: 0, fontSize: '0.78rem', color: '#94a3b8' }}>
-              {masterKapal.length} kapal terdaftar dalam sistem BKI Pontianak
+              {masterKapal.length} kapal & {uniqueCompanies} perusahaan terdaftar dalam sistem BKI Pontianak
             </p>
           </div>
         </div>
@@ -251,12 +284,12 @@ export const ShipDatabaseManagementTable = () => {
           display: 'flex', alignItems: 'center', gap: '0.75rem',
           background: 'var(--bg-main,#f8fafc)'
         }}>
-          <div style={{ position: 'relative', flex: 1, maxWidth: '380px' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: '420px' }}>
             <Search size={15} style={{ position: 'absolute', left: '0.7rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted,#94a3b8)' }} />
             <input
               className="form-input"
               type="text"
-              placeholder="Cari nama kapal, no. agenda, atau jenis survei..."
+              placeholder="Cari nama kapal, no. agenda, perusahaan pemohon..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               style={{ paddingLeft: '2.1rem', height: '36px', fontSize: '0.85rem' }}
@@ -274,15 +307,16 @@ export const ShipDatabaseManagementTable = () => {
               <tr>
                 <th style={{ width: '50px', textAlign: 'center' }}>No.</th>
                 <th>Nama Kapal</th>
-                <th style={{ width: '160px' }}>No. Agenda</th>
-                <th style={{ minWidth: '200px' }}>Jenis Survei</th>
-                <th style={{ width: '160px', textAlign: 'center' }}>Aksi</th>
+                <th style={{ width: '150px' }}>No. Agenda</th>
+                <th style={{ minWidth: '220px' }}>Perusahaan (Pemohon)</th>
+                <th style={{ minWidth: '180px' }}>Jenis Survei</th>
+                <th style={{ width: '150px', textAlign: 'center' }}>Aksi</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
+                  <td colSpan={6} style={{ textAlign: 'center', padding: '3rem 1rem', color: 'var(--text-muted)' }}>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.75rem' }}>
                       <Anchor size={36} color="#cbd5e1" />
                       <div>
@@ -305,13 +339,13 @@ export const ShipDatabaseManagementTable = () => {
                     <td>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
                         <div style={{
-                          width: 30, height: 30, borderRadius: '8px',
+                          width: 32, height: 32, borderRadius: '8px',
                           background: 'rgba(2,132,199,0.1)',
                           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
                         }}>
-                          <Ship size={15} color="#0284c7" />
+                          <Ship size={16} color="#0284c7" />
                         </div>
-                        <span style={{ fontWeight: 700, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
+                        <span style={{ fontWeight: 800, fontSize: '0.875rem', color: 'var(--text-primary)' }}>
                           {kapal.namaKapal}
                         </span>
                       </div>
@@ -325,6 +359,18 @@ export const ShipDatabaseManagementTable = () => {
                         }}>
                           {kapal.noAgenda}
                         </span>
+                      ) : (
+                        <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>—</span>
+                      )}
+                    </td>
+                    <td>
+                      {kapal.pemohon ? (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Building2 size={14} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+                          <span style={{ fontWeight: 600, fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                            {kapal.pemohon}
+                          </span>
+                        </div>
                       ) : (
                         <span style={{ color: 'var(--text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>—</span>
                       )}
@@ -405,10 +451,11 @@ export const ShipDatabaseManagementTable = () => {
         {masterKapal.length > 0 && (
           <div style={{
             padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color,#e2e8f0)',
-            background: 'var(--bg-main,#f8fafc)', display: 'flex', justifyContent: 'space-between', alignItems: 'center'
+            background: 'var(--bg-main,#f8fafc)', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+            flexWrap: 'wrap', gap: '0.5rem'
           }}>
             <span style={{ fontSize: '0.78rem', color: 'var(--text-muted)' }}>
-              Total: <strong>{masterKapal.length}</strong> kapal
+              Total: <strong>{masterKapal.length}</strong> kapal (<strong style={{ color: 'var(--accent-primary)' }}>{uniqueCompanies}</strong> perusahaan pemohon)
             </span>
             <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', fontStyle: 'italic' }}>
               Data tersinkronisasi dengan Supabase Cloud
@@ -428,4 +475,3 @@ export const ShipDatabaseManagementTable = () => {
     </div>
   );
 };
-

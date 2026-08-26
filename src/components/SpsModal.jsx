@@ -18,6 +18,7 @@ import MultiSurveySelect from './MultiSurveySelect';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import SearchableLocationSelect from './SearchableLocationSelect';
 import { getLocationCategory } from '../utils/tariffData';
+import { MASTER_COMPANIES } from '../data/defaultMasterKapal';
 
 
 export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
@@ -107,6 +108,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       ...f,
       namaKapal: upper,
       noAgenda: match?.noAgenda ? match.noAgenda : f.noAgenda,
+      pemohon: match?.pemohon ? match.pemohon : f.pemohon,
       lokasi: match?.lokasi ? match.lokasi.toUpperCase() : f.lokasi,
       tempatSurvey: match?.lokasi ? match.lokasi.toUpperCase() : f.tempatSurvey,
       jenisSurvey: f.jenisSurvey || match?.jenisSurvey || '',
@@ -120,6 +122,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       ...f,
       namaKapal: foundShip.namaKapal,
       noAgenda: foundShip.noAgenda || f.noAgenda || String(Math.floor(Math.random() * 900) + 100),
+      pemohon: foundShip.pemohon ? foundShip.pemohon : f.pemohon,
       lokasi: foundShip.lokasi ? foundShip.lokasi.toUpperCase() : f.lokasi,
       tempatSurvey: foundShip.lokasi ? foundShip.lokasi.toUpperCase() : f.tempatSurvey,
       jenisSurvey: f.jenisSurvey || foundShip.jenisSurvey || '',
@@ -377,11 +380,17 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                   <input
                     type="text"
                     className="form-input"
+                    list="sps-companies-autocomplete-list"
                     placeholder="Contoh: PT. MITRA SAMUDRA NUSANTARA"
                     value={formData.pemohon}
                     onChange={(e) => setFormData({ ...formData, pemohon: e.target.value.toUpperCase() })}
                     required
                   />
+                  <datalist id="sps-companies-autocomplete-list">
+                    {MASTER_COMPANIES.map((comp, idx) => (
+                      <option key={idx} value={comp} />
+                    ))}
+                  </datalist>
                 </div>
 
                 <div className="form-group" style={{ margin: 0 }}>

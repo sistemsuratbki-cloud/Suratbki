@@ -531,6 +531,7 @@ export const fetchMasterKapalFromCloud = async () => {
         id:          row.id          || raw.id,
         namaKapal:   row.nama_kapal   || raw.namaKapal   || '',
         noAgenda:    row.no_agenda    || raw.noAgenda    || '',
+        pemohon:     row.pemohon      || raw.pemohon     || '',
         jenisSurvey: row.jenis_survey || raw.jenisSurvey || '',
         createdAt:   row.created_at   || raw.createdAt   || null,
       };
@@ -544,6 +545,7 @@ export const saveMasterKapalToCloud = async (item) => {
     id:         String(item.id),
     nama_kapal: item.namaKapal || '',
     no_agenda:  item.noAgenda  || '',
+    pemohon:    item.pemohon   || '',
     raw_data:   item,
   };
   return withRetry(async () => {

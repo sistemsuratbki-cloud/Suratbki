@@ -84,7 +84,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const [revisiItem, setRevisiItem] = useState(null);
   const [revisiNote, setRevisiNote] = useState('');
 
-  const canCreateSps = (role === 'admin' || role === 'developer' || role === 'kacab') && !isFinance;
+  const canCreateSps = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
   const canCreatePds = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
   const canEdit = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
   const isAdminOrKacab = role === 'admin' || role === 'developer' || role === 'kacab';
@@ -455,7 +455,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
             </button>
           )}
 
-          {/* Tombol Buat Baru: Hanya Admin/Kacab/Dev untuk SPS, Surveyor/Admin/Kacab/Dev untuk PDS */}
+          {/* Tombol Buat Baru: Surveyor / Admin / Kacab / Dev untuk SPS & PDS */}
           {effectiveFilterType === 'PDS' ? (
             canCreatePds && (
               <button className="btn btn-primary" onClick={handleOpenAdd}>

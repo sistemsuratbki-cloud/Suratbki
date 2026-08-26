@@ -5,6 +5,7 @@ import {
   INITIAL_LAPORAN_SURVEI
 } from '../utils/initialData';
 import { INITIAL_LOCATION_TARIFFS, INITIAL_GRADE_TARIFFS } from '../utils/tariffData';
+import { DEFAULT_MASTER_KAPAL, mergeWithDefaultMasterKapal } from '../data/defaultMasterKapal';
 import { cleanDocNumber } from '../utils/formatters';
 import {
   fetchSuratTugasFromCloud,
@@ -161,7 +162,15 @@ export const DataProvider = ({ children }) => {
 
   const [masterKapal, setMasterKapal] = useState(() => {
     const saved = localStorage.getItem('st_master_kapal');
-    return saved ? JSON.parse(saved) : [];
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return mergeWithDefaultMasterKapal(parsed);
+        }
+      } catch (e) {}
+    }
+    return DEFAULT_MASTER_KAPAL;
   });
 
   const [adminSettings, setAdminSettings] = useState(() => {
@@ -210,8 +219,8 @@ export const DataProvider = ({ children }) => {
       if (cloudSettings && typeof cloudSettings === 'object') {
         setAdminSettings((prev) => ({ ...prev, ...cloudSettings }));
       }
-      if (Array.isArray(cloudKapal)) {
-        setMasterKapal(cloudKapal);
+      if (Array.isArray(cloudKapal) && cloudKapal.length > 0) {
+        setMasterKapal(mergeWithDefaultMasterKapal(cloudKapal));
       }
     } catch (e) {
       console.warn('Cloud sync load warning:', e);
@@ -477,6 +486,7 @@ export const DataProvider = ({ children }) => {
       id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000)}`,
       namaKapal:   (data.namaKapal   || '').trim().toUpperCase(),
       noAgenda:    noAgenda,
+      pemohon:     (data.pemohon     || '').trim(),
       jenisSurvey: (data.jenisSurvey || '').trim(),
       createdAt: new Date().toISOString()
     };
@@ -503,6 +513,7 @@ export const DataProvider = ({ children }) => {
             ...item,
             namaKapal:   (updatedData.namaKapal   || item.namaKapal).trim().toUpperCase(),
             noAgenda:    (updatedData.noAgenda    !== undefined ? updatedData.noAgenda : item.noAgenda).trim(),
+            pemohon:     (updatedData.pemohon     !== undefined ? updatedData.pemohon : (item.pemohon || '')).trim(),
             jenisSurvey: (updatedData.jenisSurvey !== undefined ? updatedData.jenisSurvey : (item.jenisSurvey || '')).trim()
           };
           saveMasterKapalToCloud(updated);
@@ -538,6 +549,7 @@ export const DataProvider = ({ children }) => {
         id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 1000) + counter}`,
         namaKapal:   (data.namaKapal   || '').trim().toUpperCase(),
         noAgenda:    (data.noAgenda    || '').trim(),
+        pemohon:     (data.pemohon     || '').trim(),
         jenisSurvey: (data.jenisSurvey || '').trim(),
         createdAt: new Date().toISOString()
       };
@@ -635,6 +647,7 @@ export const DataProvider = ({ children }) => {
               id: `kapal-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 9000 + 1000)}`,
               namaKapal: shipName,
               noAgenda: s.noAgenda || '',
+              pemohon: (cleaned.pemohon || '').trim(),
               jenisSurvey: (cleaned.jenisSurvey || '').trim(),
               createdAt: new Date().toISOString()
             };

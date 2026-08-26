@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { Search, ChevronDown, ChevronUp, X } from 'lucide-react';
+import { Search, ChevronDown, ChevronUp, X, Building2 } from 'lucide-react';
 
 export default function ShipDatabaseSearchSelect({
   shipDatabase = [],
   onSelect,
-  placeholder = '-- 🚢 Ketik nama kapal atau no. agenda untuk mencari... --',
+  placeholder = '-- 🚢 Ketik nama kapal, no. agenda, atau perusahaan pemohon... --',
   style = {},
   disabled = false
 }) {
@@ -34,7 +34,8 @@ export default function ShipDatabaseSearchSelect({
       const name = String(s.namaKapal || '').toUpperCase();
       const agenda = String(s.noAgenda || '').toUpperCase();
       const order = String(s.noOrder || '').toUpperCase();
-      return name.includes(cleanTerm) || agenda.includes(cleanTerm) || order.includes(cleanTerm);
+      const pemohon = String(s.pemohon || '').toUpperCase();
+      return name.includes(cleanTerm) || agenda.includes(cleanTerm) || order.includes(cleanTerm) || pemohon.includes(cleanTerm);
     });
   }, [shipDatabase, searchTerm]);
 
@@ -168,7 +169,7 @@ export default function ShipDatabaseSearchSelect({
             border: '1.5px solid var(--accent-primary)',
             borderRadius: 'var(--radius-md, 8px)',
             boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
-            maxHeight: '260px',
+            maxHeight: '280px',
             overflowY: 'auto',
             padding: '0.35rem 0'
           }}
@@ -190,7 +191,7 @@ export default function ShipDatabaseSearchSelect({
                 }}
               >
                 <span>Daftar Kapal Database ({filteredShips.length > 100 ? `100 dari ${filteredShips.length}` : filteredShips.length})</span>
-                <span>Ketik untuk Cari / Klik untuk Pilih</span>
+                <span>Ketik / Klik untuk Pilih</span>
               </div>
               {filteredShips.slice(0, 100).map((ship, idx) => (
                 <div
@@ -220,6 +221,12 @@ export default function ShipDatabaseSearchSelect({
                       <div style={{ fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                         {ship.namaKapal}
                       </div>
+                      {ship.pemohon && (
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '0.25rem', marginTop: '0.1rem', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          <Building2 size={12} color="var(--accent-primary)" style={{ flexShrink: 0 }} />
+                          <span>{ship.pemohon}</span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -247,7 +254,7 @@ export default function ShipDatabaseSearchSelect({
                   Tidak ditemukan kapal dengan kata kunci "<strong>{searchTerm}</strong>".
                   <br />
                   <span style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.2rem', display: 'inline-block' }}>
-                    Kapal baru dapat didaftarkan melalui form <strong>SPS Admin</strong>.
+                    Kapal baru dapat didaftarkan melalui form <strong>SPS</strong> atau menu <strong>Database Kapal</strong>.
                   </span>
                 </>
               ) : (

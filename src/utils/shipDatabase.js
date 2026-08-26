@@ -1,9 +1,6 @@
-/**
- * shipDatabase.js
- * Utility to extract, aggregate and search ship database from system state
- */
+import { DEFAULT_MASTER_KAPAL } from '../data/defaultMasterKapal';
 
-export const DEFAULT_MASTER_SHIPS = [];
+export const DEFAULT_MASTER_SHIPS = DEFAULT_MASTER_KAPAL;
 
 /**
  * Extract unique list of all ships from suratTugas, laporanSurvei, and defaults
@@ -11,7 +8,7 @@ export const DEFAULT_MASTER_SHIPS = [];
 export const extractShipDatabase = (suratTugas = [], laporanSurvei = []) => {
   const shipMap = new Map();
 
-  // 1. Initial Defaults
+  // 1. Initial Defaults from Master Kapal Database
   DEFAULT_MASTER_SHIPS.forEach(ship => {
     shipMap.set(ship.namaKapal.toUpperCase(), { ...ship });
   });
@@ -27,6 +24,7 @@ export const extractShipDatabase = (suratTugas = [], laporanSurvei = []) => {
           shipMap.set(name, {
             namaKapal: name,
             noAgenda: sh.noAgenda || prev.noAgenda || '',
+            pemohon: sh.pemohon || st.pemohon || prev.pemohon || '',
             lokasi: st.lokasi || st.tempatSurvey || prev.lokasi || 'WAJOK',
             noOrder: sh.noOrder || st.noOrder || prev.noOrder || '',
             jenisSurvey: st.jenisSurvey || prev.jenisSurvey || '',
@@ -45,6 +43,7 @@ export const extractShipDatabase = (suratTugas = [], laporanSurvei = []) => {
         shipMap.set(name, {
           namaKapal: name,
           noAgenda: st.noAgenda || st.agenda || prev.noAgenda || '',
+          pemohon: st.pemohon || prev.pemohon || '',
           lokasi: st.lokasi || st.tempatSurvey || prev.lokasi || 'WAJOK',
           noOrder: st.noOrder || prev.noOrder || '',
           jenisSurvey: st.jenisSurvey || prev.jenisSurvey || '',
@@ -64,6 +63,7 @@ export const extractShipDatabase = (suratTugas = [], laporanSurvei = []) => {
         shipMap.set(name, {
           namaKapal: name,
           noAgenda: lap.noAgenda || prev.noAgenda || '',
+          pemohon: lap.pemohon || prev.pemohon || '',
           lokasi: lap.lokasi || lap.lokasiSurvey || prev.lokasi || 'WAJOK',
           noOrder: lap.noOrder || prev.noOrder || '',
           jenisSurvey: lap.namaSurvey || prev.jenisSurvey || '',
