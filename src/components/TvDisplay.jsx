@@ -120,7 +120,7 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
           <BKILogo size={48} />
           <div>
             <h1 style={{ margin: 0, fontSize: '2rem', fontWeight: 800, color: 'var(--text-primary)', letterSpacing: '0.02em' }}>
-              MONITORING SURVEI KAPAL
+              MONITORING KEGIATAN SURVEI
             </h1>
             <div style={{ fontSize: '1.1rem', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '0.25rem' }}>
               PT. BIRO KLASIFIKASI INDONESIA (PERSERO) CABANG MADYA KLAS PONTIANAK
