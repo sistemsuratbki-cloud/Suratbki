@@ -20,6 +20,7 @@ import {
   Receipt,
   X,
   CheckCheck,
+  Check,
   MessageSquare,
   Clock,
   AlertTriangle,
@@ -216,6 +217,7 @@ export const BukuAgendaTable = () => {
           if (visitFile && !addedFileKeys.has(`visit_${sIdx}_${visitFile}`)) {
             addedFileKeys.add(`visit_${sIdx}_${visitFile}`);
             files.push({
+              key: `ship_${sIdx}_visit_${shipName}`,
               type: 'visit',
               label: 'Formulir Visit Lapangan (PDF)',
               fileName: sh.fileVisitName || sh.file_visit_name || matchingChildSps?.fileVisitName || `Form_Visit_${shipName}.pdf`,
@@ -226,6 +228,7 @@ export const BukuAgendaTable = () => {
           if (selfieFile && !addedFileKeys.has(`selfie_${sIdx}_${selfieFile}`)) {
             addedFileKeys.add(`selfie_${sIdx}_${selfieFile}`);
             files.push({
+              key: `ship_${sIdx}_selfie_${shipName}`,
               type: 'selfie',
               label: 'Foto Selfie Lapangan (PDF)',
               fileName: sh.fileFotoName || sh.file_foto_name || matchingChildSps?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
@@ -264,6 +267,7 @@ export const BukuAgendaTable = () => {
       if (visitFile && !addedFileKeys.has(`visit_${item.id}_${visitFile}`)) {
         addedFileKeys.add(`visit_${item.id}_${visitFile}`);
         files.push({
+          key: `single_visit_${shipName}`,
           type: 'visit',
           label: 'Formulir Visit Lapangan (PDF)',
           fileName: item.fileVisitName || item.file_visit_name || matchingLap?.fileVisitName || `Form_Visit_${shipName}.pdf`,
@@ -274,6 +278,7 @@ export const BukuAgendaTable = () => {
       if (selfieFile && !addedFileKeys.has(`selfie_${item.id}_${selfieFile}`)) {
         addedFileKeys.add(`selfie_${item.id}_${selfieFile}`);
         files.push({
+          key: `single_selfie_${shipName}`,
           type: 'selfie',
           label: 'Foto Selfie Lapangan (PDF)',
           fileName: item.fileFotoName || item.file_foto_name || matchingLap?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
@@ -306,6 +311,7 @@ export const BukuAgendaTable = () => {
           if (val && !addedFileKeys.has(`tiket_${val}`)) {
             addedFileKeys.add(`tiket_${val}`);
             generalAttachments.push({
+              key: `tiket_${tIdx}`,
               type: 'tiket',
               label: parsedTiket.length > 1 ? `Bukti Tiket Transportasi #${tIdx + 1}` : 'Bukti Tiket Transportasi (Pesawat/Taxi/BBM)',
               fileName: t.name || 'Tiket_Transport',
@@ -332,6 +338,7 @@ export const BukuAgendaTable = () => {
           if (val && !addedFileKeys.has(`hotel_${val}`)) {
             addedFileKeys.add(`hotel_${val}`);
             generalAttachments.push({
+              key: `hotel_${hIdx}`,
               type: 'hotel',
               label: parsedHotel.length > 1 ? `Bukti Kwitansi Hotel #${hIdx + 1}` : 'Bukti Kwitansi Hotel / Penginapan',
               fileName: h.name || 'Kwitansi_Hotel',
@@ -361,6 +368,7 @@ export const BukuAgendaTable = () => {
           if (val && !addedFileKeys.has(`foto_${val}`)) {
             addedFileKeys.add(`foto_${val}`);
             generalAttachments.push({
+              key: `foto_${fIdx}`,
               type: 'foto_survey',
               label: `Foto Dokumentasi Survei #${fIdx + 1}`,
               fileName: typeof f === 'string' ? f : f.name || `Foto_${fIdx + 1}`,
@@ -376,6 +384,7 @@ export const BukuAgendaTable = () => {
           if (fUrl && !addedFileKeys.has(`foto_${fUrl}`)) {
             addedFileKeys.add(`foto_${fUrl}`);
             generalAttachments.push({
+              key: `foto_${fIdx}`,
               type: 'foto_survey',
               label: `Foto Dokumentasi Survei #${fIdx + 1}`,
               fileName: rawFotoNames[fIdx] || `Foto_${fIdx + 1}`,
@@ -389,7 +398,62 @@ export const BukuAgendaTable = () => {
     const totalCount =
       shipAttachments.reduce((sum, s) => sum + s.files.length, 0) + generalAttachments.length;
 
-    return { totalCount, shipAttachments, generalAttachments };
+    const allKeys = [
+      ...shipAttachments.flatMap(s => s.files.map(f => f.key)),
+      ...generalAttachments.map(g => g.key)
+    ].filter(Boolean);
+
+    return { totalCount, shipAttachments, generalAttachments, allKeys };
+  };
+
+  const isAttachmentFileChecked = (item, fileKey) => {
+    if (!item || !item.checkedAttachments || !fileKey) return false;
+    if (Array.isArray(item.checkedAttachments)) {
+      return item.checkedAttachments.includes(fileKey);
+    }
+    if (typeof item.checkedAttachments === 'object') {
+      return !!item.checkedAttachments[fileKey];
+    }
+    return false;
+  };
+
+  const handleToggleAttachmentCheck = (item, fileKey, forceVal = null) => {
+    if (!item || !fileKey) return;
+    const currentChecked = Array.isArray(item.checkedAttachments)
+      ? [...item.checkedAttachments]
+      : typeof item.checkedAttachments === 'object' && item.checkedAttachments
+      ? Object.keys(item.checkedAttachments).filter(k => item.checkedAttachments[k])
+      : [];
+
+    const isCurrentlyChecked = currentChecked.includes(fileKey);
+    const nextVal = forceVal !== null ? forceVal : !isCurrentlyChecked;
+
+    let updatedList;
+    if (nextVal) {
+      updatedList = Array.from(new Set([...currentChecked, fileKey]));
+    } else {
+      updatedList = currentChecked.filter(k => k !== fileKey);
+    }
+
+    updateSuratTugas(item.id, { checkedAttachments: updatedList });
+    setLampiranModalItem(prev => (prev && prev.id === item.id ? { ...prev, checkedAttachments: updatedList } : prev));
+  };
+
+  const handleToggleAllAttachmentChecks = (item, allKeys) => {
+    if (!item || !allKeys || allKeys.length === 0) return;
+    const currentChecked = Array.isArray(item.checkedAttachments)
+      ? item.checkedAttachments
+      : [];
+    const isAllChecked = allKeys.length > 0 && allKeys.every(k => currentChecked.includes(k));
+    const nextList = isAllChecked ? [] : Array.from(new Set(allKeys));
+
+    updateSuratTugas(item.id, { checkedAttachments: nextList });
+    setLampiranModalItem(prev => (prev && prev.id === item.id ? { ...prev, checkedAttachments: nextList } : prev));
+    if (isAllChecked) {
+      toast.info('Checklist berkas telah direset');
+    } else {
+      toast.success('Semua berkas ditandai: Sudah Diperiksa ✅');
+    }
   };
 
   const handleOpenBiayaPrint = (item) => {
@@ -1602,16 +1666,19 @@ export const BukuAgendaTable = () => {
                         {(() => {
                           const attInfo = getPdsAttachments(item);
                           const hasFiles = attInfo.totalCount > 0;
+                          const checkedCount = (attInfo.allKeys || []).filter(k => isAttachmentFileChecked(item, k)).length;
+                          const isAllChecked = hasFiles && checkedCount === attInfo.totalCount;
+
                           return (
                             <button
                               type="button"
                               className="btn btn-secondary btn-icon btn-sm"
                               onClick={() => handleOpenLampiran(item)}
-                              title={hasFiles ? `Lihat ${attInfo.totalCount} Lampiran PDS (Form Visit, Foto Selfie, dll)` : 'Lihat / Cek Lampiran PDS'}
+                              title={hasFiles ? `Lihat ${attInfo.totalCount} Lampiran PDS (${checkedCount}/${attInfo.totalCount} sudah diperiksa)` : 'Lihat / Cek Lampiran PDS'}
                               style={{
-                                background: hasFiles ? '#10b981' : 'var(--bg-main)',
+                                background: hasFiles ? (isAllChecked ? '#059669' : '#10b981') : 'var(--bg-main)',
                                 color: hasFiles ? '#ffffff' : 'var(--text-secondary)',
-                                borderColor: hasFiles ? '#10b981' : 'var(--border-color)',
+                                borderColor: hasFiles ? (isAllChecked ? '#059669' : '#10b981') : 'var(--border-color)',
                                 position: 'relative'
                               }}
                             >
@@ -1622,7 +1689,7 @@ export const BukuAgendaTable = () => {
                                     position: 'absolute',
                                     top: '-4px',
                                     right: '-4px',
-                                    background: '#ef4444',
+                                    background: isAllChecked ? '#16a34a' : '#ef4444',
                                     color: '#ffffff',
                                     fontSize: '0.6rem',
                                     fontWeight: 800,
@@ -1635,7 +1702,7 @@ export const BukuAgendaTable = () => {
                                     lineHeight: 1
                                   }}
                                 >
-                                  {attInfo.totalCount}
+                                  {isAllChecked ? '✓' : attInfo.totalCount}
                                 </span>
                               )}
                             </button>
@@ -1862,7 +1929,7 @@ export const BukuAgendaTable = () => {
               {/* Body */}
               <div className="modal-body" style={{ padding: '1.25rem', maxHeight: 'calc(88vh - 130px)', overflowY: 'auto' }}>
                 {(() => {
-                  const { totalCount, shipAttachments, generalAttachments } = getPdsAttachments(lampiranModalItem);
+                  const { totalCount, shipAttachments, generalAttachments, allKeys } = getPdsAttachments(lampiranModalItem);
 
                   if (totalCount === 0) {
                     return (
@@ -1878,8 +1945,66 @@ export const BukuAgendaTable = () => {
                     );
                   }
 
+                  const checkedCount = allKeys.filter(k => isAttachmentFileChecked(lampiranModalItem, k)).length;
+                  const isAllChecked = totalCount > 0 && checkedCount === totalCount;
+
                   return (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                      {/* Progress & Quick Action Checklist Banner */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          padding: '0.65rem 0.9rem',
+                          background: isAllChecked ? '#f0fdf4' : 'var(--bg-main)',
+                          border: isAllChecked ? '1px solid #86efac' : '1px solid var(--border-color)',
+                          borderRadius: 'var(--radius-md)',
+                          gap: '0.5rem',
+                          flexWrap: 'wrap'
+                        }}
+                      >
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem' }}>
+                          {isAllChecked ? (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#15803d', fontWeight: 800 }}>
+                              <CheckCircle2 size={16} color="#16a34a" />
+                              <span>Semua Berkas Sudah Diperiksa ({checkedCount}/{totalCount})</span>
+                            </span>
+                          ) : (
+                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                              <Clock size={15} color="#0284c7" />
+                              <span>Status Pemeriksaan:</span>
+                              <strong style={{ color: checkedCount > 0 ? '#15803d' : 'var(--text-primary)' }}>
+                                {checkedCount}
+                              </strong>
+                              <span>/ {totalCount} Berkas ({Math.round((checkedCount / totalCount) * 100)}%)</span>
+                            </span>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          className="btn btn-sm"
+                          onClick={() => handleToggleAllAttachmentChecks(lampiranModalItem, allKeys)}
+                          style={{
+                            fontSize: '0.72rem',
+                            padding: '0.25rem 0.65rem',
+                            background: isAllChecked ? '#f8fafc' : '#10b981',
+                            color: isAllChecked ? '#475569' : '#ffffff',
+                            border: isAllChecked ? '1px solid #cbd5e1' : 'none',
+                            borderRadius: '4px',
+                            fontWeight: 700,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            gap: '0.3rem',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          {isAllChecked ? <RotateCcw size={12} /> : <CheckCheck size={13} />}
+                          <span>{isAllChecked ? 'Reset Cek' : 'Tandai Semua Selesai'}</span>
+                        </button>
+                      </div>
+
                       {/* Section 1: Lampiran Per Kapal */}
                       {shipAttachments.length > 0 && (
                         <div>
@@ -1904,58 +2029,113 @@ export const BukuAgendaTable = () => {
                                   <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Agenda: {sAtt.agenda}</span>
                                 </div>
 
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                                  {sAtt.files.map((file, fIdx) => (
-                                    <div
-                                      key={`file-${fIdx}`}
-                                      style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        justifyContent: 'space-between',
-                                        padding: '0.45rem 0.65rem',
-                                        background: 'var(--bg-card)',
-                                        border: '1px solid var(--border-color)',
-                                        borderRadius: 'var(--radius-sm)'
-                                      }}
-                                    >
-                                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                        {file.type === 'visit' ? (
-                                          <FileText size={14} color="#0284c7" />
-                                        ) : (
-                                          <Camera size={14} color="#7c3aed" />
-                                        )}
-                                        <span>{file.label}</span>
-                                      </div>
-
-                                      <button
-                                        type="button"
-                                        className="btn btn-sm"
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                                  {sAtt.files.map((file, fIdx) => {
+                                    const isChecked = isAttachmentFileChecked(lampiranModalItem, file.key);
+                                    return (
+                                      <div
+                                        key={`file-${fIdx}`}
                                         style={{
-                                          padding: '0.2rem 0.55rem',
-                                          fontSize: '0.72rem',
-                                          background: file.type === 'visit' ? '#0284c7' : '#7c3aed',
-                                          color: '#ffffff',
-                                          border: 'none',
-                                          borderRadius: '4px',
-                                          display: 'inline-flex',
+                                          display: 'flex',
                                           alignItems: 'center',
-                                          gap: '0.25rem',
-                                          cursor: 'pointer'
-                                        }}
-                                        onClick={() => {
-                                          setPreviewAttachment({
-                                            isOpen: true,
-                                            title: `${file.label} - ${sAtt.shipName}`,
-                                            fileData: file.fileData,
-                                            fileName: file.fileName
-                                          });
+                                          justifyContent: 'space-between',
+                                          padding: '0.5rem 0.75rem',
+                                          background: isChecked ? '#f0fdf4' : 'var(--bg-card)',
+                                          border: isChecked ? '1px solid #86efac' : '1px solid var(--border-color)',
+                                          borderRadius: 'var(--radius-sm)',
+                                          transition: 'all 0.2s ease'
                                         }}
                                       >
-                                        <Eye size={12} />
-                                        <span>Cek / Unduh</span>
-                                      </button>
-                                    </div>
-                                  ))}
+                                        <div
+                                          onClick={() => handleToggleAttachmentCheck(lampiranModalItem, file.key)}
+                                          style={{
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: '0.55rem',
+                                            fontSize: '0.76rem',
+                                            fontWeight: 600,
+                                            color: isChecked ? '#15803d' : 'var(--text-primary)',
+                                            cursor: 'pointer',
+                                            flex: 1,
+                                            marginRight: '0.5rem'
+                                          }}
+                                          title={isChecked ? 'Klik untuk batal tanda periksa' : 'Klik untuk tandai sudah diperiksa'}
+                                        >
+                                          <div
+                                            style={{
+                                              width: '18px',
+                                              height: '18px',
+                                              borderRadius: '4px',
+                                              background: isChecked ? '#16a34a' : 'transparent',
+                                              border: isChecked ? '1.5px solid #16a34a' : '1.5px solid #94a3b8',
+                                              display: 'flex',
+                                              alignItems: 'center',
+                                              justifyContent: 'center',
+                                              flexShrink: 0,
+                                              transition: 'all 0.15s ease'
+                                            }}
+                                          >
+                                            {isChecked && <Check size={13} color="#ffffff" strokeWidth={3} />}
+                                          </div>
+
+                                          {file.type === 'visit' ? (
+                                            <FileText size={15} color={isChecked ? '#16a34a' : '#0284c7'} />
+                                          ) : (
+                                            <Camera size={15} color={isChecked ? '#16a34a' : '#7c3aed'} />
+                                          )}
+                                          <span>{file.label}</span>
+
+                                          {isChecked && (
+                                            <span
+                                              style={{
+                                                fontSize: '0.64rem',
+                                                fontWeight: 800,
+                                                background: '#dcfce7',
+                                                color: '#15803d',
+                                                border: '1px solid #bbf7d0',
+                                                borderRadius: '3px',
+                                                padding: '1px 5px',
+                                                marginLeft: '0.2rem'
+                                              }}
+                                            >
+                                              ✓ Diperiksa
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        <button
+                                          type="button"
+                                          className="btn btn-sm"
+                                          style={{
+                                            padding: '0.22rem 0.6rem',
+                                            fontSize: '0.72rem',
+                                            fontWeight: 700,
+                                            background: isChecked ? '#16a34a' : file.type === 'visit' ? '#0284c7' : '#7c3aed',
+                                            color: '#ffffff',
+                                            border: 'none',
+                                            borderRadius: '4px',
+                                            display: 'inline-flex',
+                                            alignItems: 'center',
+                                            gap: '0.25rem',
+                                            cursor: 'pointer',
+                                            flexShrink: 0
+                                          }}
+                                          onClick={() => {
+                                            handleToggleAttachmentCheck(lampiranModalItem, file.key, true);
+                                            setPreviewAttachment({
+                                              isOpen: true,
+                                              title: `${file.label} - ${sAtt.shipName}`,
+                                              fileData: file.fileData,
+                                              fileName: file.fileName
+                                            });
+                                          }}
+                                        >
+                                          <Eye size={12} />
+                                          <span>{isChecked ? 'Cek / Unduh ✓' : 'Cek / Unduh'}</span>
+                                        </button>
+                                      </div>
+                                    );
+                                  })}
                                 </div>
                               </div>
                             ))}
@@ -1971,56 +2151,115 @@ export const BukuAgendaTable = () => {
                             <span>BUKTI BIAYA PERJALANAN & FOTO LAPANGAN</span>
                           </div>
 
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                            {generalAttachments.map((gen, gIdx) => (
-                              <div
-                                key={`gen-${gIdx}`}
-                                style={{
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  padding: '0.5rem 0.75rem',
-                                  background: 'var(--bg-main)',
-                                  border: '1px solid var(--border-color)',
-                                  borderRadius: 'var(--radius-sm)'
-                                }}
-                              >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.76rem', fontWeight: 600, color: 'var(--text-primary)' }}>
-                                  {gen.type === 'tiket' ? (
-                                    <Plane size={14} color="#0284c7" />
-                                  ) : gen.type === 'hotel' ? (
-                                    <Receipt size={14} color="#d97706" />
-                                  ) : (
-                                    <Camera size={14} color="#059669" />
-                                  )}
-                                  <span>{gen.label}</span>
-                                </div>
-
-                                <button
-                                  type="button"
-                                  className="btn btn-sm btn-secondary"
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.45rem' }}>
+                            {generalAttachments.map((gen, gIdx) => {
+                              const isChecked = isAttachmentFileChecked(lampiranModalItem, gen.key);
+                              return (
+                                <div
+                                  key={`gen-${gIdx}`}
                                   style={{
-                                    padding: '0.2rem 0.55rem',
-                                    fontSize: '0.72rem',
-                                    display: 'inline-flex',
+                                    display: 'flex',
                                     alignItems: 'center',
-                                    gap: '0.25rem',
-                                    cursor: 'pointer'
-                                  }}
-                                  onClick={() => {
-                                    setPreviewAttachment({
-                                      isOpen: true,
-                                      title: gen.label,
-                                      fileData: gen.fileData,
-                                      fileName: gen.fileName
-                                    });
+                                    justifyContent: 'space-between',
+                                    padding: '0.5rem 0.75rem',
+                                    background: isChecked ? '#f0fdf4' : 'var(--bg-main)',
+                                    border: isChecked ? '1px solid #86efac' : '1px solid var(--border-color)',
+                                    borderRadius: 'var(--radius-sm)',
+                                    transition: 'all 0.2s ease'
                                   }}
                                 >
-                                  <Eye size={12} />
-                                  <span>Cek / Unduh</span>
-                                </button>
-                              </div>
-                            ))}
+                                  <div
+                                    onClick={() => handleToggleAttachmentCheck(lampiranModalItem, gen.key)}
+                                    style={{
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.55rem',
+                                      fontSize: '0.76rem',
+                                      fontWeight: 600,
+                                      color: isChecked ? '#15803d' : 'var(--text-primary)',
+                                      cursor: 'pointer',
+                                      flex: 1,
+                                      marginRight: '0.5rem'
+                                    }}
+                                    title={isChecked ? 'Klik untuk batal tanda periksa' : 'Klik untuk tandai sudah diperiksa'}
+                                  >
+                                    <div
+                                      style={{
+                                        width: '18px',
+                                        height: '18px',
+                                        borderRadius: '4px',
+                                        background: isChecked ? '#16a34a' : 'transparent',
+                                        border: isChecked ? '1.5px solid #16a34a' : '1.5px solid #94a3b8',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        flexShrink: 0,
+                                        transition: 'all 0.15s ease'
+                                      }}
+                                    >
+                                      {isChecked && <Check size={13} color="#ffffff" strokeWidth={3} />}
+                                    </div>
+
+                                    {gen.type === 'tiket' ? (
+                                      <Plane size={15} color={isChecked ? '#16a34a' : '#0284c7'} />
+                                    ) : gen.type === 'hotel' ? (
+                                      <Receipt size={15} color={isChecked ? '#16a34a' : '#d97706'} />
+                                    ) : (
+                                      <Camera size={15} color={isChecked ? '#16a34a' : '#059669'} />
+                                    )}
+                                    <span>{gen.label}</span>
+
+                                    {isChecked && (
+                                      <span
+                                        style={{
+                                          fontSize: '0.64rem',
+                                          fontWeight: 800,
+                                          background: '#dcfce7',
+                                          color: '#15803d',
+                                          border: '1px solid #bbf7d0',
+                                          borderRadius: '3px',
+                                          padding: '1px 5px',
+                                          marginLeft: '0.2rem'
+                                        }}
+                                      >
+                                        ✓ Diperiksa
+                                      </span>
+                                    )}
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      padding: '0.22rem 0.6rem',
+                                      fontSize: '0.72rem',
+                                      fontWeight: 700,
+                                      background: isChecked ? '#16a34a' : 'var(--accent-primary, #2563eb)',
+                                      color: '#ffffff',
+                                      border: 'none',
+                                      borderRadius: '4px',
+                                      display: 'inline-flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      cursor: 'pointer',
+                                      flexShrink: 0
+                                    }}
+                                    onClick={() => {
+                                      handleToggleAttachmentCheck(lampiranModalItem, gen.key, true);
+                                      setPreviewAttachment({
+                                        isOpen: true,
+                                        title: gen.label,
+                                        fileData: gen.fileData,
+                                        fileName: gen.fileName
+                                      });
+                                    }}
+                                  >
+                                    <Eye size={12} />
+                                    <span>{isChecked ? 'Cek / Unduh ✓' : 'Cek / Unduh'}</span>
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       )}
