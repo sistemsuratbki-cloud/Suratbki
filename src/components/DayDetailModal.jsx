@@ -219,8 +219,19 @@ export const DayDetailModal = ({
   const { pendingSpsList, pdsList } = useMemo(() => {
     const sps = [];
     const pds = [];
+    const pool = (allSuratTugas && allSuratTugas.length > 0) ? allSuratTugas : tasksOnDate;
+    const formattedDateStr = selectedDate ? (selectedDate.includes('T') ? selectedDate.split('T')[0] : selectedDate) : '';
 
-    tasksOnDate.forEach((st) => {
+    pool.forEach((st) => {
+      const isDateMatch = formattedDateStr && (
+        (st.tglMulai && st.tglSelesai && formattedDateStr >= st.tglMulai && formattedDateStr <= st.tglSelesai) ||
+        st.tglMulai === formattedDateStr ||
+        st.tglSelesai === formattedDateStr ||
+        st.tglSurat === formattedDateStr
+      );
+
+      if (!isDateMatch) return;
+
       const isPds = st.docType === 'PDS' || st.isPds;
       const isSps = st.docType === 'SPS' || st.isSps || (!st.docType && st.status === 'Menunggu Survei');
 
@@ -232,7 +243,7 @@ export const DayDetailModal = ({
     });
 
     return { pendingSpsList: sps, pdsList: pds };
-  }, [tasksOnDate]);
+  }, [allSuratTugas, tasksOnDate, selectedDate]);
 
   const hasExistingPds = pdsList.length > 0;
   const effectiveActiveTab = hasExistingPds ? 'view' : activeTab;
@@ -1230,7 +1241,40 @@ export const DayDetailModal = ({
                               </button>
 
                               {canAcc && (
-                                pds.approvalStatus !== 'ACC' && (
+                                (pds.approvalStatus === 'ACC' || (pds.status === 'Selesai' && pds.approvalStatus !== 'Revisi')) ? (
+                                  <button
+                                    type="button"
+                                    className="btn btn-sm"
+                                    style={{
+                                      padding: '0.25rem 0.6rem',
+                                      fontSize: '0.74rem',
+                                      fontWeight: 700,
+                                      display: 'flex',
+                                      alignItems: 'center',
+                                      gap: '0.25rem',
+                                      background: '#ecfdf5',
+                                      color: '#047857',
+                                      border: '1px solid #a7f3d0',
+                                      cursor: 'pointer'
+                                    }}
+                                    onClick={() => {
+                                      updateSuratTugas(pds.id, {
+                                        approvalStatus: 'Menunggu',
+                                        status: 'Berjalan',
+                                        approvalNote: '',
+                                        approvalBy: null,
+                                        approvedBy: null,
+                                        approvalAt: null,
+                                        approvalDate: null
+                                      });
+                                      toast.info(`Status ACC untuk PDS ${pds.namaKapal || ''} dibatalkan (Menunggu ACC).`);
+                                    }}
+                                    title="PDS Sudah di-ACC (Klik untuk batalkan status ACC)"
+                                  >
+                                    <CheckCheck size={13} color="#059669" />
+                                    <span>Sudah di-ACC</span>
+                                  </button>
+                                ) : (
                                   <button
                                     type="button"
                                     className="btn btn-success btn-sm"
@@ -1243,7 +1287,8 @@ export const DayDetailModal = ({
                                       gap: '0.25rem',
                                       background: '#059669',
                                       color: '#ffffff',
-                                      borderColor: '#059669'
+                                      borderColor: '#059669',
+                                      cursor: 'pointer'
                                     }}
                                     onClick={() => {
                                       updateSuratTugas(pds.id, {
