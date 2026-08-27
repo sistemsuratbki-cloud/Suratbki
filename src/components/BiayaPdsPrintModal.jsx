@@ -548,33 +548,6 @@ export const BiayaPdsPrintModal = ({
                 overflowX: !isFitToScreen ? 'auto' : 'visible'
               }}
             >
-              {/* Halaman 1 Banner Indicator */}
-              {isSmcItem && (
-                <div
-                  className="no-print"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '0.5rem',
-                    padding: '0.45rem 1rem',
-                    background: '#eff6ff',
-                    border: '1px solid #bfdbfe',
-                    borderRadius: '6px',
-                    color: '#1e40af',
-                    fontWeight: 800,
-                    fontSize: '0.82rem',
-                    width: `${targetDocWidth}px`,
-                    maxWidth: '100%',
-                    boxSizing: 'border-box',
-                    zoom: isFitToScreen ? fitScale : 1
-                  }}
-                >
-                  <Calculator size={15} color="#0284c7" />
-                  <span>📄 Halaman 1: Rincian Biaya Perjalanan Dinas Surveyor (PDS)</span>
-                </div>
-              )}
-
               <div
                 className="printable-sheet"
                 style={{
@@ -869,54 +842,6 @@ export const BiayaPdsPrintModal = ({
               {/* ====== PAGE 2: TANDA TERIMA EXPERTISE FLAG STATE (AUDIT SMC) JIKA AKTIF ====== */}
               {isSmcItem && (
                 <>
-                  {/* Page 2 Screen Divider */}
-                  <div
-                    className="no-print"
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'space-between',
-                      gap: '0.6rem',
-                      padding: '0.45rem 1rem',
-                      background: '#ecfdf5',
-                      border: '1px solid #a7f3d0',
-                      borderRadius: '6px',
-                      color: '#065f46',
-                      fontWeight: 800,
-                      fontSize: '0.82rem',
-                      width: `${targetDocWidth}px`,
-                      maxWidth: '100%',
-                      boxSizing: 'border-box',
-                      zoom: isFitToScreen ? fitScale : 1
-                    }}
-                  >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <Ship size={15} color="#059669" />
-                      <span>📄 Halaman 2: Tanda Terima Expertise Flag State (Audit SMC)</span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={handleExportSmcExcel}
-                      className="btn btn-sm"
-                      style={{
-                        padding: '0.2rem 0.55rem',
-                        fontSize: '0.72rem',
-                        background: '#059669',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '4px',
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '0.3rem',
-                        cursor: 'pointer'
-                      }}
-                      title="Download File Excel Tanda Terima SMC"
-                    >
-                      <FileSpreadsheet size={13} />
-                      <span>Export Excel SMC</span>
-                    </button>
-                  </div>
-
                   {/* Page 2 Printable Sheet */}
                   <div
                     className="printable-sheet printable-sheet-page-2 printable-receipt-smc"
@@ -1203,16 +1128,51 @@ export const BiayaPdsPrintModal = ({
           `}</style>
 
           {/* Modal Footer */}
-          <div className="modal-footer" style={{ borderTop: '1px solid #e2e8f0', background: '#f8fafc', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
-            <button className="btn btn-secondary" onClick={onClose}>
-              Tutup
-            </button>
-            {canPrint && (
-              <button className="btn btn-primary" onClick={handlePrint}>
-                <Printer size={16} />
-                <span>Cetak / Download PDF</span>
+          <div
+            className="modal-footer"
+            style={{
+              borderTop: '1px solid #e2e8f0',
+              background: '#f8fafc',
+              display: 'flex',
+              justifyContent: isSmcItem ? 'space-between' : 'flex-end',
+              alignItems: 'center',
+              gap: '0.75rem',
+              flexWrap: 'wrap'
+            }}
+          >
+            <div>
+              {isSmcItem && (
+                <button
+                  type="button"
+                  onClick={handleExportSmcExcel}
+                  className="btn btn-secondary btn-sm"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    background: '#ecfdf5',
+                    color: '#065f46',
+                    borderColor: '#a7f3d0',
+                    fontWeight: 700
+                  }}
+                  title="Download File Excel Tanda Terima SMC"
+                >
+                  <FileSpreadsheet size={15} color="#059669" />
+                  <span>Export Excel Tanda Terima SMC</span>
+                </button>
+              )}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn btn-secondary" onClick={onClose}>
+                Tutup
               </button>
-            )}
+              {canPrint && (
+                <button className="btn btn-primary" onClick={handlePrint}>
+                  <Printer size={16} />
+                  <span>Cetak / Download PDF</span>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
