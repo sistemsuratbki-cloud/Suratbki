@@ -254,7 +254,6 @@ export const saveSuratTugasToCloud = async (item) => {
     lokasi:                item.lokasi               || item.tempatSurvey || null,
     tgl_mulai:             item.tglMulai             || null,
     tgl_selesai:           item.tglSelesai           || null,
-    tgl_surat:             item.tglSurat             || item.tglPembuatan || item.tglMulai || null,
     sarana:                item.sarana               || null,
     sarana_transportasi:   item.saranaTransportasi   || null,
     kategori_transportasi: item.kategoriTransportasi || null,

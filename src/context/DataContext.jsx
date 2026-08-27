@@ -732,7 +732,11 @@ export const DataProvider = ({ children }) => {
       }
     });
 
-    setSuratTugas((prev) => [...createdSpsItems, ...prev]);
+    setSuratTugas((prev) => {
+      const next = [...createdSpsItems, ...prev];
+      safeSetLocalStorage('st_surat_tugas', next);
+      return next;
+    });
     return createdSpsItems;
   };
 
@@ -752,7 +756,11 @@ export const DataProvider = ({ children }) => {
       isPds: true,
       nomor: cleanDocNumber(cleanedData.nomor)
     };
-    setSuratTugas((prev) => [newSurat, ...prev]);
+    setSuratTugas((prev) => {
+      const next = [newSurat, ...prev];
+      safeSetLocalStorage('st_surat_tugas', next);
+      return next;
+    });
     saveSuratTugasToCloud(newSurat);
 
     // ====== GENERATE KWITANSI & LAPORAN FOR THIS PDS ======
@@ -884,7 +892,9 @@ export const DataProvider = ({ children }) => {
         }
         return item;
       });
-      return [newPds, ...updatedList];
+      const next = [newPds, ...updatedList];
+      safeSetLocalStorage('st_surat_tugas', next);
+      return next;
     });
 
     // 1. Generate 1 Kwitansi Honorarium for the combined PDS
@@ -1153,7 +1163,11 @@ export const DataProvider = ({ children }) => {
     relatedLaporan.forEach(deleteEntityFilesFromGoogleDrive);
     relatedKwitansi.forEach(deleteEntityFilesFromGoogleDrive);
 
-    setSuratTugas((prev) => prev.filter((item) => item.id !== id));
+    setSuratTugas((prev) => {
+      const next = prev.filter((item) => item.id !== id);
+      safeSetLocalStorage('st_surat_tugas', next);
+      return next;
+    });
     setKwitansiHonor((prev) => prev.filter((item) => item.suratId !== id));
     setLaporanSurvei((prev) => prev.filter((item) => item.suratId !== id));
     deleteSuratTugasFromCloud(id);
