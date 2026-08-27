@@ -1,5 +1,19 @@
 import React, { useState } from 'react';
-import { FileText, Camera, Eye, Trash2, CheckCircle2, Upload, Anchor, FileCheck2, HardDrive } from 'lucide-react';
+import {
+  FileText,
+  Camera,
+  Eye,
+  Trash2,
+  CheckCircle2,
+  Upload,
+  Anchor,
+  FileCheck2,
+  HardDrive,
+  FolderArchive,
+  UploadCloud,
+  Image,
+  Files
+} from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { supabase } from '../lib/supabase';
 import { validateFileUpload } from '../utils/security';
@@ -14,9 +28,13 @@ export const ShipAttachmentsUpload = ({
   folderContext = {},
   onSyncPrimaryFiles,
   disabled = false,
-  onPreview
+  onPreview,
+  fotoList = [],
+  onChangeFotoList
 }) => {
   const [uploadingState, setUploadingState] = useState({}); // { `${shipIdx}_${fileType}`: true }
+  const [isUploadingBatch, setIsUploadingBatch] = useState(false);
+  const [batchUploadProgress, setBatchUploadProgress] = useState({ current: 0, total: 0 });
 
   // Resolve list of ships for upload
   const resolvedShips = React.useMemo(() => {
@@ -150,6 +168,88 @@ export const ShipAttachmentsUpload = ({
     }
 
     toast.info(`Lampiran dihapus.`);
+  };
+
+  const currentBatchFiles = React.useMemo(() => {
+    if (Array.isArray(fotoList)) {
+      return fotoList.filter((f) => f && (f.data || f.url || f.name));
+    }
+    return [];
+  }, [fotoList]);
+
+  const handleBatchFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    setIsUploadingBatch(true);
+    setBatchUploadProgress({ current: 0, total: files.length });
+
+    const newUploaded = [];
+    let successCount = 0;
+
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setBatchUploadProgress({ current: i + 1, total: files.length });
+
+      const validation = validateFileUpload(file, 15 * 1024 * 1024);
+      if (!validation.isValid) {
+        toast.error(`${file.name}: ${validation.message}`);
+        continue;
+      }
+
+      try {
+        const uploadRes = await uploadUniversalFile({
+          file,
+          folderContext: {
+            ...folderContext,
+            category: '3_Semua_Lampiran_Batch'
+          },
+          category: '3_Semua_Lampiran_Batch'
+        });
+
+        newUploaded.push({
+          name: uploadRes.name || file.name,
+          data: uploadRes.url,
+          url: uploadRes.url,
+          uploadedAt: new Date().toISOString()
+        });
+        successCount++;
+      } catch (err) {
+        console.error('Batch file upload error:', err);
+        toast.error(`Gagal mengunggah ${file.name}`);
+      }
+    }
+
+    if (newUploaded.length > 0) {
+      const updatedList = [...(fotoList || []), ...newUploaded];
+      if (onChangeFotoList) {
+        onChangeFotoList(updatedList);
+      }
+      toast.success(`Berhasil mengunggah ${successCount} lampiran ke Google Drive!`);
+    }
+
+    e.target.value = '';
+    setIsUploadingBatch(false);
+  };
+
+  const handleRemoveBatchFile = async (fileIdx) => {
+    const targetFile = (fotoList || [])[fileIdx];
+    const fileUrl = targetFile?.data || targetFile?.url || '';
+
+    if (isGoogleDriveUrl(fileUrl)) {
+      try {
+        const res = await deleteFromGoogleDrive(fileUrl);
+        if (res?.success) {
+          toast.success('Lampiran berhasil dihapus dari Google Drive');
+        }
+      } catch (e) {}
+    }
+
+    const updatedList = (fotoList || []).filter((_, idx) => idx !== fileIdx);
+    if (onChangeFotoList) {
+      onChangeFotoList(updatedList);
+    }
+    toast.info('Lampiran dihapus.');
   };
 
   return (
@@ -535,6 +635,175 @@ export const ShipAttachmentsUpload = ({
             </div>
           );
         })}
+      </div>
+
+      {/* ====== CARD UPLOAD BATCH SEMUA LAMPIRAN LAINNYA (MULTI-FILE / GOOGLE DRIVE) ====== */}
+      <div
+        style={{
+          marginTop: '1.25rem',
+          background: 'linear-gradient(135deg, rgba(2, 132, 199, 0.04) 0%, rgba(240, 249, 255, 0.95) 100%)',
+          border: '1.5px dashed var(--accent-primary, #0284c7)',
+          borderRadius: 'var(--radius-md, 8px)',
+          padding: '1.1rem 1.25rem',
+          boxShadow: '0 2px 6px rgba(2, 132, 199, 0.05)'
+        }}
+      >
+        {/* Card Header */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.85rem', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem' }}>
+            <div style={{ background: 'var(--accent-primary, #0284c7)', color: '#ffffff', padding: '0.4rem', borderRadius: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <FolderArchive size={19} />
+            </div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary, #0f172a)', display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
+                <span>UPLOAD BATCH SEMUA LAMPIRAN LAINNYA (MULTI-FILE)</span>
+                <span style={{ fontSize: '0.68rem', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0', padding: '0.12rem 0.45rem', borderRadius: '4px', fontWeight: 800, display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}>
+                  <HardDrive size={11} /> Google Drive Terhubung
+                </span>
+              </div>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary, #64748b)', marginTop: '0.15rem' }}>
+                Unggah banyak file sekaligus (PDF, Foto, Dokumen Tambahan). Seluruh berkas langsung tersimpan permanen di folder Google Drive cloud.
+              </div>
+            </div>
+          </div>
+          <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--accent-primary, #0284c7)', background: 'rgba(2, 132, 199, 0.12)', padding: '0.2rem 0.65rem', borderRadius: '12px' }}>
+            {currentBatchFiles.length} Lampiran Terunggah
+          </span>
+        </div>
+
+        {/* Dropzone Upload Multi-File */}
+        {!disabled && (
+          <div style={{ marginBottom: '1rem' }}>
+            <label
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '1.25rem 1rem',
+                background: '#ffffff',
+                border: '1.5px dashed #93c5fd',
+                borderRadius: '8px',
+                cursor: isUploadingBatch ? 'wait' : 'pointer',
+                transition: 'all 0.15s ease',
+                textAlign: 'center'
+              }}
+            >
+              <UploadCloud size={30} color="var(--accent-primary, #0284c7)" style={{ marginBottom: '0.4rem' }} />
+              <span style={{ fontSize: '0.84rem', fontWeight: 800, color: 'var(--accent-primary, #0284c7)' }}>
+                {isUploadingBatch ? `Sedang mengunggah ke Google Drive (${batchUploadProgress.current}/${batchUploadProgress.total})...` : '📁 Klik atau Pilih Beberapa File Sekaligus untuk Upload Batch'}
+              </span>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-muted, #64748b)', marginTop: '0.25rem' }}>
+                Mendukung format PDF, JPG, PNG, DOCX (Maksimal 15 MB per file)
+              </span>
+              <input
+                type="file"
+                multiple
+                accept=".pdf,application/pdf,image/*,.doc,.docx"
+                onChange={handleBatchFileUpload}
+                disabled={isUploadingBatch}
+                style={{ display: 'none' }}
+              />
+            </label>
+          </div>
+        )}
+
+        {/* List of Uploaded Batch Files */}
+        {currentBatchFiles.length > 0 ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '0.65rem' }}>
+            {currentBatchFiles.map((fileItem, fIdx) => {
+              const fileUrl = fileItem.data || fileItem.url || '';
+              const fileName = fileItem.name || fileItem.fileName || `Lampiran_${fIdx + 1}`;
+              const isPdf = fileName.toLowerCase().endsWith('.pdf') || fileUrl.includes('.pdf');
+
+              return (
+                <div
+                  key={`batch-file-${fIdx}-${fileName}`}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    padding: '0.55rem 0.75rem',
+                    background: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '6px',
+                    boxShadow: '0 1px 2px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', minWidth: 0, flex: 1, paddingRight: '0.4rem' }}>
+                    {isPdf ? (
+                      <FileText size={17} color="#0284c7" style={{ flexShrink: 0 }} />
+                    ) : (
+                      <Image size={17} color="#7c3aed" style={{ flexShrink: 0 }} />
+                    )}
+                    <div style={{ minWidth: 0, flex: 1 }}>
+                      <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-primary, #0f172a)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={fileName}>
+                        {fileName}
+                      </div>
+                      <div style={{ fontSize: '0.66rem', color: '#047857', display: 'flex', alignItems: 'center', gap: '0.2rem', marginTop: '0.1rem' }}>
+                        <HardDrive size={10} /> Google Drive
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', flexShrink: 0 }}>
+                    <button
+                      type="button"
+                      className="btn btn-sm"
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.7rem',
+                        background: 'var(--accent-primary, #0284c7)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.2rem',
+                        cursor: 'pointer'
+                      }}
+                      onClick={() => {
+                        if (onPreview) {
+                          onPreview({
+                            title: fileName,
+                            fileData: fileUrl,
+                            fileName: fileName
+                          });
+                        } else if (fileUrl.startsWith('http') || fileUrl.startsWith('data:')) {
+                          window.open(fileUrl, '_blank');
+                        }
+                      }}
+                    >
+                      <Eye size={12} />
+                      <span>Cek</span>
+                    </button>
+
+                    {!disabled && (
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveBatchFile(fIdx)}
+                        style={{
+                          background: 'none',
+                          border: 'none',
+                          color: '#ef4444',
+                          cursor: 'pointer',
+                          padding: '3px'
+                        }}
+                        title="Hapus lampiran dari Google Drive"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '0.6rem', color: 'var(--text-muted, #64748b)', fontSize: '0.74rem' }}>
+            Belum ada berkas lampiran batch yang diunggah.
+          </div>
+        )}
       </div>
     </div>
   );

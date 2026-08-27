@@ -2915,6 +2915,8 @@ export const DayDetailModal = ({
                   }}
                   disabled={false}
                   onPreview={(previewObj) => setPreviewAttachment({ isOpen: true, ...previewObj })}
+                  fotoList={formData.fotoList || []}
+                  onChangeFotoList={(newList) => setFormData((prev) => ({ ...prev, fotoList: newList }))}
                 />
 
                 {/* Footer Buttons */}

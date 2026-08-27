@@ -2516,6 +2516,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 }}
                 disabled={isLocked}
                 onPreview={(previewObj) => setPreviewAttachment({ isOpen: true, ...previewObj })}
+                fotoList={formData.fotoList || []}
+                onChangeFotoList={(newList) => setFormData((prev) => ({ ...prev, fotoList: newList }))}
               />
 
               {/* Section 10: Hasil Survei / Catatan Lapangan */}
