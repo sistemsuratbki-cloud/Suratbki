@@ -53,43 +53,32 @@ const mapFromDb = (row) => {
   if (row.status !== undefined && row.status !== null) merged.status = row.status;
   else if (raw.status !== undefined && raw.status !== null) merged.status = raw.status;
 
-  const resolvedApproval = row.approval_status || raw.approvalStatus || raw.approval_status;
-  if (resolvedApproval) {
-    if (resolvedApproval === 'ACC' || resolvedApproval === 'Sudah ACC' || resolvedApproval === 'Sudah di-ACC') {
-      merged.approvalStatus = 'ACC';
-    } else if (resolvedApproval === 'Revisi') {
-      merged.approvalStatus = 'Revisi';
-    } else {
-      merged.approvalStatus = resolvedApproval;
-    }
-  } else if (merged.status === 'Selesai') {
+  const rawApproval = row.approval_status || raw.approvalStatus || raw.approval_status;
+  if (rawApproval === 'ACC' || rawApproval === 'Sudah ACC' || rawApproval === 'Sudah di-ACC' || merged.status === 'Selesai') {
     merged.approvalStatus = 'ACC';
+    merged.status = 'Selesai';
+    merged.approvalNote = '';
+    merged.rejectionReason = '';
+    merged.approvalDate = row.approval_date || raw.approvalDate || raw.approvalAt || null;
+    merged.approvalAt = row.approval_date || raw.approvalAt || raw.approvalDate || null;
+    merged.approvedBy = row.approved_by || raw.approvedBy || raw.approvalBy || null;
+    merged.approvalBy = row.approved_by || raw.approvalBy || raw.approvedBy || null;
+  } else if (rawApproval === 'Revisi' || rawApproval === 'Perlu Revisi') {
+    merged.approvalStatus = 'Revisi';
+    merged.approvalNote = row.rejection_reason || raw.approvalNote || raw.rejectionReason || '';
+    merged.rejectionReason = row.rejection_reason || raw.rejectionReason || raw.approvalNote || '';
+    merged.approvalDate = null;
+    merged.approvalAt = null;
+    merged.approvedBy = null;
+    merged.approvalBy = null;
   } else {
-    merged.approvalStatus = 'Menunggu';
-  }
-
-  if (row.approval_date !== undefined && row.approval_date !== null) {
-    merged.approvalDate = row.approval_date;
-    merged.approvalAt = row.approval_date;
-  } else if (raw.approvalDate || raw.approvalAt) {
-    merged.approvalDate = raw.approvalDate || raw.approvalAt;
-    merged.approvalAt = raw.approvalAt || raw.approvalDate;
-  }
-
-  if (row.approved_by !== undefined && row.approved_by !== null) {
-    merged.approvedBy = row.approved_by;
-    merged.approvalBy = row.approved_by;
-  } else if (raw.approvedBy || raw.approvalBy) {
-    merged.approvedBy = raw.approvedBy || raw.approvalBy;
-    merged.approvalBy = raw.approvalBy || raw.approvedBy;
-  }
-
-  if (row.rejection_reason !== undefined && row.rejection_reason !== null) {
-    merged.rejectionReason = row.rejection_reason;
-    merged.approvalNote = row.rejection_reason;
-  } else if (raw.rejectionReason || raw.approvalNote) {
-    merged.rejectionReason = raw.rejectionReason || raw.approvalNote;
-    merged.approvalNote = raw.approvalNote || raw.rejectionReason;
+    merged.approvalStatus = rawApproval || 'Menunggu';
+    merged.approvalNote = '';
+    merged.rejectionReason = '';
+    merged.approvalDate = null;
+    merged.approvalAt = null;
+    merged.approvedBy = null;
+    merged.approvalBy = null;
   }
 
   if (row.doc_type !== undefined && row.doc_type !== null) merged.docType = row.doc_type;
@@ -235,6 +224,16 @@ export const fetchSuratTugasFromCloud = async () => {
 
 export const saveSuratTugasToCloud = async (item) => {
   if (!supabase || !item?.id) return;
+  const isAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
+  const isRev = item.approvalStatus === 'Revisi';
+
+  const finalApprovalStatus = isAcc ? 'ACC' : isRev ? 'Revisi' : (item.approvalStatus || 'Menunggu ACC');
+  const finalStatus = isAcc ? 'Selesai' : (item.status || 'Menunggu Survei');
+  const finalApprovalNote = isRev ? (item.approvalNote || item.rejectionReason || '') : '';
+  const finalRejectionReason = isRev ? (item.rejectionReason || item.approvalNote || null) : null;
+  const finalApprovalBy = isAcc ? (item.approvalBy || item.approvedBy || null) : null;
+  const finalApprovalAt = isAcc ? (item.approvalAt || item.approvalDate || new Date().toISOString()) : null;
+
   const payload = {
     id:                    String(item.id),
     nomor:                 item.nomor                || null,
@@ -260,11 +259,11 @@ export const saveSuratTugasToCloud = async (item) => {
     sarana_transportasi:   item.saranaTransportasi   || null,
     kategori_transportasi: item.kategoriTransportasi || null,
     kategori_perjalanan:   item.kategoriPerjalanan   || null,
-    status:                item.status               || (item.approvalStatus === 'ACC' ? 'Selesai' : 'Menunggu Survei'),
-    approval_status:       (item.approvalStatus === 'ACC' || item.status === 'Selesai') && item.approvalStatus !== 'Revisi' ? 'ACC' : (item.approvalStatus || 'Menunggu ACC'),
-    approval_date:         item.approvalDate         || item.approvalAt || null,
-    approved_by:           item.approvedBy           || item.approvalBy || null,
-    rejection_reason:      item.rejectionReason      || item.approvalNote || null,
+    status:                finalStatus,
+    approval_status:       finalApprovalStatus,
+    approval_date:         finalApprovalAt,
+    approved_by:           finalApprovalBy,
+    rejection_reason:      finalRejectionReason,
     is_paraf_sent:         Boolean(item.isParafSent),
     paraf_sent_at:         item.parafSentAt          || null,
     paraf_sent_by:         item.parafSentBy          || null,
@@ -290,7 +289,17 @@ export const saveSuratTugasToCloud = async (item) => {
     file_visit_name:            item.fileVisitName            || null,
     file_kwitansi_hotel_name:   item.fileKwitansiHotelName    || null,
     file_tiket_transport_name:  item.fileTiketTransportName   || null,
-    raw_data:              item,
+    raw_data:              {
+      ...item,
+      approvalStatus: finalApprovalStatus,
+      status: finalStatus,
+      approvalNote: finalApprovalNote,
+      rejectionReason: finalRejectionReason || '',
+      approvalBy: finalApprovalBy,
+      approvedBy: finalApprovalBy,
+      approvalAt: finalApprovalAt,
+      approvalDate: finalApprovalAt
+    },
   };
   return withRetry(async () => {
     const { error } = await supabase
