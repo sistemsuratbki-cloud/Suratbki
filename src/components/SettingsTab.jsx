@@ -896,16 +896,16 @@ export const SettingsTab = () => {
         </div>
       )}
 
-      {/* GOOGLE DRIVE INTEGRATION SETTINGS (DEVELOPER ONLY) */}
-      {currentUser?.role === 'developer' && (
+      {/* GOOGLE DRIVE INTEGRATION SETTINGS (ADMIN, KACAB, DEVELOPER) */}
+      {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'kacab') && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
           <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
             <div className="card-title-group">
               <HardDrive size={22} color="var(--accent-primary)" />
               <div>
-                <h3 className="card-title">Penyimpanan Berkas Google Drive</h3>
+                <h3 className="card-title">Penyimpanan Berkas Google Drive (Pemisahan Lampiran & Database)</h3>
                 <div className="card-subtitle">
-                  Pisahkan berkas foto visit, dokumentasi survei, kwitansi, dan tiket ke folder Google Drive agar hemat database dan mudah dikelola
+                  Berkas lampiran (foto visit, bukti visit, kwitansi, tiket) disimpan otomatis di Google Drive, sedangkan data operasional (kapal, tarif, SPS, PDS, visit survei) disimpan di Database Supabase.
                 </div>
               </div>
             </div>
