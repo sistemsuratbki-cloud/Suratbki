@@ -241,19 +241,9 @@ export const DataProvider = ({ children }) => {
       if (Array.isArray(cloudKapal) && cloudKapal.length > 0) {
         setMasterKapal(mergeWithDefaultMasterKapal(cloudKapal));
       }
-      if (Array.isArray(cloudVisit) && cloudVisit.length > 0) {
+      if (Array.isArray(cloudVisit)) {
         setVisitSurvei(cloudVisit.map(cleanEntityObject));
-      } else {
-        const localSaved = localStorage.getItem('st_visit_survei');
-        if (localSaved) {
-          try {
-            const parsed = JSON.parse(localSaved);
-            if (Array.isArray(parsed) && parsed.length > 0) {
-              parsed.forEach((v) => saveVisitSurveiToCloud(v));
-              setVisitSurvei(parsed.map(cleanEntityObject));
-            }
-          } catch (e) {}
-        }
+        safeSetLocalStorage('st_visit_survei', cloudVisit);
       }
     } catch (e) {
       console.warn('Cloud sync load warning:', e);
@@ -304,6 +294,10 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     safeSetLocalStorage('st_admin_settings', adminSettings);
   }, [adminSettings]);
+
+  useEffect(() => {
+    safeSetLocalStorage('st_visit_survei', visitSurvei);
+  }, [visitSurvei]);
 
   // Auto-sync / heal Kwitansi & Laporan only for PDS (Perjalanan Dinas Surveyor)
   useEffect(() => {
@@ -643,7 +637,11 @@ export const DataProvider = ({ children }) => {
   };
 
   const deleteVisitSurvei = (id) => {
-    setVisitSurvei((prev) => prev.filter((item) => item.id !== id));
+    setVisitSurvei((prev) => {
+      const updated = prev.filter((item) => String(item.id) !== String(id));
+      safeSetLocalStorage('st_visit_survei', updated);
+      return updated;
+    });
     deleteVisitSurveiFromCloud(id);
   };
 

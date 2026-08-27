@@ -588,17 +588,22 @@ export const fetchVisitSurveiFromCloud = async () => {
     }
 
     // 2. Fallback cek dari admin_settings.raw_data.visit_survei_list
-    const { data: settingsData } = await supabase
+    const { data: settingsData, error: sErr } = await supabase
       .from('admin_settings')
       .select('raw_data')
       .eq('id', 'default_settings')
       .maybeSingle();
 
-    if (settingsData?.raw_data?.visit_survei_list && Array.isArray(settingsData.raw_data.visit_survei_list)) {
-      return settingsData.raw_data.visit_survei_list.map(mapFromDb);
+    if (!sErr && settingsData?.raw_data?.visit_survei_list !== undefined) {
+      const list = settingsData.raw_data.visit_survei_list;
+      return Array.isArray(list) ? list.map(mapFromDb) : [];
     }
 
-    return (data || []).map(mapFromDb);
+    if (!error && Array.isArray(data)) {
+      return data.map(mapFromDb);
+    }
+
+    return [];
   }).catch(() => null);
 };
 
@@ -633,7 +638,7 @@ export const saveVisitSurveiToCloud = async (item) => {
 
       const existingRaw = currentSettings?.raw_data || {};
       const existingList = Array.isArray(existingRaw.visit_survei_list) ? existingRaw.visit_survei_list : [];
-      const updatedList = [item, ...existingList.filter((v) => v.id !== item.id)];
+      const updatedList = [item, ...existingList.filter((v) => String(v.id) !== String(item.id))];
 
       await supabase
         .from('admin_settings')
@@ -652,9 +657,10 @@ export const saveVisitSurveiToCloud = async (item) => {
 
 export const deleteVisitSurveiFromCloud = async (id) => {
   if (!supabase || !id) return;
+  const idStr = String(id);
   return withRetry(async () => {
     // A. Hapus dari tabel visit_survei
-    await supabase.from('visit_survei').delete().eq('id', String(id));
+    await supabase.from('visit_survei').delete().eq('id', idStr);
 
     // B. Hapus dari admin_settings
     try {
@@ -666,7 +672,7 @@ export const deleteVisitSurveiFromCloud = async (id) => {
 
       const existingRaw = currentSettings?.raw_data || {};
       const existingList = Array.isArray(existingRaw.visit_survei_list) ? existingRaw.visit_survei_list : [];
-      const updatedList = existingList.filter((v) => v.id !== id);
+      const updatedList = existingList.filter((v) => String(v.id) !== idStr);
 
       await supabase
         .from('admin_settings')
@@ -677,8 +683,10 @@ export const deleteVisitSurveiFromCloud = async (id) => {
             visit_survei_list: updatedList
           }
         }, { onConflict: 'id' });
-    } catch (e) {}
-  }).catch(() => {});
+    } catch (e) {
+      console.warn('[DB] delete visit from admin_settings error:', e);
+    }
+  }).catch((err) => console.warn('[DB] delete visit_survei retry failed:', err));
 };
 
 // ==============================================================================
