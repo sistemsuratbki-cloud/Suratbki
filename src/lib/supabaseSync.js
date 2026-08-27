@@ -49,8 +49,48 @@ const mapFromDb = (row) => {
   if (row.jumlah_estimasi !== undefined && row.jumlah_estimasi !== null) merged.jumlahEstimasi = row.jumlah_estimasi;
   else if (raw.jumlahEstimasi !== undefined && raw.jumlahEstimasi !== null) merged.jumlahEstimasi = raw.jumlahEstimasi;
 
-  if (row.approval_status !== undefined && row.approval_status !== null) merged.approvalStatus = row.approval_status;
-  else if (raw.approvalStatus !== undefined && raw.approvalStatus !== null) merged.approvalStatus = raw.approvalStatus;
+  // Normalisasi status & approvalStatus
+  if (row.status !== undefined && row.status !== null) merged.status = row.status;
+  else if (raw.status !== undefined && raw.status !== null) merged.status = raw.status;
+
+  const resolvedApproval = row.approval_status || raw.approvalStatus || raw.approval_status;
+  if (resolvedApproval) {
+    if (resolvedApproval === 'ACC' || resolvedApproval === 'Sudah ACC' || resolvedApproval === 'Sudah di-ACC') {
+      merged.approvalStatus = 'ACC';
+    } else if (resolvedApproval === 'Revisi') {
+      merged.approvalStatus = 'Revisi';
+    } else {
+      merged.approvalStatus = resolvedApproval;
+    }
+  } else if (merged.status === 'Selesai') {
+    merged.approvalStatus = 'ACC';
+  } else {
+    merged.approvalStatus = 'Menunggu';
+  }
+
+  if (row.approval_date !== undefined && row.approval_date !== null) {
+    merged.approvalDate = row.approval_date;
+    merged.approvalAt = row.approval_date;
+  } else if (raw.approvalDate || raw.approvalAt) {
+    merged.approvalDate = raw.approvalDate || raw.approvalAt;
+    merged.approvalAt = raw.approvalAt || raw.approvalDate;
+  }
+
+  if (row.approved_by !== undefined && row.approved_by !== null) {
+    merged.approvedBy = row.approved_by;
+    merged.approvalBy = row.approved_by;
+  } else if (raw.approvedBy || raw.approvalBy) {
+    merged.approvedBy = raw.approvedBy || raw.approvalBy;
+    merged.approvalBy = raw.approvalBy || raw.approvedBy;
+  }
+
+  if (row.rejection_reason !== undefined && row.rejection_reason !== null) {
+    merged.rejectionReason = row.rejection_reason;
+    merged.approvalNote = row.rejection_reason;
+  } else if (raw.rejectionReason || raw.approvalNote) {
+    merged.rejectionReason = raw.rejectionReason || raw.approvalNote;
+    merged.approvalNote = raw.approvalNote || raw.rejectionReason;
+  }
 
   if (row.doc_type !== undefined && row.doc_type !== null) merged.docType = row.doc_type;
   else if (raw.docType !== undefined && raw.docType !== null) merged.docType = raw.docType;
@@ -220,12 +260,11 @@ export const saveSuratTugasToCloud = async (item) => {
     sarana_transportasi:   item.saranaTransportasi   || null,
     kategori_transportasi: item.kategoriTransportasi || null,
     kategori_perjalanan:   item.kategoriPerjalanan   || null,
-    keterangan:            item.keterangan           || null,
-    status:                item.status               || 'Menunggu Survei',
-    approval_status:       item.approvalStatus       || 'Menunggu ACC',
-    approval_date:         item.approvalDate         || null,
-    approved_by:           item.approvedBy           || null,
-    rejection_reason:      item.rejectionReason      || null,
+    status:                item.status               || (item.approvalStatus === 'ACC' ? 'Selesai' : 'Menunggu Survei'),
+    approval_status:       (item.approvalStatus === 'ACC' || item.status === 'Selesai') && item.approvalStatus !== 'Revisi' ? 'ACC' : (item.approvalStatus || 'Menunggu ACC'),
+    approval_date:         item.approvalDate         || item.approvalAt || null,
+    approved_by:           item.approvedBy           || item.approvalBy || null,
+    rejection_reason:      item.rejectionReason      || item.approvalNote || null,
     is_paraf_sent:         Boolean(item.isParafSent),
     paraf_sent_at:         item.parafSentAt          || null,
     paraf_sent_by:         item.parafSentBy          || null,

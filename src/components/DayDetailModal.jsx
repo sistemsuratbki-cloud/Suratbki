@@ -1251,7 +1251,9 @@ export const DayDetailModal = ({
                                         status: 'Selesai',
                                         approvalNote: '',
                                         approvalBy: currentUser?.name || (isFinance ? 'Staff Keuangan' : (currentUser?.role === 'kacab' ? 'Kepala Cabang' : 'Admin')),
-                                        approvalAt: new Date().toISOString()
+                                        approvedBy: currentUser?.name || (isFinance ? 'Staff Keuangan' : (currentUser?.role === 'kacab' ? 'Kepala Cabang' : 'Admin')),
+                                        approvalAt: new Date().toISOString(),
+                                        approvalDate: new Date().toISOString()
                                       });
                                       toast.success(`✅ PDS ${pds.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
                                     }}

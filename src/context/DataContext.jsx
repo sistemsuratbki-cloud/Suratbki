@@ -959,16 +959,18 @@ export const DataProvider = ({ children }) => {
     const cleanedData = cleanEntityObject(updatedData);
     let updatedItem = null;
 
-    setSuratTugas((prev) =>
-      prev.map((item) => {
+    setSuratTugas((prev) => {
+      const next = prev.map((item) => {
         if (item.id === id) {
           updatedItem = { ...item, ...cleanedData, nomor: cleanDocNumber(cleanedData.nomor || item.nomor) };
           saveSuratTugasToCloud(updatedItem);
           return updatedItem;
         }
         return item;
-      })
-    );
+      });
+      safeSetLocalStorage('st_surat_tugas', next);
+      return next;
+    });
 
     // Auto-update linked Kwitansi Honor
     const baseRate = Number(cleanedData.tarifDasar) || 0;

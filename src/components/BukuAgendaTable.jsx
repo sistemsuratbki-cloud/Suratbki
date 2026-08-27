@@ -86,7 +86,7 @@ export const BukuAgendaTable = () => {
 
   // ACC / Revisi Handlers
   const handleToggleAccPds = (item) => {
-    const isCurrentlyAcc = item.approvalStatus === 'ACC';
+    const isCurrentlyAcc = item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi');
     const updaterName = currentUser?.name || (isFinance ? 'Staff Keuangan' : (currentUser?.role === 'kacab' ? 'Kepala Cabang' : 'Admin'));
     if (isCurrentlyAcc) {
       updateSuratTugas(item.id, {
@@ -94,7 +94,9 @@ export const BukuAgendaTable = () => {
         status: 'Berjalan',
         approvalNote: '',
         approvalBy: null,
-        approvalAt: null
+        approvedBy: null,
+        approvalAt: null,
+        approvalDate: null
       });
       toast.info(`Status ACC untuk PDS ${item.namaKapal || ''} dibatalkan (Menunggu ACC).`);
     } else {
@@ -103,7 +105,9 @@ export const BukuAgendaTable = () => {
         status: 'Selesai',
         approvalNote: '',
         approvalBy: updaterName,
-        approvalAt: new Date().toISOString()
+        approvedBy: updaterName,
+        approvalAt: new Date().toISOString(),
+        approvalDate: new Date().toISOString()
       });
       toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
     }
