@@ -1186,33 +1186,15 @@ export const DayDetailModal = ({
                                 className="btn btn-secondary btn-sm"
                                 style={{ padding: '0.25rem 0.6rem', fontSize: '0.74rem', fontWeight: 700, background: '#0284c7', color: '#ffffff', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
                                 onClick={() => handleOpenBiayaPrint(pds)}
-                                title="Download / Cetak PDF Rincian Biaya Perjalanan Dinas"
+                                title={
+                                  (pds.isSmc || (pds.perihal || '').toUpperCase().includes('SMC') || (pds.jenisSurvey || '').toUpperCase().includes('SMC') || Number(pds.biayaExpertise) > 0 || (pds.noSap && pds.noSap !== '-'))
+                                    ? 'Download / Cetak PDF Rincian Biaya + Tanda Terima SMC (1 File PDF Gabungan)'
+                                    : 'Download / Cetak PDF Rincian Biaya Perjalanan Dinas'
+                                }
                               >
                                 <Calculator size={13} />
                                 <span>Rincian Biaya</span>
                               </button>
-
-                              {(pds.isSmc || (pds.perihal || '').toUpperCase().includes('SMC') || (pds.jenisSurvey || '').toUpperCase().includes('SMC') || Number(pds.biayaExpertise) > 0 || (pds.noSap && pds.noSap !== '-')) && (
-                                <button
-                                  className="btn btn-secondary btn-sm"
-                                  style={{
-                                    padding: '0.25rem 0.6rem',
-                                    fontSize: '0.74rem',
-                                    fontWeight: 700,
-                                    background: '#059669',
-                                    color: '#ffffff',
-                                    borderColor: '#059669',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    gap: '0.25rem'
-                                  }}
-                                  onClick={() => handleOpenSmcPrint(pds)}
-                                  title="Download / Cetak PDF Tanda Terima Expertise Flag State (SMC)"
-                                >
-                                  <Ship size={13} />
-                                  <span>Cetak SMC</span>
-                                </button>
-                              )}
 
                               <button
                                 className="btn btn-secondary btn-sm"
