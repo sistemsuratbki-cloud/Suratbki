@@ -9,7 +9,8 @@ import {
   Calendar,
   MapPin,
   User,
-  Sparkles
+  Sparkles,
+  FileText
 } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
@@ -42,6 +43,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     perihal: 'DINAS SURVEY KLAS',
     lokasi: defaultLocation,
     tempatSurvey: defaultLocation,
+    tglSurat: '',
     tglMulai: '',
     tglSelesai: '',
     noOrder: 'RFQ-0000',
@@ -51,6 +53,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
   });
 
   useEffect(() => {
+    const todayDate = new Date().toISOString().split('T')[0];
     if (editItem) {
       const editLoc = editItem.lokasi || editItem.tempatSurvey || defaultLocation;
       const initialAgenda = editItem.noAgenda || editItem.agenda || '';
@@ -66,6 +69,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
         perihal: (editItem.perihal || 'DINAS SURVEY KLAS').toUpperCase(),
         lokasi: editLoc.toUpperCase(),
         tempatSurvey: editLoc.toUpperCase(),
+        tglSurat: editItem.tglSurat || editItem.tglPembuatan || editItem.tglMulai || todayDate,
         tglMulai: editItem.tglMulai || '',
         tglSelesai: editItem.tglSelesai || editItem.tglMulai || '',
         noOrder: editItem.noOrder || 'RFQ-0000',
@@ -77,7 +81,6 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
       const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
         ? (currentUser?.name || surveyorUsers[0]?.name || '')
         : (surveyorUsers[0]?.name || '');
-      const todayDate = new Date().toISOString().split('T')[0];
       const initialLoc = defaultLocation || 'WAJOK';
 
       setFormData({
@@ -88,6 +91,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
         perihal: 'DINAS SURVEY KLAS',
         lokasi: initialLoc.toUpperCase(),
         tempatSurvey: initialLoc.toUpperCase(),
+        tglSurat: todayDate,
         tglMulai: todayDate,
         tglSelesai: todayDate,
         noOrder: `RFQ260${String(Math.floor(Math.random() * 900) + 100)}`,
@@ -229,11 +233,11 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
             <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
-              {/* Section 1: Penugasan Surveyor & Jadwal Survei */}
+              {/* Section 1: Penugasan Surveyor, Tanggal Pembuatan & Jadwal Survei */}
               <div
                 style={{
                   display: 'grid',
-                  gridTemplateColumns: '1.3fr 1fr',
+                  gridTemplateColumns: '1.2fr 1fr 1fr',
                   gap: '1rem',
                   marginBottom: '1.25rem',
                   background: 'var(--bg-main)',
@@ -280,8 +284,27 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
 
                 <div className="form-group" style={{ margin: 0 }}>
                   <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <FileText size={14} color="var(--accent-primary)" />
+                    <span>Tgl. Pembuatan Berkas *</span>
+                  </label>
+                  <input
+                    type="date"
+                    className="form-input"
+                    value={formData.tglSurat || formData.tglMulai}
+                    onChange={(e) => {
+                      setFormData({
+                        ...formData,
+                        tglSurat: e.target.value
+                      });
+                    }}
+                    required
+                  />
+                </div>
+
+                <div className="form-group" style={{ margin: 0 }}>
+                  <label className="form-label" style={{ fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                     <Calendar size={14} color="var(--accent-primary)" />
-                    <span>Tanggal Mulai Survei *</span>
+                    <span>Tgl. Mulai Survei *</span>
                   </label>
                   <input
                     type="date"

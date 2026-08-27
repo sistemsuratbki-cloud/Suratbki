@@ -51,6 +51,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   };
 
   const tglSurveyFormatted = formatDateIndo(suratTugas.tglMulai);
+  const tglSuratFormatted = formatDateIndo(suratTugas.tglSurat || suratTugas.tglPembuatan || suratTugas.tglMulai);
   const lokasiSurvey = (suratTugas.tempatSurvey || suratTugas.lokasi || 'PONTIANAK').toUpperCase();
   const jenisSurvey = (suratTugas.jenisSurvey || suratTugas.perihal || '-').toUpperCase();
   const pemohon = suratTugas.pemohon || 'PT. MITRA SAMUDRA NUSANTARA';
@@ -342,7 +343,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
                 <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: isMobilePrint ? '0.5rem' : '2.5rem', fontSize: isMobilePrint ? '8.5pt' : '11pt', lineHeight: isMobilePrint ? '1.25' : '1.5', breakInside: 'avoid' }}>
                   <div style={{ display: 'inline-block', minWidth: isMobilePrint ? '180px' : '220px', textAlign: 'left' }}>
                     <div>
-                      Pontianak, {tglSurveyFormatted}
+                      Pontianak, {tglSuratFormatted}
                     </div>
                     <div style={{ position: 'relative', height: isMobilePrint ? '50px' : '85px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                       {withSignature && isValidSignature(kacabSignature) ? (

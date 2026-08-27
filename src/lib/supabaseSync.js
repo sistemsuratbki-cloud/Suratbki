@@ -21,6 +21,10 @@ const mapFromDb = (row) => {
   if (row.tgl_selesai !== undefined && row.tgl_selesai !== null) merged.tglSelesai = row.tgl_selesai;
   else if (raw.tglSelesai !== undefined && raw.tglSelesai !== null) merged.tglSelesai = raw.tglSelesai;
 
+  if (row.tgl_surat !== undefined && row.tgl_surat !== null) merged.tglSurat = row.tgl_surat;
+  else if (raw.tglSurat !== undefined && raw.tglSurat !== null) merged.tglSurat = raw.tglSurat;
+  else if (raw.tglPembuatan !== undefined && raw.tglPembuatan !== null) merged.tglSurat = raw.tglPembuatan;
+
   if (row.tgl_lapor !== undefined && row.tgl_lapor !== null) merged.tglLapor = row.tgl_lapor;
   else if (raw.tglLapor !== undefined && raw.tglLapor !== null) merged.tglLapor = raw.tglLapor;
 
@@ -181,6 +185,7 @@ export const saveSuratTugasToCloud = async (item) => {
     lokasi:                item.lokasi               || item.tempatSurvey || null,
     tgl_mulai:             item.tglMulai             || null,
     tgl_selesai:           item.tglSelesai           || null,
+    tgl_surat:             item.tglSurat             || item.tglPembuatan || item.tglMulai || null,
     sarana:                item.sarana               || null,
     sarana_transportasi:   item.saranaTransportasi   || null,
     kategori_transportasi: item.kategoriTransportasi || null,

@@ -984,11 +984,17 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           </div>
                         </div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 600 }}>
                             <Calendar size={13} color="var(--accent-primary)" />
-                            <span>{formatDateIndo(item.tglMulai)}</span>
+                            <span>Mulai: {formatDateIndo(item.tglMulai)}</span>
                           </div>
+                          {(item.tglSurat || item.tglPembuatan || item.createdAt) && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.72rem', color: 'var(--text-muted)' }}>
+                              <FileText size={11} color="var(--accent-primary)" />
+                              <span>Dibuat: {formatDateIndo(item.tglSurat || item.tglPembuatan || item.createdAt)}</span>
+                            </div>
+                          )}
                           <div>
                             <span
                               style={{
