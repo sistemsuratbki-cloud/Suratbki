@@ -102,23 +102,53 @@ const mapFromDb = (row) => {
   else if (raw.tatLuarKota !== undefined) merged.tatLuarKota = raw.tatLuarKota;
 
   // Normalisasi shipsDetail
-  if (row.ships_detail !== undefined && row.ships_detail !== null) merged.shipsDetail = row.ships_detail;
-  else if (raw.shipsDetail !== undefined) merged.shipsDetail = raw.shipsDetail;
+  if (row.ships_detail !== undefined && row.ships_detail !== null) {
+    merged.shipsDetail = typeof row.ships_detail === 'string' ? (() => { try { return JSON.parse(row.ships_detail); } catch (e) { return []; } })() : row.ships_detail;
+  } else if (raw.shipsDetail !== undefined) {
+    merged.shipsDetail = raw.shipsDetail;
+  }
+
+  // Normalisasi fotoList (Batch Upload & Multi-Photo)
+  if (row.foto_list !== undefined && row.foto_list !== null) {
+    merged.fotoList = typeof row.foto_list === 'string' ? (() => { try { return JSON.parse(row.foto_list); } catch (e) { return []; } })() : row.foto_list;
+  } else if (raw.fotoList !== undefined) {
+    merged.fotoList = raw.fotoList;
+  } else if (raw.foto_list !== undefined) {
+    merged.fotoList = raw.foto_list;
+  }
 
   // Normalisasi lampiran berkas (visit, selfie, tiket, hotel, fotoList)
   if (row.file_visit_name !== undefined && row.file_visit_name !== null) merged.fileVisitName = row.file_visit_name;
   else if (raw.fileVisitName !== undefined) merged.fileVisitName = raw.fileVisitName;
 
+  if (row.file_visit_data !== undefined && row.file_visit_data !== null) merged.fileVisitData = row.file_visit_data;
+  else if (raw.fileVisitData !== undefined) merged.fileVisitData = raw.fileVisitData;
+  else if (merged.fileVisitName && (merged.fileVisitName.startsWith('http') || merged.fileVisitName.startsWith('data:'))) merged.fileVisitData = merged.fileVisitName;
+
   if (row.file_foto_name !== undefined && row.file_foto_name !== null) merged.fileFotoName = row.file_foto_name;
   else if (raw.fileFotoName !== undefined) merged.fileFotoName = raw.fileFotoName;
+
+  if (row.file_foto_data !== undefined && row.file_foto_data !== null) merged.fileFotoData = row.file_foto_data;
+  else if (raw.fileFotoData !== undefined) merged.fileFotoData = raw.fileFotoData;
+  else if (merged.fileFotoName && (merged.fileFotoName.startsWith('http') || merged.fileFotoName.startsWith('data:'))) merged.fileFotoData = merged.fileFotoName;
 
   if (row.file_tiket_transport_name !== undefined && row.file_tiket_transport_name !== null) merged.fileTiketTransportName = row.file_tiket_transport_name;
   else if (row.file_tiket_name !== undefined && row.file_tiket_name !== null) merged.fileTiketTransportName = row.file_tiket_name;
   else if (raw.fileTiketTransportName !== undefined) merged.fileTiketTransportName = raw.fileTiketTransportName;
   else if (raw.fileTiketName !== undefined) merged.fileTiketTransportName = raw.fileTiketName;
 
+  if (row.file_tiket_transport_data !== undefined && row.file_tiket_transport_data !== null) merged.fileTiketTransportData = row.file_tiket_transport_data;
+  else if (raw.fileTiketTransportData !== undefined) merged.fileTiketTransportData = raw.fileTiketTransportData;
+  else if (raw.fileTiketData !== undefined) merged.fileTiketTransportData = raw.fileTiketData;
+
   if (row.file_kwitansi_hotel_name !== undefined && row.file_kwitansi_hotel_name !== null) merged.fileKwitansiHotelName = row.file_kwitansi_hotel_name;
   else if (raw.fileKwitansiHotelName !== undefined) merged.fileKwitansiHotelName = raw.fileKwitansiHotelName;
+
+  if (row.file_kwitansi_hotel_data !== undefined && row.file_kwitansi_hotel_data !== null) merged.fileKwitansiHotelData = row.file_kwitansi_hotel_data;
+  else if (raw.fileKwitansiHotelData !== undefined) merged.fileKwitansiHotelData = raw.fileKwitansiHotelData;
+
+  if (raw.rincianTiket !== undefined) merged.rincianTiket = raw.rincianTiket;
+  if (raw.rincianHotel !== undefined) merged.rincianHotel = raw.rincianHotel;
 
   // Normalisasi field visit survei
   if (row.jam_berangkat !== undefined && row.jam_berangkat !== null) merged.jamBerangkat = row.jam_berangkat;

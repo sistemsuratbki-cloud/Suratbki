@@ -171,9 +171,20 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       const editCategory = editItem.kategoriPerjalanan || matchedTariff?.kategori || getLocationCategory(editLoc, activeTariffs);
 
       // Load ships detail if any
-      const existingShips = editItem.shipsDetail || [];
+      let existingShips = editItem.shipsDetail || editItem.ships_detail || [];
+      if (typeof existingShips === 'string') {
+        try { existingShips = JSON.parse(existingShips); } catch (e) { existingShips = []; }
+      }
       setShipsDetail(existingShips);
-      setSelectedSpsIds(editItem.linkedSpsIds || []);
+      setSelectedSpsIds(editItem.linkedSpsIds || editItem.linked_sps_ids || []);
+
+      let existingFotoList = editItem.fotoList || editItem.foto_list || [];
+      if (typeof existingFotoList === 'string') {
+        try { existingFotoList = JSON.parse(existingFotoList); } catch (e) { existingFotoList = []; }
+      }
+
+      const rawVisitData = editItem.fileVisitData || editItem.file_visit_data || (editItem.fileVisitName && (editItem.fileVisitName.startsWith('http') || editItem.fileVisitName.startsWith('data:')) ? editItem.fileVisitName : '');
+      const rawFotoData = editItem.fileFotoData || editItem.file_foto_data || (editItem.fileFotoName && (editItem.fileFotoName.startsWith('http') || editItem.fileFotoName.startsWith('data:')) ? editItem.fileFotoName : '');
 
       // Load or convert multi tiket
       let parsedTiket = [];
@@ -236,11 +247,14 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tanpaUangHarian: !!editItem.tanpaUangHarian,
         hariTanpaUangHarian: Number(editItem.hariTanpaUangHarian) || 0,
         fileFotoName: editItem.fileFotoName || '',
-        fileFotoData: editItem.fileFotoData || '',
-        fotoList: editItem.fotoList || [],
+        fileFotoData: rawFotoData,
+        fotoList: existingFotoList,
         fileVisitName: editItem.fileVisitName || '',
+        fileVisitData: rawVisitData,
         fileTiketTransportName: editItem.fileTiketTransportName || editItem.fileTiketName || '',
+        fileTiketTransportData: editItem.fileTiketTransportData || editItem.fileTiketData || '',
         fileKwitansiHotelName: editItem.fileKwitansiHotelName || '',
+        fileKwitansiHotelData: editItem.fileKwitansiHotelData || '',
         status: editItem.status || 'Berjalan',
         catatan: editItem.catatan || '',
         visit: editItem.visit || '1',

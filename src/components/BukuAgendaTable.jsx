@@ -24,7 +24,9 @@ import {
   MessageSquare,
   Clock,
   AlertTriangle,
-  Ship
+  Ship,
+  UploadCloud,
+  Plus
 } from 'lucide-react';
 import ExcelJS from 'exceljs';
 import { toast } from 'react-hot-toast';
@@ -38,6 +40,7 @@ import { BukuAgendaPrintModal } from './BukuAgendaPrintModal';
 import { SuratTugasPdsPrintModal } from './SuratTugasPdsPrintModal';
 import { BiayaPdsPrintModal } from './BiayaPdsPrintModal';
 import { TandaTerimaSmcPrintModal } from './TandaTerimaSmcPrintModal';
+import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 
 export const BukuAgendaTable = () => {
   const { suratTugas, updateSuratTugas, laporanSurvei, kwitansiHonor, gradeTariffs, adminSettings } = useData();
@@ -72,6 +75,7 @@ export const BukuAgendaTable = () => {
   // Lampiran Modal State
   const [lampiranModalItem, setLampiranModalItem] = useState(null);
   const [isLampiranModalOpen, setIsLampiranModalOpen] = useState(false);
+  const [showUploadSection, setShowUploadSection] = useState(false);
   const [previewAttachment, setPreviewAttachment] = useState({ isOpen: false, title: '', fileData: null, fileName: '' });
 
   // Revisi Modal State
@@ -156,147 +160,110 @@ export const BukuAgendaTable = () => {
   };
 
   const getPdsAttachments = (item) => {
-    if (!item) return { totalCount: 0, shipAttachments: [], generalAttachments: [] };
+    if (!item) return { totalCount: 0, shipAttachments: [], generalAttachments: [], allKeys: [] };
 
-    const isMultiShipPds =
-      (item.docType === 'PDS' || item.isPds) &&
-      ((Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0) ||
-        (Array.isArray(item.linkedSpsIds) && item.linkedSpsIds.length > 0));
+    // Resolve target PDS
+    const targetItem = resolvePdsItem(item) || item;
 
     const shipAttachments = [];
     const generalAttachments = [];
     const addedFileKeys = new Set();
 
-    if (isMultiShipPds) {
-      // 1. Combined PDS with multiple ships in shipsDetail
-      let parsedShipsDetail = item.shipsDetail || item.ships_detail;
-      if (typeof parsedShipsDetail === 'string') {
-        try {
-          parsedShipsDetail = JSON.parse(parsedShipsDetail);
-        } catch (e) {
-          parsedShipsDetail = [];
-        }
-      }
-
-      if (Array.isArray(parsedShipsDetail) && parsedShipsDetail.length > 0) {
-        parsedShipsDetail.forEach((sh, sIdx) => {
-          const shipName = (sh.namaKapal || sh.nama_kapal || `Kapal #${sIdx + 1}`).toUpperCase();
-          const agenda = sh.noAgenda || sh.no_agenda || item.noAgenda || item.agenda || '-';
-          const files = [];
-
-          // Find exact matching child SPS or Laporan for this specific ship if available
-          const matchingChildSps = (suratTugas || []).find(st =>
-            (sh.id && st.id === sh.id) ||
-            (Array.isArray(item.linkedSpsIds) && item.linkedSpsIds.includes(st.id) && st.namaKapal === sh.namaKapal)
-          );
-
-          const matchingChildLap = (laporanSurvei || []).find(lap =>
-            (sh.id && lap.suratId === sh.id) ||
-            (matchingChildSps && lap.suratId === matchingChildSps.id)
-          );
-
-          const visitFile =
-            sh.fileVisitData ||
-            sh.fileVisitName ||
-            sh.file_visit_name ||
-            sh.file_visit_data ||
-            matchingChildSps?.fileVisitData ||
-            matchingChildSps?.fileVisitName ||
-            matchingChildLap?.fileVisitData ||
-            matchingChildLap?.fileVisitName ||
-            (sIdx === 0 ? (item.fileVisitData || item.fileVisitName || item.file_visit_name) : null);
-
-          const selfieFile =
-            sh.fileFotoData ||
-            sh.fileFotoName ||
-            sh.file_foto_name ||
-            sh.file_foto_data ||
-            matchingChildSps?.fileFotoData ||
-            matchingChildSps?.fileFotoName ||
-            matchingChildLap?.fileFotoData ||
-            matchingChildLap?.fileFotoName ||
-            (sIdx === 0 ? (item.fileFotoData || item.fileFotoName || item.file_foto_name) : null);
-
-          if (visitFile && !addedFileKeys.has(`visit_${sIdx}_${visitFile}`)) {
-            addedFileKeys.add(`visit_${sIdx}_${visitFile}`);
-            files.push({
-              key: `ship_${sIdx}_visit_${shipName}`,
-              type: 'visit',
-              label: 'Formulir Visit Lapangan (PDF)',
-              fileName: sh.fileVisitName || sh.file_visit_name || matchingChildSps?.fileVisitName || `Form_Visit_${shipName}.pdf`,
-              fileData: visitFile
-            });
-          }
-
-          if (selfieFile && !addedFileKeys.has(`selfie_${sIdx}_${selfieFile}`)) {
-            addedFileKeys.add(`selfie_${sIdx}_${selfieFile}`);
-            files.push({
-              key: `ship_${sIdx}_selfie_${shipName}`,
-              type: 'selfie',
-              label: 'Foto Selfie Lapangan (PDF)',
-              fileName: sh.fileFotoName || sh.file_foto_name || matchingChildSps?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
-              fileData: selfieFile
-            });
-          }
-
-          if (files.length > 0) {
-            shipAttachments.push({ shipName, agenda, files });
-          }
-        });
-      }
-    } else {
-      // 2. Individual survey row / SPS / Single Ship Report
-      const matchingLap = (laporanSurvei || []).find(lap => lap.suratId === item.id || lap.id === item.id);
-      const shipName = (item.namaKapal || item.nama_kapal || matchingLap?.namaKapal || 'SURVEI').toUpperCase();
-      const agenda = item.noAgenda || item.no_agenda || item.agenda || matchingLap?.noAgenda || '-';
-      const files = [];
-
-      const visitFile =
-        item.fileVisitData ||
-        item.fileVisitName ||
-        item.file_visit_name ||
-        item.file_visit_data ||
-        matchingLap?.fileVisitData ||
-        matchingLap?.fileVisitName;
-
-      const selfieFile =
-        item.fileFotoData ||
-        item.fileFotoName ||
-        item.file_foto_name ||
-        item.file_foto_data ||
-        matchingLap?.fileFotoData ||
-        matchingLap?.fileFotoName;
-
-      if (visitFile && !addedFileKeys.has(`visit_${item.id}_${visitFile}`)) {
-        addedFileKeys.add(`visit_${item.id}_${visitFile}`);
-        files.push({
-          key: `single_visit_${shipName}`,
-          type: 'visit',
-          label: 'Formulir Visit Lapangan (PDF)',
-          fileName: item.fileVisitName || item.file_visit_name || matchingLap?.fileVisitName || `Form_Visit_${shipName}.pdf`,
-          fileData: visitFile
-        });
-      }
-
-      if (selfieFile && !addedFileKeys.has(`selfie_${item.id}_${selfieFile}`)) {
-        addedFileKeys.add(`selfie_${item.id}_${selfieFile}`);
-        files.push({
-          key: `single_selfie_${shipName}`,
-          type: 'selfie',
-          label: 'Foto Selfie Lapangan (PDF)',
-          fileName: item.fileFotoName || item.file_foto_name || matchingLap?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
-          fileData: selfieFile
-        });
-      }
-
-      if (files.length > 0) {
-        shipAttachments.push({ shipName, agenda, files });
+    // 1. Resolve list of ships for this PDS
+    let parsedShipsDetail = targetItem.shipsDetail || targetItem.ships_detail;
+    if (typeof parsedShipsDetail === 'string') {
+      try {
+        parsedShipsDetail = JSON.parse(parsedShipsDetail);
+      } catch (e) {
+        parsedShipsDetail = [];
       }
     }
 
-    // 3. Travel receipts (Tiket, Hotel, Foto Lapangan) strictly for this item
-    const matchingLap = (laporanSurvei || []).find(lap => lap.suratId === item.id || lap.id === item.id);
-    const itemSources = [item, matchingLap].filter(Boolean);
+    // Fallback: parse from namaKapal if multiple ships separated by comma/slash
+    if ((!Array.isArray(parsedShipsDetail) || parsedShipsDetail.length === 0) && targetItem.namaKapal) {
+      const splitNames = targetItem.namaKapal.split(/[,/]/).map(s => s.trim()).filter(Boolean);
+      if (splitNames.length > 0) {
+        parsedShipsDetail = splitNames.map((name, idx) => ({
+          namaKapal: name,
+          noAgenda: targetItem.noAgenda || targetItem.agenda || '-',
+          fileVisitData: idx === 0 ? (targetItem.fileVisitData || targetItem.fileVisitName) : '',
+          fileFotoData: idx === 0 ? (targetItem.fileFotoData || targetItem.fileFotoName) : ''
+        }));
+      }
+    }
+
+    if (Array.isArray(parsedShipsDetail) && parsedShipsDetail.length > 0) {
+      parsedShipsDetail.forEach((sh, sIdx) => {
+        const shipName = (sh.namaKapal || sh.nama_kapal || `Kapal #${sIdx + 1}`).toUpperCase().trim();
+        const agenda = sh.noAgenda || sh.no_agenda || targetItem.noAgenda || targetItem.agenda || '-';
+        const files = [];
+
+        // Find exact matching child SPS or Laporan for this specific ship
+        const matchingChildSps = (suratTugas || []).find(st =>
+          (sh.id && String(st.id) === String(sh.id)) ||
+          (Array.isArray(targetItem.linkedSpsIds) && targetItem.linkedSpsIds.some(lid => String(lid) === String(st.id))) ||
+          (st.namaKapal && String(st.namaKapal).trim().toUpperCase() === shipName)
+        );
+
+        const matchingChildLap = (laporanSurvei || []).find(lap =>
+          (sh.id && String(lap.suratId) === String(sh.id)) ||
+          (matchingChildSps && String(lap.suratId) === String(matchingChildSps.id)) ||
+          (lap.namaKapal && String(lap.namaKapal).trim().toUpperCase() === shipName)
+        );
+
+        const visitFile =
+          sh.fileVisitData ||
+          sh.fileVisitName ||
+          sh.file_visit_name ||
+          sh.file_visit_data ||
+          matchingChildSps?.fileVisitData ||
+          matchingChildSps?.fileVisitName ||
+          matchingChildLap?.fileVisitData ||
+          matchingChildLap?.fileVisitName ||
+          (sIdx === 0 ? (targetItem.fileVisitData || targetItem.fileVisitName || targetItem.file_visit_name) : null);
+
+        const selfieFile =
+          sh.fileFotoData ||
+          sh.fileFotoName ||
+          sh.file_foto_name ||
+          sh.file_foto_data ||
+          matchingChildSps?.fileFotoData ||
+          matchingChildSps?.fileFotoName ||
+          matchingChildLap?.fileFotoData ||
+          matchingChildLap?.fileFotoName ||
+          (sIdx === 0 ? (targetItem.fileFotoData || targetItem.fileFotoName || targetItem.file_foto_name) : null);
+
+        if (visitFile && !addedFileKeys.has(`visit_${sIdx}_${visitFile}`)) {
+          addedFileKeys.add(`visit_${sIdx}_${visitFile}`);
+          files.push({
+            key: `ship_${sIdx}_visit_${shipName}`,
+            type: 'visit',
+            label: 'Formulir Visit Lapangan (PDF)',
+            fileName: sh.fileVisitName || sh.file_visit_name || matchingChildSps?.fileVisitName || `Form_Visit_${shipName}.pdf`,
+            fileData: visitFile
+          });
+        }
+
+        if (selfieFile && !addedFileKeys.has(`selfie_${sIdx}_${selfieFile}`)) {
+          addedFileKeys.add(`selfie_${sIdx}_${selfieFile}`);
+          files.push({
+            key: `ship_${sIdx}_selfie_${shipName}`,
+            type: 'selfie',
+            label: 'Foto Selfie Lapangan (PDF)',
+            fileName: sh.fileFotoName || sh.file_foto_name || matchingChildSps?.fileFotoName || `Foto_Selfie_${shipName}.pdf`,
+            fileData: selfieFile
+          });
+        }
+
+        if (files.length > 0) {
+          shipAttachments.push({ shipName, agenda, files });
+        }
+      });
+    }
+
+    // 2. Travel receipts (Tiket, Hotel, Batch Foto Lapangan)
+    const matchingLap = (laporanSurvei || []).find(lap => String(lap.suratId) === String(targetItem.id) || String(lap.id) === String(targetItem.id));
+    const itemSources = [targetItem, matchingLap].filter(Boolean);
 
     // Tiket Transport
     for (const src of itemSources) {
@@ -354,7 +321,7 @@ export const BukuAgendaTable = () => {
       }
     }
 
-    // Foto Survei
+    // Batch Upload & Foto Dokumentasi
     for (const src of itemSources) {
       let parsedFotoList = src.fotoList || src.foto_list;
       if (typeof parsedFotoList === 'string') {
@@ -373,8 +340,8 @@ export const BukuAgendaTable = () => {
             generalAttachments.push({
               key: `foto_${fIdx}`,
               type: 'foto_survey',
-              label: `Foto Dokumentasi Survei #${fIdx + 1}`,
-              fileName: typeof f === 'string' ? f : f.name || `Foto_${fIdx + 1}`,
+              label: (f && f.name) ? f.name : `Lampiran Dokumen #${fIdx + 1}`,
+              fileName: typeof f === 'string' ? f : f.name || `Lampiran_${fIdx + 1}`,
               fileData: val
             });
           }
@@ -389,8 +356,8 @@ export const BukuAgendaTable = () => {
             generalAttachments.push({
               key: `foto_${fIdx}`,
               type: 'foto_survey',
-              label: `Foto Dokumentasi Survei #${fIdx + 1}`,
-              fileName: rawFotoNames[fIdx] || `Foto_${fIdx + 1}`,
+              label: `Lampiran Dokumen #${fIdx + 1}`,
+              fileName: rawFotoNames[fIdx] || `Lampiran_${fIdx + 1}`,
               fileData: fUrl
             });
           }
@@ -1902,80 +1869,80 @@ export const BukuAgendaTable = () => {
               <div className="modal-body" style={{ padding: '1.25rem', maxHeight: 'calc(88vh - 130px)', overflowY: 'auto' }}>
                 {(() => {
                   const { totalCount, shipAttachments, generalAttachments, allKeys } = getPdsAttachments(lampiranModalItem);
-
-                  if (totalCount === 0) {
-                    return (
-                      <div style={{ textAlign: 'center', padding: '2rem 1rem', color: 'var(--text-muted)' }}>
-                        <Paperclip size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.35 }} />
-                        <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.25rem' }}>
-                          Belum Ada Lampiran
-                        </h4>
-                        <p style={{ fontSize: '0.78rem' }}>
-                          Surveyor belum mengunggah Form Visit, Foto Selfie, ataupun bukti tiket perjalanan untuk PDS ini.
-                        </p>
-                      </div>
-                    );
-                  }
-
                   const checkedCount = allKeys.filter(k => isAttachmentFileChecked(lampiranModalItem, k)).length;
                   const isAllChecked = totalCount > 0 && checkedCount === totalCount;
 
                   return (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                       {/* Progress & Quick Action Checklist Banner */}
-                      <div
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          padding: '0.65rem 0.9rem',
-                          background: isAllChecked ? '#f0fdf4' : 'var(--bg-main)',
-                          border: isAllChecked ? '1px solid #86efac' : '1px solid var(--border-color)',
-                          borderRadius: 'var(--radius-md)',
-                          gap: '0.5rem',
-                          flexWrap: 'wrap'
-                        }}
-                      >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem' }}>
-                          {isAllChecked ? (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#15803d', fontWeight: 800 }}>
-                              <CheckCircle2 size={16} color="#16a34a" />
-                              <span>Semua Berkas Sudah Diperiksa ({checkedCount}/{totalCount})</span>
-                            </span>
-                          ) : (
-                            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
-                              <Clock size={15} color="#0284c7" />
-                              <span>Status Pemeriksaan:</span>
-                              <strong style={{ color: checkedCount > 0 ? '#15803d' : 'var(--text-primary)' }}>
-                                {checkedCount}
-                              </strong>
-                              <span>/ {totalCount} Berkas ({Math.round((checkedCount / totalCount) * 100)}%)</span>
-                            </span>
-                          )}
-                        </div>
-
-                        <button
-                          type="button"
-                          className="btn btn-sm"
-                          onClick={() => handleToggleAllAttachmentChecks(lampiranModalItem, allKeys)}
+                      {totalCount > 0 && (
+                        <div
                           style={{
-                            fontSize: '0.72rem',
-                            padding: '0.25rem 0.65rem',
-                            background: isAllChecked ? '#f8fafc' : '#10b981',
-                            color: isAllChecked ? '#475569' : '#ffffff',
-                            border: isAllChecked ? '1px solid #cbd5e1' : 'none',
-                            borderRadius: '4px',
-                            fontWeight: 700,
-                            display: 'inline-flex',
+                            display: 'flex',
                             alignItems: 'center',
-                            gap: '0.3rem',
-                            cursor: 'pointer'
+                            justifyContent: 'space-between',
+                            padding: '0.65rem 0.9rem',
+                            background: isAllChecked ? '#f0fdf4' : 'var(--bg-main)',
+                            border: isAllChecked ? '1px solid #86efac' : '1px solid var(--border-color)',
+                            borderRadius: 'var(--radius-md)',
+                            gap: '0.5rem',
+                            flexWrap: 'wrap'
                           }}
                         >
-                          {isAllChecked ? <RotateCcw size={12} /> : <CheckCheck size={13} />}
-                          <span>{isAllChecked ? 'Reset Cek' : 'Tandai Semua Selesai'}</span>
-                        </button>
-                      </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', fontSize: '0.78rem' }}>
+                            {isAllChecked ? (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: '#15803d', fontWeight: 800 }}>
+                                <CheckCircle2 size={16} color="#16a34a" />
+                                <span>Semua Berkas Sudah Diperiksa ({checkedCount}/{totalCount})</span>
+                              </span>
+                            ) : (
+                              <span style={{ display: 'inline-flex', alignItems: 'center', gap: '5px', color: 'var(--text-secondary)', fontWeight: 600 }}>
+                                <Clock size={15} color="#0284c7" />
+                                <span>Status Pemeriksaan:</span>
+                                <strong style={{ color: checkedCount > 0 ? '#15803d' : 'var(--text-primary)' }}>
+                                  {checkedCount}
+                                </strong>
+                                <span>/ {totalCount} Berkas ({Math.round((checkedCount / totalCount) * 100)}%)</span>
+                              </span>
+                            )}
+                          </div>
+
+                          <button
+                            type="button"
+                            className="btn btn-sm"
+                            onClick={() => handleToggleAllAttachmentChecks(lampiranModalItem, allKeys)}
+                            style={{
+                              fontSize: '0.72rem',
+                              padding: '0.25rem 0.65rem',
+                              background: isAllChecked ? '#f8fafc' : '#10b981',
+                              color: isAllChecked ? '#475569' : '#ffffff',
+                              border: isAllChecked ? '1px solid #cbd5e1' : 'none',
+                              borderRadius: '4px',
+                              fontWeight: 700,
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: '0.3rem',
+                              cursor: 'pointer'
+                            }}
+                          >
+                            {isAllChecked ? <RotateCcw size={12} /> : <CheckCheck size={13} />}
+                            <span>{isAllChecked ? 'Reset Cek' : 'Tandai Semua Selesai'}</span>
+                          </button>
+                        </div>
+                      )}
+
+                      {/* If totalCount === 0 */}
+                      {totalCount === 0 && (
+                        <div style={{ textAlign: 'center', padding: '1.5rem 1rem', color: 'var(--text-muted)', background: 'var(--bg-main)', borderRadius: 'var(--radius-md)', border: '1px dashed var(--border-color)' }}>
+                          <Paperclip size={36} style={{ margin: '0 auto 0.75rem', opacity: 0.35 }} />
+                          <h4 style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: '0.25rem', color: 'var(--text-primary)' }}>
+                            Belum Ada Lampiran Terdeteksi
+                          </h4>
+                          <p style={{ fontSize: '0.78rem', marginBottom: '0.75rem' }}>
+                            Surveyor belum mengunggah Form Visit, Foto Selfie, ataupun bukti tiket perjalanan untuk PDS ini. Anda dapat mengunggahnya sekarang di bawah ini.
+                          </p>
+                        </div>
+                      )}
 
                       {/* Section 1: Lampiran Per Kapal */}
                       {shipAttachments.length > 0 && (
@@ -2235,6 +2202,68 @@ export const BukuAgendaTable = () => {
                           </div>
                         </div>
                       )}
+
+                      {/* Section 3: Upload & Kelola Lampiran Secara Langsung */}
+                      <div style={{ marginTop: '0.5rem', paddingTop: '0.75rem', borderTop: '1px dashed var(--border-color)' }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowUploadSection(!showUploadSection)}
+                          className="btn btn-secondary btn-sm"
+                          style={{
+                            width: '100%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '0.4rem',
+                            fontWeight: 700,
+                            background: showUploadSection ? '#eff6ff' : 'var(--bg-main)',
+                            color: showUploadSection ? '#1e40af' : 'var(--text-primary)',
+                            borderColor: showUploadSection ? '#bfdbfe' : 'var(--border-color)',
+                            padding: '0.55rem',
+                            borderRadius: 'var(--radius-sm)'
+                          }}
+                        >
+                          <UploadCloud size={16} color="#0284c7" />
+                          <span>{showUploadSection ? 'Tutup Panel Unggah Lampiran' : '📤 Unggah / Tambah / Ganti Lampiran PDS'}</span>
+                        </button>
+
+                        {showUploadSection && (
+                          <div style={{ marginTop: '0.85rem' }}>
+                            <ShipAttachmentsUpload
+                              shipsDetail={lampiranModalItem.shipsDetail || []}
+                              onChangeShipsDetail={(updatedShips) => {
+                                const updatedItem = { ...lampiranModalItem, shipsDetail: updatedShips };
+                                setLampiranModalItem(updatedItem);
+                                updateSuratTugas(lampiranModalItem.id, { shipsDetail: updatedShips });
+                                toast.success('Lampiran kapal berhasil diperbarui!');
+                              }}
+                              defaultShipName={lampiranModalItem.namaKapal}
+                              defaultAgenda={lampiranModalItem.noAgenda || lampiranModalItem.agenda}
+                              folderContext={{
+                                year: (lampiranModalItem.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
+                                subFolder: `${lampiranModalItem.nomor || 'PDS'}_${lampiranModalItem.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_')
+                              }}
+                              onSyncPrimaryFiles={({ fileVisitName, fileVisitData, fileFotoName, fileFotoData }) => {
+                                const payload = {
+                                  ...(fileVisitName !== undefined && { fileVisitName, fileVisitData }),
+                                  ...(fileFotoName !== undefined && { fileFotoName, fileFotoData })
+                                };
+                                const updatedItem = { ...lampiranModalItem, ...payload };
+                                setLampiranModalItem(updatedItem);
+                                updateSuratTugas(lampiranModalItem.id, payload);
+                              }}
+                              fotoList={lampiranModalItem.fotoList || []}
+                              onChangeFotoList={(newList) => {
+                                const updatedItem = { ...lampiranModalItem, fotoList: newList };
+                                setLampiranModalItem(updatedItem);
+                                updateSuratTugas(lampiranModalItem.id, { fotoList: newList });
+                                toast.success('Batch lampiran berhasil diperbarui!');
+                              }}
+                              onPreview={(previewObj) => setPreviewAttachment({ isOpen: true, ...previewObj })}
+                            />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })()}

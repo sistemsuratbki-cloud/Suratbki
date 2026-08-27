@@ -821,13 +821,30 @@ export const DayDetailModal = ({
       rincianTiket: formData.rincianTiket || [],
       rincianHotel: formData.rincianHotel || [],
       biayaTiket: totalTiketCalc + totalHotelCalc,
+      fotoList: formData.fotoList || [],
+      fileVisitName: formData.fileVisitName || '',
+      fileVisitData: formData.fileVisitData || '',
+      fileFotoName: formData.fileFotoName || '',
+      fileFotoData: formData.fileFotoData || '',
       linkedSpsIds: selectedSpsIds,
-      shipsDetail: shipsDetail.length > 0 ? shipsDetail : [
+      shipsDetail: shipsDetail.length > 0 ? shipsDetail.map((s, idx) => ({
+        ...s,
+        ...(idx === 0 && {
+          fileVisitName: s.fileVisitName || formData.fileVisitName || '',
+          fileVisitData: s.fileVisitData || formData.fileVisitData || '',
+          fileFotoName: s.fileFotoName || formData.fileFotoName || '',
+          fileFotoData: s.fileFotoData || formData.fileFotoData || ''
+        })
+      })) : [
         {
           namaKapal: formData.namaKapal.toUpperCase(),
           noAgenda: formData.noAgenda || '-',
           noOrder: formData.noOrder || '-',
-          biayaSurvei: calculations.totalBiaya
+          biayaSurvei: calculations.totalBiaya,
+          fileVisitName: formData.fileVisitName || '',
+          fileVisitData: formData.fileVisitData || '',
+          fileFotoName: formData.fileFotoName || '',
+          fileFotoData: formData.fileFotoData || ''
         }
       ]
     });
