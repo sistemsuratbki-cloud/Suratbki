@@ -62,7 +62,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const shipDatabase = masterKapal;
 
   const surveyorUsers = useMemo(
-    () => (usersList || []).filter((u) => u.role === 'surveyor'),
+    () => (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab'),
     [usersList]
   );
 

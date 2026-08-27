@@ -196,7 +196,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   }, []);
 
   const surveyors = useMemo(() => {
-    const list = usersList?.filter(u => u.role === 'surveyor') || [];
+    const list = usersList?.filter(u => u.role === 'surveyor' || u.role === 'kacab') || [];
     return list;
   }, [usersList]);
 
