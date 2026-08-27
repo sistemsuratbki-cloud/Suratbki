@@ -1800,7 +1800,11 @@ export const BukuAgendaTable = () => {
                           type="button"
                           className="btn btn-secondary btn-icon btn-sm"
                           onClick={() => handleOpenBiayaPrint(item)}
-                          title="Cetak Rincian PDS (Biaya Perjalanan Dinas)"
+                          title={
+                            (item.isSmc || (item.perihal || '').toUpperCase().includes('SMC') || (item.jenisSurvey || '').toUpperCase().includes('SMC') || Number(item.biayaExpertise) > 0 || (item.noSap && item.noSap !== '-'))
+                              ? 'Cetak Rincian Biaya PDS + Tanda Terima SMC (1 File PDF Gabungan)'
+                              : 'Cetak Rincian PDS (Biaya Perjalanan Dinas)'
+                          }
                           style={{ background: '#0284c7', color: '#ffffff', borderColor: '#0284c7' }}
                         >
                           <Calculator size={15} />
@@ -1813,20 +1817,6 @@ export const BukuAgendaTable = () => {
                         >
                           <FileText size={15} />
                         </button>
-                        {(item.isSmc || (item.perihal || '').toUpperCase().includes('SMC') || (item.jenisSurvey || '').toUpperCase().includes('SMC') || Number(item.biayaExpertise) > 0 || (item.noSap && item.noSap !== '-')) && (
-                          <button
-                            type="button"
-                            className="btn btn-secondary btn-icon btn-sm"
-                            onClick={() => {
-                              setSelectedPrintItem(item);
-                              setIsSmcPrintModalOpen(true);
-                            }}
-                            title="Cetak Tanda Terima Expertise Petugas Flag State (SMC)"
-                            style={{ background: '#059669', color: '#ffffff', borderColor: '#059669' }}
-                          >
-                            <Ship size={15} />
-                          </button>
-                        )}
                       </div>
                     </td>
                   </tr>

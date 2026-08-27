@@ -1336,7 +1336,11 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                             <button
                               className="btn btn-secondary btn-icon btn-sm"
                               onClick={() => handleOpenBiayaPrint(item)}
-                              title="Download / Cetak PDF Rincian Biaya Perjalanan Dinas (A4 Landscape)"
+                              title={
+                                (item.isSmc || (item.perihal || '').toUpperCase().includes('SMC') || (item.jenisSurvey || '').toUpperCase().includes('SMC'))
+                                  ? 'Download / Cetak PDF Rincian Biaya + Tanda Terima SMC (1 File PDF Gabungan)'
+                                  : 'Download / Cetak PDF Rincian Biaya Perjalanan Dinas (A4 Landscape)'
+                              }
                               style={{ background: '#0284c7', color: '#ffffff', borderColor: '#0284c7' }}
                             >
                               <Calculator size={15} />
@@ -1348,19 +1352,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                             >
                               <FileText size={15} />
                             </button>
-                            {(item.isSmc || (item.perihal || '').toUpperCase().includes('SMC') || (item.jenisSurvey || '').toUpperCase().includes('SMC')) && (
-                              <button
-                                className="btn btn-secondary btn-icon btn-sm"
-                                onClick={() => {
-                                  setSelectedSmcItem(item);
-                                  setIsSmcPrintModalOpen(true);
-                                }}
-                                title="Download / Cetak PDF Tanda Terima Expertise Flag State (SMC)"
-                                style={{ background: '#059669', color: '#ffffff', borderColor: '#059669' }}
-                              >
-                                <Ship size={15} />
-                              </button>
-                            )}
                           </>
                         )}
 

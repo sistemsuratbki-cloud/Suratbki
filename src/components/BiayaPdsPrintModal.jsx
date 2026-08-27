@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Calculator, Maximize2, Minimize2, Monitor, Smartphone } from 'lucide-react';
+import { X, Printer, Calculator, Maximize2, Minimize2, Monitor, Smartphone, Ship, FileSpreadsheet } from 'lucide-react';
+import ExcelJS from 'exceljs';
+import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
@@ -7,6 +9,8 @@ import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { isValidSignature } from '../utils/signatureHelper';
 import { ModalPortal } from './ModalPortal';
 import { BKILogo } from './BKILogo';
+import { DanantaraLogo } from './DanantaraLogo';
+import { IDSurveyLogo } from './IDSurveyLogo';
 
 export const BiayaPdsPrintModal = ({
   isOpen,
@@ -141,9 +145,212 @@ export const BiayaPdsPrintModal = ({
     : (suratTugas.namaKapal || '-').toUpperCase();
   const petugasStr = (suratTugas.petugas || '-').toUpperCase();
 
+  // SMC Audit Flag & Details (for Page 2)
+  const isSmcItem = Boolean(
+    suratTugas.isSmc ||
+    (suratTugas.perihal || '').toUpperCase().includes('SMC') ||
+    (suratTugas.jenisSurvey || '').toUpperCase().includes('SMC') ||
+    Number(suratTugas.biayaExpertise) > 0 ||
+    (suratTugas.noSap && suratTugas.noSap !== '-' && suratTugas.noSap.trim() !== '')
+  );
+
+  const cleanNamaKapal = kapalStr;
+  const namaKapalDisplay = cleanNamaKapal.startsWith('AUDIT')
+    ? cleanNamaKapal
+    : `AUDIT ${cleanNamaKapal}`;
+
+  const noAgenda = suratTugas.noAgenda || suratTugas.agenda || '-';
+  const noSap = suratTugas.noSap || '-';
+  const noSuratSmc = suratTugas.noSuratSmc || '1857/KU.604/KI-21';
+  const tempatSurvey = lokasiStr;
+
+  const tglMulaiFormatted = formatDateIndo(suratTugas.tglMulai || new Date().toISOString().split('T')[0]).toUpperCase();
+  const tglSelesaiFormatted = formatDateIndo(suratTugas.tglSelesai || suratTugas.tglMulai || new Date().toISOString().split('T')[0]).toUpperCase();
+
+  const tarifExpertise = Number(suratTugas.tarifExpertise) || 1500000;
+  const jumlahPendamping = Number(suratTugas.jumlahPendamping) || 2;
+  const totalJumlahTerima = tarifExpertise * jumlahPendamping;
+
+  const handleExportSmcExcel = async () => {
+    try {
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('Tanda Terima SMC');
+
+      worksheet.pageSetup = {
+        orientation: 'landscape',
+        paperSize: 9,
+        fitToPage: true,
+        fitToWidth: 1,
+        fitToHeight: 1
+      };
+
+      worksheet.columns = [
+        { width: 6 },
+        { width: 30 },
+        { width: 18 },
+        { width: 18 },
+        { width: 18 },
+        { width: 20 },
+        { width: 20 },
+        { width: 22 }
+      ];
+
+      worksheet.addRow([]);
+      worksheet.addRow([]);
+      worksheet.addRow([]);
+
+      const titleRow1 = worksheet.addRow(['', 'TANDA TERIMA EXPERTISE PETUGAS DARI PLAG STATE DALAM RANGKA WITNES PELAKSANAAN']);
+      worksheet.mergeCells('B4:H4');
+      titleRow1.getCell(2).font = { name: 'Calibri', size: 11, bold: true };
+      titleRow1.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      const titleRow2 = worksheet.addRow(['', `SURVEY STATUTORY NON KONVENSI SESUAI SURAT NO.${noSuratSmc}`]);
+      worksheet.mergeCells('B5:H5');
+      titleRow2.getCell(2).font = { name: 'Calibri', size: 11, bold: true };
+      titleRow2.getCell(2).alignment = { horizontal: 'center', vertical: 'middle' };
+
+      worksheet.addRow([]);
+
+      const metaNama = worksheet.addRow(['NAMA KAPAL', `: ${namaKapalDisplay}`]);
+      metaNama.getCell(1).font = { name: 'Calibri', size: 10, bold: true };
+      metaNama.getCell(2).font = { name: 'Calibri', size: 10, bold: true };
+
+      const metaAgenda = worksheet.addRow(['NO AGENDA', `: ${noAgenda}`]);
+      metaAgenda.getCell(1).font = { name: 'Calibri', size: 10, bold: true };
+      metaAgenda.getCell(2).font = { name: 'Calibri', size: 10, bold: true };
+
+      const metaSap = worksheet.addRow(['NO SAP', `: ${noSap}`]);
+      metaSap.getCell(1).font = { name: 'Calibri', size: 10, bold: true };
+      metaSap.getCell(2).font = { name: 'Calibri', size: 10, bold: true };
+
+      worksheet.addRow([]);
+
+      const headerRow1 = worksheet.addRow([
+        'NO',
+        'TEMPAT SURVEY',
+        'TANGGAL AUDIT',
+        '',
+        'EXPERTISE',
+        'JUMLAH\nPENDAMPING\nSYAHBANDAR',
+        'JUMLAH TERIMA',
+        'TANDA TERIMA'
+      ]);
+      worksheet.mergeCells('C11:D11');
+      headerRow1.height = 36;
+
+      const headerRow2 = worksheet.addRow(['1', '2', '3', '4', '5', '6', '7=5X6', '7']);
+      headerRow2.height = 18;
+
+      [headerRow1, headerRow2].forEach((row) => {
+        row.eachCell({ includeEmpty: true }, (cell) => {
+          cell.font = { name: 'Calibri', size: 9, bold: true };
+          cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+          cell.border = {
+            top: { style: 'thin', color: { argb: 'FF000000' } },
+            left: { style: 'thin', color: { argb: 'FF000000' } },
+            bottom: { style: 'thin', color: { argb: 'FF000000' } },
+            right: { style: 'thin', color: { argb: 'FF000000' } }
+          };
+        });
+      });
+
+      const dataRow = worksheet.addRow([
+        1,
+        tempatSurvey,
+        tglMulaiFormatted,
+        tglSelesaiFormatted,
+        tarifExpertise,
+        jumlahPendamping,
+        totalJumlahTerima,
+        ''
+      ]);
+      dataRow.height = 36;
+      dataRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.font = { name: 'Calibri', size: 9, bold: colNumber === 2 || colNumber === 7 };
+        cell.alignment = {
+          horizontal: 'center',
+          vertical: 'middle',
+          wrapText: true
+        };
+        if (colNumber === 5 || colNumber === 7) {
+          cell.numFmt = '#,##0';
+        }
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+      });
+
+      const totalRow = worksheet.addRow(['TOTAL', '', '', '', '', '', totalJumlahTerima, '']);
+      worksheet.mergeCells('A14:F14');
+      totalRow.height = 24;
+      totalRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+        cell.font = { name: 'Calibri', size: 10, bold: true };
+        cell.alignment = { horizontal: 'center', vertical: 'middle' };
+        if (colNumber === 7) {
+          cell.numFmt = '#,##0';
+        }
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FF000000' } },
+          left: { style: 'thin', color: { argb: 'FF000000' } },
+          bottom: { style: 'thin', color: { argb: 'FF000000' } },
+          right: { style: 'thin', color: { argb: 'FF000000' } }
+        };
+      });
+
+      worksheet.addRow([]);
+      const noteRow = worksheet.addRow(['KET: DISERAHKAN OLEH AUDITOR LANGSUNG KE PETUGAS PENDAMPING']);
+      noteRow.getCell(1).font = { name: 'Calibri', size: 9, bold: true };
+      worksheet.addRow([]);
+
+      const sigHeaderRow = worksheet.addRow(['', 'MENGETAHUI ,', '', '', '', '', `PONTIANAK,   ${tglMulaiFormatted}`, '']);
+      sigHeaderRow.getCell(2).font = { name: 'Calibri', size: 9.5, bold: true };
+      sigHeaderRow.getCell(2).alignment = { horizontal: 'center' };
+      sigHeaderRow.getCell(7).font = { name: 'Calibri', size: 9.5, bold: true };
+      sigHeaderRow.getCell(7).alignment = { horizontal: 'center' };
+
+      const sigTitleRow = worksheet.addRow(['', 'KEPALA CABANG MADYA KLAS PONTIANAK', '', '', '', '', 'Pembuat Daftar', '']);
+      sigTitleRow.getCell(2).font = { name: 'Calibri', size: 9.5, bold: true };
+      sigTitleRow.getCell(2).alignment = { horizontal: 'center' };
+      sigTitleRow.getCell(7).font = { name: 'Calibri', size: 9.5, bold: true };
+      sigTitleRow.getCell(7).alignment = { horizontal: 'center' };
+
+      worksheet.addRow([]);
+      worksheet.addRow([]);
+      worksheet.addRow([]);
+
+      const sigNameRow = worksheet.addRow(['', kepalaCabang, '', '', '', '', pembuatName, '']);
+      sigNameRow.getCell(2).font = { name: 'Calibri', size: 10, bold: true, underline: true };
+      sigNameRow.getCell(2).alignment = { horizontal: 'center' };
+      sigNameRow.getCell(7).font = { name: 'Calibri', size: 10, bold: true, underline: true };
+      sigNameRow.getCell(7).alignment = { horizontal: 'center' };
+
+      const sigNupRow = worksheet.addRow(['', `NUP.${nup}`, '', '', '', '', `NUP.${pembuatDesc.replace('NUP.', '')}`, '']);
+      sigNupRow.getCell(2).font = { name: 'Calibri', size: 9, bold: true };
+      sigNupRow.getCell(2).alignment = { horizontal: 'center' };
+      sigNupRow.getCell(7).font = { name: 'Calibri', size: 9, bold: true };
+      sigNupRow.getCell(7).alignment = { horizontal: 'center' };
+
+      const buffer = await workbook.xlsx.writeBuffer();
+      const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Tanda_Terima_SMC_${cleanNamaKapal.replace(/[^a-zA-Z0-9_-]/g, '_')}.xlsx`;
+      a.click();
+      window.URL.revokeObjectURL(url);
+      toast.success('File Excel Tanda Terima SMC berhasil diunduh!');
+    } catch (err) {
+      console.error('Error exporting SMC excel:', err);
+      toast.error('Gagal mengekspor Excel Tanda Terima SMC');
+    }
+  };
+
   const handlePrint = () => {
     const originalTitle = document.title;
-    document.title = `Biaya_Perjalanan_Dinas_${kapalStr.replace(/[\s,/-]+/g, '_')}_${petugasStr.replace(/[\s,/-]+/g, '_')}${withSignature ? '_Dengan_TTD' : '_Tanpa_TTD'}`;
+    document.title = `Rincian_Biaya_${isSmcItem ? 'dan_Tanda_Terima_SMC_' : ''}${kapalStr.replace(/[\s,/-]+/g, '_')}_${petugasStr.replace(/[\s,/-]+/g, '_')}${withSignature ? '_Dengan_TTD' : '_Tanpa_TTD'}`;
     window.print();
     setTimeout(() => {
       document.title = originalTitle;
@@ -196,10 +403,12 @@ export const BiayaPdsPrintModal = ({
               <Calculator size={isMobileScreen ? 18 : 20} color="#003366" style={{ flexShrink: 0 }} />
               <div style={{ minWidth: 0 }}>
                 <h3 className="modal-title" style={{ color: '#0f172a', fontSize: isMobileScreen ? '0.9rem' : '1.05rem', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  {isSurveyor ? 'Preview Rincian Biaya (PDS)' : 'Preview & Cetak Rincian Biaya (PDS)'}
+                  {isSurveyor
+                    ? `Preview Rincian Biaya ${isSmcItem ? '& Tanda Terima SMC' : '(PDS)'}`
+                    : `Preview & Cetak Rincian Biaya ${isSmcItem ? '& Tanda Terima SMC (1 PDF)' : '(PDS)'}`}
                 </h3>
                 <div style={{ fontSize: isMobileScreen ? '0.7rem' : '0.75rem', color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                  Kapal: {kapalStr} | Total: {formatRupiah(jumlah)}
+                  Kapal: {kapalStr} | Total: {formatRupiah(jumlah)} {isSmcItem ? '(Termasuk 2 Halaman Cetak)' : ''}
                 </div>
               </div>
             </div>
@@ -627,6 +836,285 @@ export const BiayaPdsPrintModal = ({
                 </div>
                 </div>
               </div>
+
+              {/* ====== PAGE 2: TANDA TERIMA EXPERTISE FLAG STATE (AUDIT SMC) JIKA AKTIF ====== */}
+              {isSmcItem && (
+                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: isFitToScreen ? 'center' : 'flex-start' }}>
+                  {/* Page 2 Screen Divider */}
+                  <div
+                    className="no-print"
+                    style={{
+                      margin: '2rem 0 1rem',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.6rem',
+                      padding: '0.6rem 1rem',
+                      background: '#ecfdf5',
+                      border: '1px solid #a7f3d0',
+                      borderRadius: '6px',
+                      color: '#065f46',
+                      fontWeight: 800,
+                      fontSize: '0.84rem',
+                      width: isFitToScreen ? `${targetDocWidth * fitScale}px` : `${targetDocWidth}px`,
+                      boxSizing: 'border-box'
+                    }}
+                  >
+                    <Ship size={16} color="#059669" />
+                    <span>Halaman 2: Tanda Terima Expertise Flag State (Audit SMC)</span>
+                    <button
+                      type="button"
+                      onClick={handleExportSmcExcel}
+                      className="btn btn-sm"
+                      style={{
+                        marginLeft: '0.5rem',
+                        padding: '0.15rem 0.5rem',
+                        fontSize: '0.72rem',
+                        background: '#059669',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '4px',
+                        display: 'inline-flex',
+                        alignItems: 'center',
+                        gap: '0.3rem',
+                        cursor: 'pointer'
+                      }}
+                      title="Download File Excel Tanda Terima SMC"
+                    >
+                      <FileSpreadsheet size={13} />
+                      <span>Export Excel SMC</span>
+                    </button>
+                  </div>
+
+                  {/* Page 2 Printable Sheet */}
+                  <div
+                    className="printable-sheet printable-sheet-page-2 printable-receipt-smc"
+                    style={{
+                      border: isMobileScreen ? '1px solid #cbd5e1' : 'none',
+                      padding: isMobileScreen ? '1.5rem 1rem 1rem 1rem' : '2.5rem 2.5rem 2rem 2.5rem',
+                      borderRadius: '4px',
+                      fontFamily: '"Calibri", "Segoe UI", Arial, sans-serif',
+                      lineHeight: '1.35',
+                      fontSize: '9pt',
+                      background: '#ffffff',
+                      color: '#000000',
+                      width: `${targetDocWidth}px`,
+                      maxWidth: `${targetDocWidth}px`,
+                      boxShadow: isMobileScreen ? 'none' : '0 4px 12px rgba(0,0,0,0.1)',
+                      boxSizing: 'border-box',
+                      transform: `scale(${fitScale})`,
+                      transformOrigin: 'top center',
+                      marginBottom: isFitToScreen && fitScale < 1 ? `-${(1 - fitScale) * 620}px` : '0',
+                      pageBreakBefore: 'always',
+                      breakBefore: 'page'
+                    }}
+                  >
+                    {/* Top Header Logos */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '1.25rem',
+                        paddingBottom: '0.5rem'
+                      }}
+                    >
+                      <DanantaraLogo height={42} />
+                      <IDSurveyLogo height={46} />
+                      <BKILogo height={42} />
+                    </div>
+
+                    {/* Document Title */}
+                    <div
+                      style={{
+                        textAlign: 'center',
+                        fontWeight: 800,
+                        fontSize: '11pt',
+                        lineHeight: '1.35',
+                        marginBottom: '1.25rem',
+                        textTransform: 'uppercase',
+                        padding: '0 0.5rem'
+                      }}
+                    >
+                      TANDA TERIMA EXPERTISE PETUGAS DARI PLAG STATE DALAM RANGKA WITNES PELAKSANAAN<br />
+                      SURVEY STATUTORY NON KONVENSI SESUAI SURAT NO.{noSuratSmc}
+                    </div>
+
+                    {/* Meta Header Information */}
+                    <div style={{ marginBottom: '0.85rem', fontSize: '9.5pt', fontWeight: 700, lineHeight: 1.5 }}>
+                      <table style={{ borderCollapse: 'collapse', width: '100%', border: 'none' }}>
+                        <tbody>
+                          <tr>
+                            <td style={{ width: '130px', padding: '1px 0' }}>NAMA KAPAL</td>
+                            <td style={{ width: '15px', padding: '1px 0' }}>:</td>
+                            <td style={{ padding: '1px 0', fontWeight: 800 }}>{namaKapalDisplay}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '1px 0' }}>NO AGENDA</td>
+                            <td style={{ padding: '1px 0' }}>:</td>
+                            <td style={{ padding: '1px 0' }}>{noAgenda}</td>
+                          </tr>
+                          <tr>
+                            <td style={{ padding: '1px 0' }}>NO SAP</td>
+                            <td style={{ padding: '1px 0' }}>:</td>
+                            <td style={{ padding: '1px 0' }}>{noSap}</td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+
+                    {/* Table Data */}
+                    <table
+                      style={{
+                        width: '100%',
+                        borderCollapse: 'collapse',
+                        border: '1.5px solid #000000',
+                        fontSize: '9pt',
+                        textAlign: 'center',
+                        marginBottom: '0.75rem'
+                      }}
+                    >
+                      <thead>
+                        <tr style={{ fontWeight: 700 }}>
+                          <th style={{ border: '1px solid #000000', padding: '6px 4px', width: '38px' }}>NO</th>
+                          <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '220px' }}>TEMPAT SURVEY</th>
+                          <th colSpan={2} style={{ border: '1px solid #000000', padding: '6px 8px' }}>TANGGAL AUDIT</th>
+                          <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '120px' }}>EXPERTISE</th>
+                          <th style={{ border: '1px solid #000000', padding: '6px 6px', width: '130px', lineHeight: 1.2 }}>JUMLAH<br />PENDAMPING<br />SYAHBANDAR</th>
+                          <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '130px' }}>JUMLAH TERIMA</th>
+                          <th style={{ border: '1px solid #000000', padding: '6px 8px', width: '130px' }}>TANDA TERIMA</th>
+                        </tr>
+                        <tr style={{ fontWeight: 600, fontSize: '8.5pt' }}>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>1</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>2</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>3</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>4</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>5</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>6</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>7=5X6</th>
+                          <th style={{ border: '1px solid #000000', padding: '3px 4px' }}>7</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        <tr style={{ height: '48px', verticalAlign: 'middle' }}>
+                          <td style={{ border: '1px solid #000000', padding: '6px 4px', fontWeight: 600 }}>1</td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 8px', fontWeight: 700, textAlign: 'center' }}>
+                            {tempatSurvey}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 6px', whiteSpace: 'nowrap' }}>
+                            {tglMulaiFormatted}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 6px', whiteSpace: 'nowrap' }}>
+                            {tglSelesaiFormatted}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>
+                            {Number(tarifExpertise).toLocaleString('id-ID')}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 6px', fontWeight: 700 }}>
+                            {jumlahPendamping}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', fontWeight: 600 }}>
+                            {Number(totalJumlahTerima).toLocaleString('id-ID')}
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 8px' }}></td>
+                        </tr>
+                        <tr style={{ fontWeight: 800, height: '32px' }}>
+                          <td colSpan={6} style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center' }}>
+                            TOTAL
+                          </td>
+                          <td style={{ border: '1px solid #000000', padding: '6px 8px', textAlign: 'center', fontWeight: 800, fontSize: '9.5pt' }}>
+                            {Number(totalJumlahTerima).toLocaleString('id-ID')}
+                          </td>
+                          <td style={{ border: '1px solid #000000' }}></td>
+                        </tr>
+                      </tbody>
+                    </table>
+
+                    {/* Note / Keterangan */}
+                    <div style={{ fontSize: '9pt', fontWeight: 800, marginBottom: '2rem', marginTop: '0.4rem' }}>
+                      KET: DISERAHKAN OLEH AUDITOR LANGSUNG KE PETUGAS PENDAMPING
+                    </div>
+
+                    {/* Signatures */}
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'flex-start',
+                        fontSize: '9.5pt',
+                        marginTop: '1.25rem',
+                        pageBreakInside: 'avoid'
+                      }}
+                    >
+                      {/* Left: Mengetahui Kepala Cabang */}
+                      <div style={{ textAlign: 'center', width: '320px', position: 'relative' }}>
+                        <div style={{ fontWeight: 700, marginBottom: '2px' }}>MENGETAHUI ,</div>
+                        <div style={{ fontWeight: 700, textTransform: 'uppercase', marginBottom: '0.25rem' }}>
+                          KEPALA CABANG MADYA KLAS PONTIANAK
+                        </div>
+                        <div style={{ position: 'relative', height: '75px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                          {withSignature && isValidSignature(kacabSignature) ? (
+                            <img
+                              src={kacabSignature}
+                              alt="TTD Kepala Cabang"
+                              style={{
+                                height: '75px',
+                                maxHeight: '75px',
+                                maxWidth: '220px',
+                                width: 'auto',
+                                objectFit: 'contain',
+                                transform: 'scale(1.1)',
+                                transformOrigin: 'center'
+                              }}
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          ) : null}
+                        </div>
+                        <div style={{ fontWeight: 800, textDecoration: 'underline' }}>
+                          {kepalaCabang}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '9pt' }}>
+                          NUP.{nup}
+                        </div>
+                      </div>
+
+                      {/* Right: Pembuat Daftar / Auditor */}
+                      <div style={{ textAlign: 'center', width: '280px', position: 'relative' }}>
+                        <div style={{ fontWeight: 700, marginBottom: '2px' }}>
+                          PONTIANAK, &nbsp; {tglMulaiFormatted}
+                        </div>
+                        <div style={{ fontWeight: 700, marginBottom: '0.25rem' }}>
+                          Pembuat Daftar
+                        </div>
+                        <div style={{ position: 'relative', height: '75px', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'visible' }}>
+                          {withSignature && isValidSignature(pembuatSignature) ? (
+                            <img
+                              src={pembuatSignature}
+                              alt="TTD Pembuat Daftar"
+                              style={{
+                                height: '75px',
+                                maxHeight: '75px',
+                                maxWidth: '200px',
+                                width: 'auto',
+                                objectFit: 'contain',
+                                transform: 'scale(1.05)',
+                                transformOrigin: 'center'
+                              }}
+                              onError={(e) => { e.target.style.display = 'none'; }}
+                            />
+                          ) : null}
+                        </div>
+                        <div style={{ fontWeight: 800, textDecoration: 'underline' }}>
+                          {pembuatName}
+                        </div>
+                        <div style={{ fontWeight: 700, fontSize: '9pt' }}>
+                          {pembuatDesc}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -657,7 +1145,7 @@ export const BiayaPdsPrintModal = ({
             @media print {
               @page { 
                 size: A4 landscape !important; 
-                margin: ${printMode === 'mobile' ? '4mm 6mm 4mm 6mm' : '16mm 10mm 8mm 10mm'} !important; 
+                margin: ${printMode === 'mobile' ? '4mm 6mm 4mm 6mm' : '12mm 10mm 8mm 10mm'} !important; 
               }
               body { background: #ffffff !important; color: #000000 !important; }
               .no-print, .guidance-banner { display: none !important; }
@@ -674,6 +1162,13 @@ export const BiayaPdsPrintModal = ({
                 transform: none !important; 
                 box-shadow: none !important;
                 border: none !important;
+                margin-bottom: 0 !important;
+              }
+              .printable-sheet-page-2 {
+                page-break-before: always !important;
+                break-before: page !important;
+                margin-top: 0 !important;
+                padding-top: 15px !important;
               }
             }
           `}</style>
