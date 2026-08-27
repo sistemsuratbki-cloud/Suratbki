@@ -1200,19 +1200,24 @@ export const DayDetailModal = ({
                             </div>
 
                             <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', justifyContent: 'flex-end', alignItems: 'center' }}>
-                              <button
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '0.25rem 0.6rem', fontSize: '0.74rem', fontWeight: 700, background: '#0284c7', color: '#ffffff', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                onClick={() => handleOpenBiayaPrint(pds)}
-                                title={
-                                  (pds.isSmc || (pds.perihal || '').toUpperCase().includes('SMC') || (pds.jenisSurvey || '').toUpperCase().includes('SMC') || Number(pds.biayaExpertise) > 0 || (pds.noSap && pds.noSap !== '-'))
-                                    ? 'Download / Cetak PDF Rincian Biaya + Tanda Terima SMC (1 File PDF Gabungan)'
-                                    : 'Download / Cetak PDF Rincian Biaya Perjalanan Dinas'
-                                }
-                              >
-                                <Calculator size={13} />
-                                <span>Rincian Biaya</span>
-                              </button>
+                              {(() => {
+                                const isSmcPds = !!(pds.isSmc || (pds.perihal || '').toUpperCase().includes('SMC') || (pds.jenisSurvey || '').toUpperCase().includes('SMC') || Number(pds.biayaExpertise) > 0 || (pds.noSap && pds.noSap !== '-'));
+                                return (
+                                  <button
+                                    className="btn btn-secondary btn-sm"
+                                    style={{ padding: '0.25rem 0.6rem', fontSize: '0.74rem', fontWeight: 700, background: '#0284c7', color: '#ffffff', borderColor: '#0284c7', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                    onClick={() => handleOpenBiayaPrint(pds)}
+                                    title={
+                                      isSmcPds
+                                        ? 'Download / Cetak PDF Rincian Biaya + Tanda Terima SMC (1 File PDF Gabungan)'
+                                        : 'Download / Cetak PDF Rincian Biaya Perjalanan Dinas'
+                                    }
+                                  >
+                                    <Calculator size={13} />
+                                    <span>{isSmcPds ? 'Rincian dan SMC' : 'Rincian Biaya'}</span>
+                                  </button>
+                                );
+                              })()}
 
                               <button
                                 className="btn btn-secondary btn-sm"
