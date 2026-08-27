@@ -43,6 +43,8 @@ export const BukuAgendaTable = () => {
   const { suratTugas, updateSuratTugas, laporanSurvei, kwitansiHonor, gradeTariffs, adminSettings } = useData();
   const { currentUser, role, usersList } = useAuth();
   const isAdminOrKacab = role === 'admin' || role === 'kacab' || role === 'developer';
+  const isFinance = role === 'finance' || role === 'keuangan';
+  const canRevisi = isAdminOrKacab || isFinance;
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -113,10 +115,11 @@ export const BukuAgendaTable = () => {
       toast.error('Keterangan revisi wajib diisi.');
       return;
     }
+    const updaterName = currentUser?.name || (isFinance ? 'Staff Keuangan' : 'Admin');
     updateSuratTugas(revisiItem.id, {
       approvalStatus: 'Revisi',
       approvalNote: revisiNote.trim(),
-      approvalBy: currentUser?.name || 'Admin',
+      approvalBy: updaterName,
       approvalAt: new Date().toISOString()
     });
     toast.success(`🔄 Revisi diminta untuk PDS ${revisiItem.namaKapal || ''}. Notifikasi akan muncul di dashboard surveyor.`);
@@ -1777,7 +1780,7 @@ export const BukuAgendaTable = () => {
                           )
                         )}
 
-                        {isAdminOrKacab && (
+                        {canRevisi && (
                           <button
                             type="button"
                             className="btn btn-icon btn-sm"
@@ -2248,7 +2251,32 @@ export const BukuAgendaTable = () => {
               </div>
 
               {/* Footer */}
-              <div className="modal-footer" style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'flex-end' }}>
+              <div className="modal-footer" style={{ padding: '0.75rem 1.25rem', borderTop: '1px solid var(--border-color)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                {canRevisi ? (
+                  <button
+                    type="button"
+                    className="btn btn-sm"
+                    onClick={() => {
+                      const currentItem = lampiranModalItem;
+                      setIsLampiranModalOpen(false);
+                      handleOpenRevisi(currentItem);
+                    }}
+                    style={{
+                      background: '#fffbeb',
+                      color: '#b45309',
+                      border: '1px solid #fde68a',
+                      fontSize: '0.78rem',
+                      fontWeight: 700,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '0.35rem',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <MessageSquare size={14} />
+                    <span>Minta Revisi PDS</span>
+                  </button>
+                ) : <div />}
                 <button
                   type="button"
                   className="btn btn-secondary"

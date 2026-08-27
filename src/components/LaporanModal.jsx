@@ -667,7 +667,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                     fileNames={formData.fileFotoName}
                     fileData={formData.fileFotoData}
                     fotoList={formData.fotoList}
-                    disabled={isAdmin}
+                    disabled={false}
                     folderContext={{
                       year: (formData.tglSurvey || '').split('-')[0] || new Date().getFullYear().toString(),
                       subFolder: `${formData.agenda || formData.noOrder || 'LAP'}_${formData.namaKapal || 'KAPAL'}`.replace(/[^a-zA-Z0-9_-]/g, '_'),
@@ -690,66 +690,38 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       <FileCheck2 size={16} color="#059669" />
                       <span>2. Upload Visit (Maks. 3 MB)</span>
                     </label>
-                    {isAdmin ? (
-                      formData.fileVisitName || formData.fileVisitData ? (
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
-                          <span style={{ fontSize: '0.74rem', color: '#047857', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                            <Check size={13} color="#059669" /> Form visit terlampir
-                          </span>
-                          <button
-                            type="button"
-                            className="btn btn-sm"
-                            style={{ padding: '0.2rem 0.5rem', fontSize: '0.72rem', background: '#0284c7', color: '#ffffff', border: 'none', borderRadius: '4px', display: 'inline-flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer' }}
-                            onClick={() => setPreviewAttachment({
-                              isOpen: true,
-                              title: 'Formulir Kunjungan Lapangan (Visit Form)',
-                              fileData: formData.fileVisitData || formData.fileVisitName,
-                              fileName: formData.fileVisitName || 'Formulir_Kunjungan_Lapangan'
-                            })}
-                          >
-                            <Eye size={12} />
-                            <span>Cek Lampiran</span>
-                          </button>
-                        </div>
-                      ) : (
-                        <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-                          Belum ada lampiran dari surveyor
-                        </div>
-                      )
-                    ) : (
-                      <>
-                        <input
-                          type="file"
-                          accept="image/*,.pdf"
-                          className="form-input"
-                          onChange={(e) => handleFileUpload('fileVisitName', e)}
-                          style={{ padding: '0.35rem', fontSize: '0.8rem' }}
-                        />
-                        {formData.fileVisitName && (
-                          <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
-                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {formData.fileVisitName}</span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
-                                onClick={() => setPreviewAttachment({
-                                  isOpen: true,
-                                  title: 'Formulir Kunjungan Lapangan (Visit Form)',
-                                  fileData: formData.fileVisitData || formData.fileVisitName,
-                                  fileName: formData.fileVisitName || 'Formulir_Kunjungan_Lapangan'
-                                })}
-                              >
-                                <Eye size={11} /> Cek
-                              </button>
-                              <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
-                                <X size={13} />
-                              </button>
-                            </div>
+                    <>
+                      <input
+                        type="file"
+                        accept="image/*,.pdf"
+                        className="form-input"
+                        onChange={(e) => handleFileUpload('fileVisitName', e)}
+                        style={{ padding: '0.35rem', fontSize: '0.8rem' }}
+                      />
+                      {formData.fileVisitName && (
+                        <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 700, marginTop: '0.4rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'rgba(5, 150, 105, 0.08)', padding: '0.25rem 0.5rem', borderRadius: '4px' }}>
+                          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>📄 {formData.fileVisitName}</span>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                            <button
+                              type="button"
+                              className="btn btn-secondary btn-sm"
+                              style={{ padding: '0.1rem 0.35rem', fontSize: '0.68rem', display: 'inline-flex', alignItems: 'center', gap: '0.2rem' }}
+                              onClick={() => setPreviewAttachment({
+                                isOpen: true,
+                                title: 'Formulir Kunjungan Lapangan (Visit Form)',
+                                fileData: formData.fileVisitData || formData.fileVisitName,
+                                fileName: formData.fileVisitName || 'Formulir_Kunjungan_Lapangan'
+                              })}
+                            >
+                              <Eye size={11} /> Cek
+                            </button>
+                            <button type="button" onClick={() => handleRemoveFile('fileVisitName')} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444' }}>
+                              <X size={13} />
+                            </button>
                           </div>
-                        )}
-                      </>
-                    )}
+                        </div>
+                      )}
+                    </>
                   </div>
 
                   {/* 3. Upload Tiket Transport */}
@@ -766,7 +738,6 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       label="Tiket Transport"
                       icon={Plane}
                       color="#7c3aed"
-                      isAdmin={isAdmin}
                       bucketName="lampiran"
                       folderContext={{
                         year: (formData.tglSurvey || '').split('-')[0] || new Date().getFullYear().toString(),
@@ -791,7 +762,6 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                       label="Kwitansi Hotel"
                       icon={Receipt}
                       color="#d97706"
-                      isAdmin={isAdmin}
                       bucketName="lampiran"
                       folderContext={{
                         year: (formData.tglSurvey || '').split('-')[0] || new Date().getFullYear().toString(),

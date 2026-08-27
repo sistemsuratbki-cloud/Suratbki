@@ -16,6 +16,7 @@ export const MultiDocUpload = ({
   icon: Icon = FileText,
   color = '#0284c7',
   disabled = false,
+  readOnly = false,
   isAdmin = false,
   bucketName = 'lampiran',
   folderContext = {},
@@ -30,7 +31,7 @@ export const MultiDocUpload = ({
   }, [value, title]);
 
   const handleFiles = async (fileList) => {
-    if (disabled || !fileList || fileList.length === 0) return;
+    if (disabled || readOnly || !fileList || fileList.length === 0) return;
     const rawFiles = Array.from(fileList);
 
     // Validate each file
@@ -100,7 +101,7 @@ export const MultiDocUpload = ({
   };
 
   const handleRemove = async (indexToRemove) => {
-    if (disabled) return;
+    if (disabled || readOnly) return;
     const removedFile = currentFiles[indexToRemove];
 
     // Delete from Google Drive if it's a GDrive file
@@ -123,7 +124,7 @@ export const MultiDocUpload = ({
   return (
     <div style={{ width: '100%' }}>
       {/* Hidden File Input */}
-      {!disabled && (
+      {!disabled && !readOnly && (
         <input
           ref={fileInputRef}
           type="file"
@@ -134,8 +135,8 @@ export const MultiDocUpload = ({
         />
       )}
 
-      {/* Admin View Mode */}
-      {isAdmin ? (
+      {/* Read-Only Mode */}
+      {readOnly ? (
         currentFiles.length > 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.45rem 0.65rem', background: '#ecfdf5', border: '1px solid #a7f3d0', borderRadius: 'var(--radius-sm)' }}>
@@ -165,11 +166,11 @@ export const MultiDocUpload = ({
           </div>
         ) : (
           <div style={{ padding: '0.45rem 0.65rem', background: 'var(--bg-main)', border: '1px dashed var(--border-color)', borderRadius: 'var(--radius-sm)', fontSize: '0.74rem', color: 'var(--text-muted)', textAlign: 'center' }}>
-            Belum ada lampiran dari surveyor
+            Belum ada lampiran berkas
           </div>
         )
       ) : (
-        /* Surveyor Upload Mode */
+        /* Interactive Upload Mode (Surveyor, Admin, and Kacab) */
         <div>
           {/* Action Header / Add Button */}
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.4rem', gap: '0.5rem', flexWrap: 'wrap' }}>
@@ -315,19 +316,19 @@ export const MultiDocUpload = ({
             </div>
           ) : (
             <div
-              onClick={() => !isUploading && fileInputRef.current?.click()}
+              onClick={() => !isUploading && !disabled && fileInputRef.current?.click()}
               style={{
                 border: '1px dashed var(--border-color)',
                 borderRadius: '6px',
                 padding: '0.6rem 0.75rem',
                 textAlign: 'center',
                 background: 'var(--bg-main)',
-                cursor: 'pointer',
+                cursor: disabled ? 'default' : 'pointer',
                 fontSize: '0.73rem',
                 color: 'var(--text-muted)'
               }}
             >
-              Klik untuk memilih berkas tiket / kwitansi (bisa pilih beberapa file sekaligus)
+              {disabled ? 'Belum ada berkas terlampir' : 'Klik untuk memilih berkas tiket / kwitansi (bisa pilih beberapa file sekaligus)'}
             </div>
           )}
         </div>

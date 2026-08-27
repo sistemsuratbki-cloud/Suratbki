@@ -2240,7 +2240,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     label="Tiket Pesawat / Transport"
                     icon={Plane}
                     color="#0284c7"
-                    isAdmin={isAdmin}
+                    disabled={isLocked}
                     bucketName="lampiran"
                     folderContext={{
                       year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
@@ -2365,7 +2365,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     label="Kwitansi Hotel"
                     icon={Receipt}
                     color="#059669"
-                    isAdmin={isAdmin}
+                    disabled={isLocked}
                     bucketName="lampiran"
                     folderContext={{
                       year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
@@ -2514,7 +2514,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     ...(fileFotoName !== undefined && { fileFotoName, fileFotoData })
                   }));
                 }}
-                disabled={isAdmin}
+                disabled={isLocked}
                 onPreview={(previewObj) => setPreviewAttachment({ isOpen: true, ...previewObj })}
               />
 

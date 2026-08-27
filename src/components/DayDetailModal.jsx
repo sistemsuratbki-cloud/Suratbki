@@ -2641,7 +2641,6 @@ export const DayDetailModal = ({
                       label="Tiket Pesawat / Transport"
                       icon={Plane}
                       color="#0284c7"
-                      isAdmin={isAdmin}
                       bucketName="surat-tugas"
                       folderContext={{
                         year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
@@ -2766,7 +2765,6 @@ export const DayDetailModal = ({
                       label="Kwitansi Hotel"
                       icon={Receipt}
                       color="#059669"
-                      isAdmin={isAdmin}
                       bucketName="surat-tugas"
                       folderContext={{
                         year: (formData.tglMulai || '').split('-')[0] || new Date().getFullYear().toString(),
@@ -2915,7 +2913,7 @@ export const DayDetailModal = ({
                       ...(fileFotoName !== undefined && { fileFotoName, fileFotoData })
                     }));
                   }}
-                  disabled={isAdmin}
+                  disabled={false}
                   onPreview={(previewObj) => setPreviewAttachment({ isOpen: true, ...previewObj })}
                 />
 
