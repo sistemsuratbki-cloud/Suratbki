@@ -542,10 +542,39 @@ export const BiayaPdsPrintModal = ({
               style={{
                 width: '100%',
                 display: 'flex',
-                justifyContent: isFitToScreen ? 'center' : 'flex-start',
+                flexDirection: 'column',
+                alignItems: isFitToScreen ? 'center' : 'flex-start',
+                gap: isMobileScreen ? '1.5rem' : '2.5rem',
                 overflowX: !isFitToScreen ? 'auto' : 'visible'
               }}
             >
+              {/* Halaman 1 Banner Indicator */}
+              {isSmcItem && (
+                <div
+                  className="no-print"
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '0.5rem',
+                    padding: '0.45rem 1rem',
+                    background: '#eff6ff',
+                    border: '1px solid #bfdbfe',
+                    borderRadius: '6px',
+                    color: '#1e40af',
+                    fontWeight: 800,
+                    fontSize: '0.82rem',
+                    width: `${targetDocWidth}px`,
+                    maxWidth: '100%',
+                    boxSizing: 'border-box',
+                    zoom: isFitToScreen ? fitScale : 1
+                  }}
+                >
+                  <Calculator size={15} color="#0284c7" />
+                  <span>📄 Halaman 1: Rincian Biaya Perjalanan Dinas Surveyor (PDS)</span>
+                </div>
+              )}
+
               <div
                 className="printable-sheet"
                 style={{
@@ -839,36 +868,38 @@ export const BiayaPdsPrintModal = ({
 
               {/* ====== PAGE 2: TANDA TERIMA EXPERTISE FLAG STATE (AUDIT SMC) JIKA AKTIF ====== */}
               {isSmcItem && (
-                <div style={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: isFitToScreen ? 'center' : 'flex-start' }}>
+                <>
                   {/* Page 2 Screen Divider */}
                   <div
                     className="no-print"
                     style={{
-                      margin: '2rem 0 1rem',
                       display: 'flex',
                       alignItems: 'center',
-                      justifyContent: 'center',
+                      justifyContent: 'space-between',
                       gap: '0.6rem',
-                      padding: '0.6rem 1rem',
+                      padding: '0.45rem 1rem',
                       background: '#ecfdf5',
                       border: '1px solid #a7f3d0',
                       borderRadius: '6px',
                       color: '#065f46',
                       fontWeight: 800,
-                      fontSize: '0.84rem',
-                      width: isFitToScreen ? `${targetDocWidth * fitScale}px` : `${targetDocWidth}px`,
-                      boxSizing: 'border-box'
+                      fontSize: '0.82rem',
+                      width: `${targetDocWidth}px`,
+                      maxWidth: '100%',
+                      boxSizing: 'border-box',
+                      zoom: isFitToScreen ? fitScale : 1
                     }}
                   >
-                    <Ship size={16} color="#059669" />
-                    <span>Halaman 2: Tanda Terima Expertise Flag State (Audit SMC)</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Ship size={15} color="#059669" />
+                      <span>📄 Halaman 2: Tanda Terima Expertise Flag State (Audit SMC)</span>
+                    </div>
                     <button
                       type="button"
                       onClick={handleExportSmcExcel}
                       className="btn btn-sm"
                       style={{
-                        marginLeft: '0.5rem',
-                        padding: '0.15rem 0.5rem',
+                        padding: '0.2rem 0.55rem',
                         fontSize: '0.72rem',
                         background: '#059669',
                         color: '#ffffff',
@@ -899,12 +930,10 @@ export const BiayaPdsPrintModal = ({
                       background: '#ffffff',
                       color: '#000000',
                       width: `${targetDocWidth}px`,
-                      maxWidth: `${targetDocWidth}px`,
-                      boxShadow: isMobileScreen ? 'none' : '0 4px 12px rgba(0,0,0,0.1)',
+                      minWidth: `${targetDocWidth}px`,
                       boxSizing: 'border-box',
-                      transform: `scale(${fitScale})`,
-                      transformOrigin: 'top center',
-                      marginBottom: isFitToScreen && fitScale < 1 ? `-${(1 - fitScale) * 620}px` : '0',
+                      zoom: isFitToScreen ? fitScale : 1,
+                      boxShadow: isMobileScreen ? '0 2px 8px rgba(0,0,0,0.06)' : 'none',
                       pageBreakBefore: 'always',
                       breakBefore: 'page'
                     }}
@@ -1113,7 +1142,7 @@ export const BiayaPdsPrintModal = ({
                       </div>
                     </div>
                   </div>
-                </div>
+                </>
               )}
             </div>
           </div>
