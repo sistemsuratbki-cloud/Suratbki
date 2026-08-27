@@ -47,6 +47,7 @@ export const BukuAgendaTable = () => {
   const { currentUser, role, usersList } = useAuth();
   const isAdminOrKacab = role === 'admin' || role === 'kacab' || role === 'developer';
   const isFinance = role === 'finance' || role === 'keuangan';
+  const canAcc = isAdminOrKacab || isFinance;
   const canRevisi = isAdminOrKacab || isFinance;
 
   // Filters
@@ -86,6 +87,7 @@ export const BukuAgendaTable = () => {
   // ACC / Revisi Handlers
   const handleToggleAccPds = (item) => {
     const isCurrentlyAcc = item.approvalStatus === 'ACC';
+    const updaterName = currentUser?.name || (isFinance ? 'Staff Keuangan' : (currentUser?.role === 'kacab' ? 'Kepala Cabang' : 'Admin'));
     if (isCurrentlyAcc) {
       updateSuratTugas(item.id, {
         approvalStatus: 'Menunggu',
@@ -100,7 +102,7 @@ export const BukuAgendaTable = () => {
         approvalStatus: 'ACC',
         status: 'Selesai',
         approvalNote: '',
-        approvalBy: currentUser?.name || 'Admin',
+        approvalBy: updaterName,
         approvalAt: new Date().toISOString()
       });
       toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
@@ -1659,7 +1661,7 @@ export const BukuAgendaTable = () => {
                         })()}
 
                         {/* ACC & Revisi Action Buttons untuk PDS */}
-                        {isAdminOrKacab ? (
+                        {canAcc ? (
                           (item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi')) ? (
                             <button
                               type="button"

@@ -74,6 +74,8 @@ export const DayDetailModal = ({
 }) => {
   const { currentUser, usersList, role } = useAuth();
   const isAdmin = role === 'admin' || role === 'developer' || role === 'kacab';
+  const isFinance = role === 'finance' || role === 'keuangan';
+  const canAcc = isAdmin || isFinance;
   const {
     suratTugas: allSuratTugas,
     createPdsFromSurvey,
@@ -882,7 +884,6 @@ export const DayDetailModal = ({
     setIsLaporanPrintModalOpen(true);
   };
 
-  const isFinance = role === 'keuangan';
   const canDelete = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
 
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
@@ -1223,7 +1224,7 @@ export const DayDetailModal = ({
                                 <span>Cetak PDS</span>
                               </button>
 
-                              {isAdmin && (
+                              {canAcc && (
                                 pds.approvalStatus !== 'ACC' && (
                                   <button
                                     type="button"
@@ -1244,7 +1245,7 @@ export const DayDetailModal = ({
                                         approvalStatus: 'ACC',
                                         status: 'Selesai',
                                         approvalNote: '',
-                                        approvalBy: currentUser?.name || 'Admin',
+                                        approvalBy: currentUser?.name || (isFinance ? 'Staff Keuangan' : (currentUser?.role === 'kacab' ? 'Kepala Cabang' : 'Admin')),
                                         approvalAt: new Date().toISOString()
                                       });
                                       toast.success(`✅ PDS ${pds.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);

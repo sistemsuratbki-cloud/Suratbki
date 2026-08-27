@@ -92,6 +92,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   const canCreatePds = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
   const canEdit = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
   const isAdminOrKacab = role === 'admin' || role === 'developer' || role === 'kacab';
+  const canAcc = isAdminOrKacab || isFinance;
 
   const handleToggleUnlock = (item) => {
     const isUnlocked = !item.isUnlockedByAdmin;
@@ -129,6 +130,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
   // ACC / Revisi Handlers
   const handleToggleAccPds = (item) => {
     const isCurrentlyAcc = item.approvalStatus === 'ACC';
+    const updaterName = currentUser?.name || (isFinance ? 'Staff Keuangan' : (currentUser?.role === 'kacab' ? 'Kepala Cabang' : 'Admin'));
     if (isCurrentlyAcc) {
       updateSuratTugas(item.id, {
         approvalStatus: 'Menunggu',
@@ -143,7 +145,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         approvalStatus: 'ACC',
         status: 'Selesai',
         approvalNote: '',
-        approvalBy: currentUser?.name || 'Admin',
+        approvalBy: updaterName,
         approvalAt: new Date().toISOString()
       });
       toast.success(`✅ PDS ${item.namaKapal || ''} telah di-ACC dan ditandai Selesai.`);
@@ -1217,7 +1219,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                         {/* ACC / Revisi Buttons (PDS only) */}
                         {effectiveFilterType === 'PDS' && (
                           <>
-                            {isAdminOrKacab ? (
+                            {canAcc ? (
                               (item.approvalStatus === 'ACC' || (item.status === 'Selesai' && item.approvalStatus !== 'Revisi')) ? (
                                 <button
                                   type="button"
