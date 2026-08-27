@@ -29,17 +29,17 @@ export const VisitSurveiTable = ({ onOpenMonitor }) => {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }, []);
 
-  const isSuperUser = role === 'admin' || role === 'kacab' || role === 'developer' || role === 'monitor';
+  const isSuperUser = role === 'admin' || role === 'kacab' || role === 'kacap' || role === 'developer' || role === 'monitor' || role === 'finance' || role === 'keuangan';
 
   // Filter berdasarkan Role Pengguna (Kacab & Admin lihat semua, Surveyor lihat miliknya sendiri)
   const roleFilteredData = useMemo(() => {
     if (isSuperUser) return visitSurvei || [];
     if (!currentUser?.name) return visitSurvei || [];
-    const surveyorFullName = currentUser.name.toLowerCase();
-    const surveyorFirstName = surveyorFullName.split(' ')[0].toLowerCase();
+    const surveyorFullName = currentUser.name.toLowerCase().trim();
+    const surveyorFirstName = surveyorFullName.split(' ')[0].trim();
     return (visitSurvei || []).filter((v) => {
-      const name = (v.nama || '').toLowerCase();
-      return name.includes(surveyorFullName) || name.includes(surveyorFirstName);
+      const name = (v.nama || '').toLowerCase().trim();
+      return name.includes(surveyorFullName) || name.includes(surveyorFirstName) || surveyorFullName.includes(name);
     });
   }, [visitSurvei, isSuperUser, currentUser]);
 

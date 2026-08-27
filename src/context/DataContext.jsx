@@ -28,6 +28,9 @@ import {
   fetchMasterKapalFromCloud,
   saveMasterKapalToCloud,
   deleteMasterKapalFromCloud,
+  fetchVisitSurveiFromCloud,
+  saveVisitSurveiToCloud,
+  deleteVisitSurveiFromCloud,
   clearOperationalDataFromCloud,
   subscribeToRealtimeChanges
 } from '../lib/supabaseSync';
@@ -206,14 +209,15 @@ export const DataProvider = ({ children }) => {
   // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
   const refreshAllFromCloud = useCallback(async () => {
     try {
-      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings, cloudKapal] = await Promise.all([
+      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings, cloudKapal, cloudVisit] = await Promise.all([
         fetchSuratTugasFromCloud(),
         fetchKwitansiFromCloud(),
         fetchLaporanFromCloud(),
         fetchTariffsFromCloud(),
         fetchGradeTariffsFromCloud(),
         fetchAdminSettingsFromCloud(),
-        fetchMasterKapalFromCloud()
+        fetchMasterKapalFromCloud(),
+        fetchVisitSurveiFromCloud()
       ]);
 
       if (Array.isArray(cloudSurat) && cloudSurat.length > 0) {
@@ -236,6 +240,20 @@ export const DataProvider = ({ children }) => {
       }
       if (Array.isArray(cloudKapal) && cloudKapal.length > 0) {
         setMasterKapal(mergeWithDefaultMasterKapal(cloudKapal));
+      }
+      if (Array.isArray(cloudVisit) && cloudVisit.length > 0) {
+        setVisitSurvei(cloudVisit.map(cleanEntityObject));
+      } else {
+        const localSaved = localStorage.getItem('st_visit_survei');
+        if (localSaved) {
+          try {
+            const parsed = JSON.parse(localSaved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              parsed.forEach((v) => saveVisitSurveiToCloud(v));
+              setVisitSurvei(parsed.map(cleanEntityObject));
+            }
+          } catch (e) {}
+        }
       }
     } catch (e) {
       console.warn('Cloud sync load warning:', e);
@@ -587,30 +605,46 @@ export const DataProvider = ({ children }) => {
     deleteMasterKapalFromCloud(id);
   };
 
-  // ====== VISIT SURVEI (LAYAR MONITOR) ======
+  // ====== VISIT SURVEI (LAYAR MONITOR & CLOUD SUPABASE) ======
   const addVisitSurvei = (data) => {
-    const newVisit = {
+    const newVisit = cleanEntityObject({
       id: `visit-${Date.now()}-${Math.random().toString(36).substr(2, 6)}`,
       createdAt: new Date().toISOString(),
       tanggal: data.tanggal || new Date().toISOString().split('T')[0],
       nama: (data.nama || '').trim(),
       lokasi: (data.lokasi || '').trim(),
       namaKapal: (data.namaKapal || '').trim().toUpperCase(),
+      ships: Array.isArray(data.ships) ? data.ships : (data.namaKapal ? data.namaKapal.split(/\s*[\/,]\s*/).filter(Boolean) : []),
+      durasi: Number(data.durasi) || 1,
       jamBerangkat: (data.jamBerangkat || '').trim(),
       jamSelesai: (data.jamSelesai || '').trim(),
       status: data.status || 'Sedang Berjalan',
       keterangan: (data.keterangan || '').trim()
-    };
+    });
     setVisitSurvei((prev) => [newVisit, ...prev]);
+    saveVisitSurveiToCloud(newVisit);
     return newVisit;
   };
 
   const updateVisitSurvei = (id, updatedData) => {
-    setVisitSurvei((prev) => prev.map((item) => (item.id === id ? { ...item, ...updatedData } : item)));
+    let updatedItem = null;
+    setVisitSurvei((prev) =>
+      prev.map((item) => {
+        if (item.id === id) {
+          updatedItem = cleanEntityObject({ ...item, ...updatedData });
+          return updatedItem;
+        }
+        return item;
+      })
+    );
+    if (updatedItem) {
+      saveVisitSurveiToCloud(updatedItem);
+    }
   };
 
   const deleteVisitSurvei = (id) => {
     setVisitSurvei((prev) => prev.filter((item) => item.id !== id));
+    deleteVisitSurveiFromCloud(id);
   };
 
   // ====== 1. ADMIN INPUT SPS (Batch or Single Ship) ======

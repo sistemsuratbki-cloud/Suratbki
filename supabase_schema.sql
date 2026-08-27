@@ -268,6 +268,31 @@ CREATE TABLE IF NOT EXISTS public.admin_settings (
 );
 
 -- ============================================================
+-- 8. TABEL VISIT SURVEI
+-- ============================================================
+CREATE TABLE IF NOT EXISTS public.visit_survei (
+  id                    TEXT PRIMARY KEY,
+  nama                  TEXT,
+  lokasi                TEXT,
+  nama_kapal            TEXT,
+  ships                 JSONB DEFAULT '[]'::jsonb,
+  jam_berangkat         TEXT,
+  durasi                NUMERIC DEFAULT 1,
+  jam_selesai           TEXT,
+  tanggal               TEXT,
+  status                TEXT DEFAULT 'On Proses',
+  keterangan            TEXT,
+  raw_data              JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at            TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at            TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+DROP TRIGGER IF EXISTS trg_visit_updated_at ON public.visit_survei;
+CREATE TRIGGER trg_visit_updated_at
+  BEFORE UPDATE ON public.visit_survei
+  FOR EACH ROW EXECUTE FUNCTION public.set_updated_at();
+
+-- ============================================================
 -- ROW LEVEL SECURITY
 -- ============================================================
 ALTER TABLE public.users          ENABLE ROW LEVEL SECURITY;
@@ -277,13 +302,14 @@ ALTER TABLE public.laporan_survei ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.tariffs        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grade_tariffs  ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.admin_settings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.visit_survei   ENABLE ROW LEVEL SECURITY;
 
 -- Hapus policy lama jika ada, lalu buat ulang (idempotent)
 DO $$
 DECLARE
   tbl TEXT;
 BEGIN
-  FOREACH tbl IN ARRAY ARRAY['users','surat_tugas','kwitansi_honor','laporan_survei','tariffs','grade_tariffs','admin_settings']
+  FOREACH tbl IN ARRAY ARRAY['users','surat_tugas','kwitansi_honor','laporan_survei','tariffs','grade_tariffs','admin_settings','visit_survei']
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS "Allow public access" ON public.%I', tbl);
     EXECUTE format(
@@ -324,6 +350,10 @@ BEGIN
   END;
   BEGIN
     ALTER PUBLICATION supabase_realtime ADD TABLE public.admin_settings;
+  EXCEPTION WHEN duplicate_object THEN NULL;
+  END;
+  BEGIN
+    ALTER PUBLICATION supabase_realtime ADD TABLE public.visit_survei;
   EXCEPTION WHEN duplicate_object THEN NULL;
   END;
 END $$;

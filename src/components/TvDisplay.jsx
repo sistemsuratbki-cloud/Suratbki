@@ -158,15 +158,15 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
         };
       });
 
-    const isSuperUser = role === 'admin' || role === 'kacab' || role === 'developer' || role === 'monitor' || isMonitorRole;
+    const isSuperUser = role === 'admin' || role === 'kacab' || role === 'kacap' || role === 'developer' || role === 'monitor' || isMonitorRole || role === 'finance' || role === 'keuangan';
 
     // Surveyor hanya melihat input miliknya sendiri, sedangkan Kacab & Admin melihat seluruh surveyor
     if (!isSuperUser && currentUser?.name) {
-      const surveyorFullName = currentUser.name.toLowerCase();
-      const surveyorFirstName = surveyorFullName.split(' ')[0].toLowerCase();
+      const surveyorFullName = currentUser.name.toLowerCase().trim();
+      const surveyorFirstName = surveyorFullName.split(' ')[0].trim();
       visitItems = visitItems.filter((item) => {
-        const targetName = (item.nama || '').toLowerCase();
-        return targetName.includes(surveyorFullName) || targetName.includes(surveyorFirstName);
+        const targetName = (item.nama || '').toLowerCase().trim();
+        return targetName.includes(surveyorFullName) || targetName.includes(surveyorFirstName) || surveyorFullName.includes(targetName);
       });
     }
 

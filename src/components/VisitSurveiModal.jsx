@@ -67,6 +67,11 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
   const [selectedShips, setSelectedShips] = useState([]);
   const [inputShipText, setInputShipText] = useState('');
 
+  const surveyorOptions = React.useMemo(
+    () => (usersList || []).filter((u) => u.role === 'surveyor'),
+    [usersList]
+  );
+
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
@@ -84,9 +89,14 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
         setSelectedShips(initialShips);
         setInputShipText('');
 
+        const defaultSurveyor = role === 'surveyor'
+          ? (currentUser?.name || initialData.nama || '')
+          : (initialData.nama || surveyorOptions[0]?.name || '');
+
         setForm({
           ...EMPTY_VISIT_FORM,
           ...initialData,
+          nama: defaultSurveyor,
           durasi: initialDurasi,
           jamBerangkat: initialStart,
           jamSelesai: initialEnd,
@@ -101,9 +111,13 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
         setSelectedShips([]);
         setInputShipText('');
 
+        const defaultSurveyor = role === 'surveyor'
+          ? (currentUser?.name || '')
+          : (surveyorOptions[0]?.name || '');
+
         setForm({
           ...EMPTY_VISIT_FORM,
-          nama: currentUser?.name || '',
+          nama: defaultSurveyor,
           tanggal: getTodayStr(),
           jamBerangkat: defaultStart,
           durasi: defaultDurasi,
@@ -112,7 +126,7 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
         });
       }
     }
-  }, [isOpen, initialData, currentUser]);
+  }, [isOpen, initialData, currentUser, role, surveyorOptions]);
 
   const handleAddShip = (shipName) => {
     const clean = (shipName || inputShipText).trim().toUpperCase();
@@ -161,8 +175,6 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
   };
 
   if (!isOpen) return null;
-
-  const surveyorOptions = (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab');
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -323,23 +335,28 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
                   </div>
                 </div>
               ) : (
-                <>
-                  <input
-                    className="form-input"
-                    type="text"
-                    list="visit-surveyor-list"
-                    placeholder="Pilih atau ketik nama surveyor..."
+                <div>
+                  <select
+                    className="form-input form-select"
                     value={form.nama}
                     onChange={(e) => setForm((p) => ({ ...p, nama: e.target.value }))}
+                    style={{ fontWeight: 700, width: '100%', cursor: 'pointer' }}
+                    required
                     autoFocus
-                    style={{ fontWeight: 700 }}
-                  />
-                  <datalist id="visit-surveyor-list">
+                  >
+                    <option value="">-- Pilih Surveyor --</option>
                     {surveyorOptions.map((u) => (
-                      <option key={u.id} value={u.name}>{u.name} ({u.role})</option>
+                      <option key={u.id} value={u.name}>
+                        {u.name}
+                      </option>
                     ))}
-                  </datalist>
-                </>
+                  </select>
+                  {surveyorOptions.length === 0 && (
+                    <div style={{ fontSize: '0.72rem', color: '#ef4444', marginTop: '0.25rem' }}>
+                      Belum ada pengguna dengan peran Surveyor terdaftar.
+                    </div>
+                  )}
+                </div>
               )}
             </div>
 

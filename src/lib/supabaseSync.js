@@ -116,14 +116,15 @@ const mapFromDb = (row) => {
   if (row.file_kwitansi_hotel_name !== undefined && row.file_kwitansi_hotel_name !== null) merged.fileKwitansiHotelName = row.file_kwitansi_hotel_name;
   else if (raw.fileKwitansiHotelName !== undefined) merged.fileKwitansiHotelName = raw.fileKwitansiHotelName;
 
-  if (row.foto_list !== undefined && row.foto_list !== null) merged.fotoList = row.foto_list;
-  else if (raw.fotoList !== undefined) merged.fotoList = raw.fotoList;
+  // Normalisasi field visit survei
+  if (row.jam_berangkat !== undefined && row.jam_berangkat !== null) merged.jamBerangkat = row.jam_berangkat;
+  else if (raw.jamBerangkat !== undefined) merged.jamBerangkat = raw.jamBerangkat;
 
-  if (row.linked_sps_ids !== undefined && row.linked_sps_ids !== null) merged.linkedSpsIds = row.linked_sps_ids;
-  else if (raw.linkedSpsIds !== undefined) merged.linkedSpsIds = raw.linkedSpsIds;
+  if (row.jam_selesai !== undefined && row.jam_selesai !== null) merged.jamSelesai = row.jam_selesai;
+  else if (raw.jamSelesai !== undefined) merged.jamSelesai = raw.jamSelesai;
 
-  if (row.ships_list !== undefined && row.ships_list !== null) merged.shipsList = row.ships_list;
-  else if (raw.shipsList !== undefined) merged.shipsList = raw.shipsList;
+  if (row.ships !== undefined && row.ships !== null) merged.ships = row.ships;
+  else if (raw.ships !== undefined) merged.ships = raw.ships;
 
   return merged;
 };
@@ -565,7 +566,118 @@ export const deleteMasterKapalFromCloud = async (id) => {
 };
 
 // ==============================================================================
-// 9. CLEAR OPERATIONAL DATA (SPS, PDS, LAPORAN, KWITANSI)
+// 9. VISIT SURVEI
+// ==============================================================================
+
+export const fetchVisitSurveiFromCloud = async () => {
+  if (!supabase) return null;
+  return withRetry(async () => {
+    // 1. Coba dari tabel dedicated visit_survei
+    const { data, error } = await supabase
+      .from('visit_survei')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (!error && Array.isArray(data) && data.length > 0) {
+      return data.map(mapFromDb);
+    }
+
+    // 2. Fallback cek dari admin_settings.raw_data.visit_survei_list
+    const { data: settingsData } = await supabase
+      .from('admin_settings')
+      .select('raw_data')
+      .eq('id', 'default_settings')
+      .maybeSingle();
+
+    if (settingsData?.raw_data?.visit_survei_list && Array.isArray(settingsData.raw_data.visit_survei_list)) {
+      return settingsData.raw_data.visit_survei_list.map(mapFromDb);
+    }
+
+    return (data || []).map(mapFromDb);
+  }).catch(() => null);
+};
+
+export const saveVisitSurveiToCloud = async (item) => {
+  if (!supabase || !item?.id) return;
+  const payload = {
+    id:            String(item.id),
+    nama:          item.nama          || null,
+    lokasi:        item.lokasi        || null,
+    nama_kapal:    item.namaKapal     || null,
+    ships:         Array.isArray(item.ships) ? item.ships : [],
+    jam_berangkat: item.jamBerangkat  || null,
+    durasi:        Number(item.durasi) || 1,
+    jam_selesai:   item.jamSelesai    || null,
+    tanggal:       item.tanggal       || null,
+    status:        item.status        || 'On Proses',
+    keterangan:    item.keterangan    || null,
+    raw_data:      item,
+  };
+
+  return withRetry(async () => {
+    // A. Simpan ke tabel visit_survei jika ada
+    await supabase.from('visit_survei').upsert(payload, { onConflict: 'id' });
+
+    // B. Simpan juga ke admin_settings agar 100% realtime & tersinkronisasi di semua client
+    try {
+      const { data: currentSettings } = await supabase
+        .from('admin_settings')
+        .select('*')
+        .eq('id', 'default_settings')
+        .maybeSingle();
+
+      const existingRaw = currentSettings?.raw_data || {};
+      const existingList = Array.isArray(existingRaw.visit_survei_list) ? existingRaw.visit_survei_list : [];
+      const updatedList = [item, ...existingList.filter((v) => v.id !== item.id)];
+
+      await supabase
+        .from('admin_settings')
+        .upsert({
+          id: 'default_settings',
+          raw_data: {
+            ...existingRaw,
+            visit_survei_list: updatedList
+          }
+        }, { onConflict: 'id' });
+    } catch (fallbackErr) {
+      // ignore
+    }
+  }).catch((e) => console.warn('[DB] save visit_survei retry failed:', e.message));
+};
+
+export const deleteVisitSurveiFromCloud = async (id) => {
+  if (!supabase || !id) return;
+  return withRetry(async () => {
+    // A. Hapus dari tabel visit_survei
+    await supabase.from('visit_survei').delete().eq('id', String(id));
+
+    // B. Hapus dari admin_settings
+    try {
+      const { data: currentSettings } = await supabase
+        .from('admin_settings')
+        .select('*')
+        .eq('id', 'default_settings')
+        .maybeSingle();
+
+      const existingRaw = currentSettings?.raw_data || {};
+      const existingList = Array.isArray(existingRaw.visit_survei_list) ? existingRaw.visit_survei_list : [];
+      const updatedList = existingList.filter((v) => v.id !== id);
+
+      await supabase
+        .from('admin_settings')
+        .upsert({
+          id: 'default_settings',
+          raw_data: {
+            ...existingRaw,
+            visit_survei_list: updatedList
+          }
+        }, { onConflict: 'id' });
+    } catch (e) {}
+  }).catch(() => {});
+};
+
+// ==============================================================================
+// 10. CLEAR OPERATIONAL DATA (SPS, PDS, LAPORAN, KWITANSI, VISIT SURVEI)
 // ==============================================================================
 
 export const clearOperationalDataFromCloud = async () => {
@@ -574,13 +686,14 @@ export const clearOperationalDataFromCloud = async () => {
     await Promise.all([
       supabase.from('surat_tugas').delete().neq('id', '___safe_keep___'),
       supabase.from('kwitansi_honor').delete().neq('id', '___safe_keep___'),
-      supabase.from('laporan_survei').delete().neq('id', '___safe_keep___')
+      supabase.from('laporan_survei').delete().neq('id', '___safe_keep___'),
+      supabase.from('visit_survei').delete().neq('id', '___safe_keep___')
     ]);
   }).catch((e) => console.warn('[DB] clear operational data failed:', e.message));
 };
 
 // ==============================================================================
-// 10. REALTIME — per-tabel, callback spesifik per tabel
+// 11. REALTIME — per-tabel, callback spesifik per tabel
 // ==============================================================================
 
 /**
@@ -588,13 +701,15 @@ export const clearOperationalDataFromCloud = async () => {
  * Menerima object callbacks per tabel:
  * {
  *   onSuratTugas, onKwitansi, onLaporan,
- *   onTariffs, onGradeTariffs, onAdminSettings, onUsers, onMasterKapal
+ *   onTariffs, onGradeTariffs, onAdminSettings, onUsers, onMasterKapal, onVisitSurvei
  * }
  * Masing-masing dipanggil dengan (eventType, newRow, oldRow).
  * Jika hanya ingin satu callback global, gunakan onAny.
  */
 export const subscribeToRealtimeChanges = (callbacks = {}) => {
   if (!supabase) return () => {};
+
+  const config = typeof callbacks === 'function' ? { onAny: callbacks } : (callbacks || {});
 
   const {
     onSuratTugas,
@@ -605,8 +720,9 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
     onAdminSettings,
     onUsers,
     onMasterKapal,
+    onVisitSurvei,
     onAny,
-  } = callbacks;
+  } = config;
 
   const handle = (table, specificCb) => (payload) => {
     const { eventType, new: newRow, old: oldRow } = payload;
@@ -632,6 +748,8 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
         handle('users', onUsers))
     .on('postgres_changes', { event: '*', schema: 'public', table: 'master_kapal' },
         handle('master_kapal', onMasterKapal))
+    .on('postgres_changes', { event: '*', schema: 'public', table: 'visit_survei' },
+        handle('visit_survei', onVisitSurvei))
     .subscribe((status) => {
       if (status === 'SUBSCRIBED') {
         console.log('[Realtime] Connected ✓');

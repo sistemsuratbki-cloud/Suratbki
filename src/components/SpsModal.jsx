@@ -30,7 +30,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
   const shipDatabase = masterKapal;
 
   const surveyorUsers = useMemo(
-    () => (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab'),
+    () => (usersList || []).filter((u) => u.role === 'surveyor'),
     [usersList]
   );
 
