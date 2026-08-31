@@ -527,7 +527,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
           {/* Surveyor Filter */}
           <div>
-            {role === 'surveyor' ? (
+            {role === 'surveyor' || role === 'kacab' || role === 'kacap' ? (
               <div
                 style={{
                   width: '100%',

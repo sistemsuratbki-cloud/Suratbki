@@ -21,8 +21,8 @@ export const SummaryCards = ({ surveyorFilter, onOpenMonitor }) => {
     (item) => item.status === 'Selesai' || item.approvalStatus === 'ACC'
   ).length;
 
-  const isPersonalView = role === 'surveyor' || role === 'kacab';
-  const canMonitor = role === 'kacab' || role === 'admin' || role === 'developer';
+  const isPersonalView = role === 'surveyor' || role === 'kacab' || role === 'kacap';
+  const canMonitor = role === 'kacab' || role === 'kacap' || role === 'admin' || role === 'developer';
 
   return (
     <div

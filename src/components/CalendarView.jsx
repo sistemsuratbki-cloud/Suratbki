@@ -138,10 +138,10 @@ export const CalendarView = ({ surveyorFilter }) => {
       <div className="card-header" style={{ padding: '1.25rem 1.5rem', borderBottom: 'none' }}>
         <div>
           <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-            {role === 'surveyor' ? `Jadwal Tugas Personal (${currentUser?.name})` : 'Jadwal Tugas Survei Kapal'}
+            {role === 'surveyor' || role === 'kacab' || role === 'kacap' ? `Jadwal Tugas Personal (${currentUser?.name})` : 'Jadwal Tugas Survei Kapal'}
           </h3>
           <div style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', fontWeight: 600, marginTop: '0.1rem' }}>
-            {monthNames[month]} {year} {role === 'surveyor' && '• Menampilkan jadwal penugasan Anda saja'}
+            {monthNames[month]} {year} {(role === 'surveyor' || role === 'kacab' || role === 'kacap') && '• Menampilkan jadwal penugasan Anda saja'}
           </div>
         </div>
 

@@ -1,11 +1,12 @@
 export const isItemBelongsToUser = (item, currentUser, role, fieldName = 'petugas') => {
   if (!item) return false;
-  // Roles with full access
-  if (!role || role === 'admin' || role === 'developer' || role === 'keuangan' || role === 'finance' || role === 'kacab' || role === 'kacap' || role === 'monitor') {
+  // Roles with global full access everywhere
+  if (!role || role === 'admin' || role === 'developer' || role === 'keuangan' || role === 'finance' || role === 'monitor') {
     return true;
   }
 
-  if (role === 'surveyor' && currentUser) {
+  // Both surveyor and kacab/kacap see their own personal tasks/documents
+  if ((role === 'surveyor' || role === 'kacab' || role === 'kacap') && currentUser) {
     const fullName = (currentUser.name || '').trim().toLowerCase();
     const username = (currentUser.username || '').trim().toLowerCase();
     const firstName = fullName ? fullName.split(' ')[0].trim() : '';
@@ -47,11 +48,11 @@ export const isItemBelongsToUser = (item, currentUser, role, fieldName = 'petuga
 
 export const filterDataByRole = (list = [], currentUser = null, role = null, fieldName = 'petugas') => {
   if (!Array.isArray(list)) return [];
-  if (!role || role === 'admin' || role === 'developer' || role === 'keuangan' || role === 'finance' || role === 'kacab' || role === 'kacap' || role === 'monitor') {
-    return list; // Full visibility for Admin, Developer, Keuangan, and Kacab
+  if (!role || role === 'admin' || role === 'developer' || role === 'keuangan' || role === 'finance' || role === 'monitor') {
+    return list; // Full visibility for Admin, Developer, Keuangan, and Monitor
   }
 
-  if (role === 'surveyor') {
+  if (role === 'surveyor' || role === 'kacab' || role === 'kacap') {
     return list.filter((item) => isItemBelongsToUser(item, currentUser, role, fieldName));
   }
 

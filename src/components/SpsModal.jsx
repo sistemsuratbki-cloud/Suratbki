@@ -251,7 +251,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                     <User size={14} color="var(--accent-primary)" />
                     <span>Surveyor Ditugaskan *</span>
                   </label>
-                  {role === 'surveyor' ? (
+                  {role === 'surveyor' || role === 'kacab' || role === 'kacap' ? (
                     <input
                       type="text"
                       className="form-input"

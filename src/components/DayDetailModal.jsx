@@ -1532,7 +1532,7 @@ export const DayDetailModal = ({
                     <label className="form-label" style={{ fontWeight: 700 }}>
                       Marine Surveyor *
                     </label>
-                    {role === 'surveyor' ? (
+                    {role === 'surveyor' || role === 'kacab' || role === 'kacap' ? (
                       <input
                         type="text"
                         className="form-input"

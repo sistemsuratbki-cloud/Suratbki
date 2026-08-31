@@ -1056,7 +1056,7 @@ export const BukuAgendaTable = () => {
           </div>
 
           {/* Surveyor Dropdown */}
-          {role === 'surveyor' ? (
+          {role === 'surveyor' || role === 'kacab' || role === 'kacap' ? (
             <div
               style={{
                 height: '38px',

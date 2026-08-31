@@ -24,7 +24,10 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
 
   const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS' && !st.isPds).length;
   const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
-  const filteredVisitSurvei = filterDataByRole(visitSurvei || [], currentUser, role, 'nama');
+  const isManagementVisit = role === 'admin' || role === 'developer' || role === 'kacab' || role === 'kacap' || role === 'finance' || role === 'keuangan' || role === 'monitor';
+  const filteredVisitSurvei = isManagementVisit
+    ? (visitSurvei || [])
+    : filterDataByRole(visitSurvei || [], currentUser, role, 'nama');
   const visitCount = filteredVisitSurvei.filter((v) => v.status !== 'Selesai').length;
   
   // Laporan Paraf Terkirim count (SPS visit 1 yang terkirim)
