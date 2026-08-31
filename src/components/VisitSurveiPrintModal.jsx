@@ -207,7 +207,7 @@ export const VisitSurveiPrintModal = ({
                 <tbody>
                   {data.length > 0 ? (
                     data.map((item, idx) => {
-                      const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi || 3);
+                      const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi);
                       const statusReal = item.status === 'Selesai' ? 'Selesai' : autoDetectStatus(item.tanggal, item.jamBerangkat, end);
                       const tglDisplay = item.tanggal ? formatDateIndo(item.tanggal) : '-';
 

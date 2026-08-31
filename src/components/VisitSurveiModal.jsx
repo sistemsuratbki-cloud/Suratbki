@@ -14,7 +14,9 @@ export function calculateEndTime(startTimeStr, durationHours) {
   const minutes = parseInt(mStr, 10);
   if (isNaN(hours) || isNaN(minutes)) return '';
 
-  const dur = parseFloat(durationHours) || 1;
+  const dur = (durationHours !== undefined && durationHours !== null && durationHours !== '' && !isNaN(Number(durationHours)))
+    ? Number(durationHours)
+    : 0;
   const totalMinutes = Math.round(hours * 60 + minutes + dur * 60);
 
   const endHours = Math.floor((totalMinutes / 60) % 24);
@@ -42,7 +44,7 @@ const EMPTY_VISIT_FORM = {
   lokasi: '',
   namaKapal: '',
   jamBerangkat: '',
-  durasi: 3, // durasi dalam jam
+  durasi: 0, // durasi dalam jam (bisa 0)
   jamSelesai: '',
   tanggal: '',
   status: 'On Proses',
@@ -75,7 +77,9 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
   useEffect(() => {
     if (isOpen) {
       if (initialData) {
-        const initialDurasi = initialData.durasi || 3;
+        const initialDurasi = (initialData.durasi !== undefined && initialData.durasi !== null && initialData.durasi !== '' && !isNaN(Number(initialData.durasi)))
+          ? Number(initialData.durasi)
+          : 0;
         const initialStart = initialData.jamBerangkat || getCurrentTimeStr();
         const initialEnd = initialData.jamSelesai || calculateEndTime(initialStart, initialDurasi);
         const initialStatus = autoDetectStatus(initialData.tanggal, initialStart, initialEnd);
@@ -104,7 +108,7 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
         });
       } else {
         const defaultStart = getCurrentTimeStr();
-        const defaultDurasi = 3;
+        const defaultDurasi = 0;
         const defaultEnd = calculateEndTime(defaultStart, defaultDurasi);
         const defaultStatus = autoDetectStatus(getTodayStr(), defaultStart, defaultEnd);
 
@@ -154,8 +158,9 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
   };
 
   const handleDurationChange = (newDuration) => {
-    const num = parseFloat(newDuration) || 1;
-    const end = calculateEndTime(form.jamBerangkat, num);
+    const num = newDuration === '' ? '' : (isNaN(Number(newDuration)) ? 0 : Number(newDuration));
+    const durToCalculate = num === '' ? 0 : num;
+    const end = calculateEndTime(form.jamBerangkat, durToCalculate);
     const calculatedStatus = autoDetectStatus(form.tanggal, form.jamBerangkat, end);
     setForm((p) => ({
       ...p,
@@ -206,7 +211,11 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
       return;
     }
 
-    const finalEnd = form.jamSelesai || calculateEndTime(form.jamBerangkat, form.durasi);
+    const durasiNum = (form.durasi !== undefined && form.durasi !== null && form.durasi !== '' && !isNaN(Number(form.durasi)))
+      ? Number(form.durasi)
+      : 0;
+
+    const finalEnd = form.jamSelesai || calculateEndTime(form.jamBerangkat, durasiNum);
     const finalStatus = autoDetectStatus(form.tanggal, form.jamBerangkat, finalEnd);
     const finalNamaKapal = finalShips.join(' / ');
 
@@ -216,7 +225,7 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
       namaKapal: finalNamaKapal,
       ships: finalShips,
       lokasi: form.lokasi.trim(),
-      durasi: Number(form.durasi) || 1,
+      durasi: durasiNum,
       jamSelesai: finalEnd,
       tanggal: form.tanggal || getTodayStr(),
       status: finalStatus
@@ -513,10 +522,10 @@ export const VisitSurveiModal = ({ isOpen, onClose, onSave, initialData = null, 
                     <input
                       className="form-input"
                       type="number"
-                      min="0.5"
+                      min="0"
                       max="24"
                       step="0.5"
-                      value={form.durasi}
+                      value={form.durasi !== undefined && form.durasi !== null ? form.durasi : 0}
                       onChange={(e) => handleDurationChange(e.target.value)}
                       style={{ fontWeight: 700, fontSize: '0.95rem' }}
                     />

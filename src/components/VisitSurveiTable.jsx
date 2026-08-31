@@ -57,7 +57,7 @@ export const VisitSurveiTable = ({ onOpenMonitor }) => {
       if (!matchesSearch) return false;
 
       // 2. Status calculation
-      const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi || 3);
+      const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi);
       const computedStatus = item.status === 'Selesai' ? 'Selesai' : autoDetectStatus(item.tanggal, item.jamBerangkat, end);
 
       if (statusFilter !== 'Semua' && computedStatus !== statusFilter) {
@@ -174,7 +174,7 @@ export const VisitSurveiTable = ({ onOpenMonitor }) => {
 
       // Data Rows
       filteredData.forEach((item, index) => {
-        const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi || 3);
+        const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi);
         const statusReal = item.status === 'Selesai' ? 'Selesai' : autoDetectStatus(item.tanggal, item.jamBerangkat, end);
         const tglDisplay = item.tanggal ? formatDateIndo(item.tanggal) : '-';
 
@@ -236,12 +236,12 @@ export const VisitSurveiTable = ({ onOpenMonitor }) => {
   };
 
   const onProsesCount = roleFilteredData.filter((v) => {
-    const end = v.jamSelesai || calculateEndTime(v.jamBerangkat, v.durasi || 3);
+    const end = v.jamSelesai || calculateEndTime(v.jamBerangkat, v.durasi);
     return v.status !== 'Selesai' && autoDetectStatus(v.tanggal, v.jamBerangkat, end) === 'On Proses';
   }).length;
 
   const selesaiCount = roleFilteredData.filter((v) => {
-    const end = v.jamSelesai || calculateEndTime(v.jamBerangkat, v.durasi || 3);
+    const end = v.jamSelesai || calculateEndTime(v.jamBerangkat, v.durasi);
     return v.status === 'Selesai' || autoDetectStatus(v.tanggal, v.jamBerangkat, end) === 'Selesai';
   }).length;
 
@@ -459,7 +459,7 @@ export const VisitSurveiTable = ({ onOpenMonitor }) => {
               </tr>
             ) : (
               filteredData.map((item, idx) => {
-                const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi || 3);
+                const end = item.jamSelesai || calculateEndTime(item.jamBerangkat, item.durasi);
                 const computedStatus = item.status === 'Selesai' ? 'Selesai' : autoDetectStatus(item.tanggal, item.jamBerangkat, end);
                 const isOnProses = computedStatus === 'On Proses';
                 const tglDisplay = item.tanggal ? formatDateIndo(item.tanggal) : formatDateIndo(todayStr);

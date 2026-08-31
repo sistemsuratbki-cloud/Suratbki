@@ -138,7 +138,7 @@ export const TvDisplay = ({ onClose, isMonitorRole = false }) => {
       })
       .map((v) => {
         const start = v.jamBerangkat || '08:00';
-        const dur = v.durasi || 3;
+        const dur = (v.durasi !== undefined && v.durasi !== null && v.durasi !== '' && !isNaN(Number(v.durasi))) ? Number(v.durasi) : 0;
         const end = v.jamSelesai || calculateEndTime(start, dur);
         const liveStatus = evaluateRealtimeStatus({ ...v, jamSelesai: end }, currentTime, selectedDate, todayStr);
 

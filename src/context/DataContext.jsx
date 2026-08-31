@@ -609,7 +609,7 @@ export const DataProvider = ({ children }) => {
       lokasi: (data.lokasi || '').trim(),
       namaKapal: (data.namaKapal || '').trim().toUpperCase(),
       ships: Array.isArray(data.ships) ? data.ships : (data.namaKapal ? data.namaKapal.split(/\s*[\/,]\s*/).filter(Boolean) : []),
-      durasi: Number(data.durasi) || 1,
+      durasi: (data.durasi !== undefined && data.durasi !== null && data.durasi !== '' && !isNaN(Number(data.durasi))) ? Number(data.durasi) : 0,
       jamBerangkat: (data.jamBerangkat || '').trim(),
       jamSelesai: (data.jamSelesai || '').trim(),
       status: data.status || 'Sedang Berjalan',

@@ -693,7 +693,7 @@ export const saveVisitSurveiToCloud = async (item) => {
     nama_kapal:    item.namaKapal     || null,
     ships:         Array.isArray(item.ships) ? item.ships : [],
     jam_berangkat: item.jamBerangkat  || null,
-    durasi:        Number(item.durasi) || 1,
+    durasi:        (item.durasi !== undefined && item.durasi !== null && item.durasi !== '' && !isNaN(Number(item.durasi))) ? Number(item.durasi) : 0,
     jam_selesai:   item.jamSelesai    || null,
     tanggal:       item.tanggal       || null,
     status:        item.status        || 'On Proses',
