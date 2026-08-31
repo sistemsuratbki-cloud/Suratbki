@@ -1137,7 +1137,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           )
                         )}
 
-                        {(() => {
+                        {/* Lock badge hanya untuk PDS, SPS tidak pakai fitur 3 hari lock */}
+                        {effectiveFilterType !== 'SPS' && (() => {
                           const isLocked = isDocumentLocked(item, 3);
                           if (isLocked) {
                             return (
@@ -1381,8 +1382,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                           </>
                         )}
 
-                        {/* Admin Unlock / Lock Button */}
-                        {isAdminOrKacab && (
+                        {/* Admin Unlock / Lock Button — hanya untuk PDS, SPS tidak pakai lock */}
+                        {effectiveFilterType !== 'SPS' && isAdminOrKacab && (
                           <button
                             className={`btn ${item.isUnlockedByAdmin ? 'btn-success' : isDocumentLocked(item, 3) ? 'btn-warning' : 'btn-secondary'} btn-icon btn-sm`}
                             onClick={() => handleToggleUnlock(item)}
@@ -1400,7 +1401,16 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                         )}
 
                         {canEdit && (
-                          isDocumentLocked(item, 3) ? (
+                          /* SPS selalu bisa diedit tanpa lock, PDS tetap pakai lock 3 hari */
+                          (effectiveFilterType === 'SPS' || !isDocumentLocked(item, 3)) ? (
+                            <button
+                              className="btn btn-secondary btn-icon btn-sm"
+                              onClick={() => handleOpenEdit(item)}
+                              title="Ubah Data"
+                            >
+                              <Edit2 size={15} />
+                            </button>
+                          ) : (
                             <button
                               className="btn btn-secondary btn-icon btn-sm"
                               onClick={() => handleOpenEdit(item)}
@@ -1408,14 +1418,6 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
                               title="Dokumen Terkunci: Klik untuk melihat detail dokumen (Mode Hanya Lihat / Read-Only)."
                             >
                               <Lock size={15} color="#d97706" />
-                            </button>
-                          ) : (
-                            <button
-                              className="btn btn-secondary btn-icon btn-sm"
-                              onClick={() => handleOpenEdit(item)}
-                              title="Ubah Data"
-                            >
-                              <Edit2 size={15} />
                             </button>
                           )
                         )}
