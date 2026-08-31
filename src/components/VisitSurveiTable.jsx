@@ -423,19 +423,19 @@ export const VisitSurveiTable = ({ onOpenMonitor }) => {
       </div>
 
       {/* Table Content */}
-      <div className="table-responsive" style={{ marginTop: '0.75rem' }}>
-        <table className="table" style={{ borderCollapse: 'collapse', width: '100%' }}>
+      <div className="table-wrapper" style={{ marginTop: '0.75rem', overflowX: 'auto', WebkitOverflowScrolling: 'touch', width: '100%' }}>
+        <table className="data-table" style={{ borderCollapse: 'collapse', width: '100%', minWidth: '950px' }}>
           <thead>
             <tr style={{ background: '#f8fafc' }}>
-              <th style={{ width: '45px', textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)' }}>NO</th>
-              <th style={{ textAlign: 'left', fontWeight: 800, color: 'var(--text-primary)' }}>SURVEYOR BERTUGAS</th>
-              <th style={{ textAlign: 'left', fontWeight: 800, color: 'var(--text-primary)' }}>NAMA KAPAL</th>
-              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)' }}>LOKASI SURVEI</th>
-              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)' }}>TANGGAL</th>
-              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)' }}>WAKTU VISIT</th>
-              <th style={{ textAlign: 'left', fontWeight: 800, color: 'var(--text-primary)' }}>KETERANGAN</th>
-              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)' }}>STATUS</th>
-              <th style={{ textAlign: 'center', width: '90px', fontWeight: 800, color: 'var(--text-primary)' }}>AKSI</th>
+              <th style={{ width: '45px', textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>NO</th>
+              <th style={{ textAlign: 'left', fontWeight: 800, color: 'var(--text-primary)', minWidth: '180px', whiteSpace: 'nowrap' }}>SURVEYOR BERTUGAS</th>
+              <th style={{ textAlign: 'left', fontWeight: 800, color: 'var(--text-primary)', minWidth: '180px', whiteSpace: 'nowrap' }}>NAMA KAPAL</th>
+              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)', minWidth: '130px', whiteSpace: 'nowrap' }}>LOKASI SURVEI</th>
+              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)', minWidth: '130px', whiteSpace: 'nowrap' }}>TANGGAL</th>
+              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)', minWidth: '140px', whiteSpace: 'nowrap' }}>WAKTU VISIT</th>
+              <th style={{ textAlign: 'left', fontWeight: 800, color: 'var(--text-primary)', minWidth: '160px', whiteSpace: 'nowrap' }}>KETERANGAN</th>
+              <th style={{ textAlign: 'center', fontWeight: 800, color: 'var(--text-primary)', minWidth: '110px', whiteSpace: 'nowrap' }}>STATUS</th>
+              <th style={{ textAlign: 'center', width: '110px', minWidth: '110px', fontWeight: 800, color: 'var(--text-primary)', whiteSpace: 'nowrap' }}>AKSI</th>
             </tr>
           </thead>
           <tbody>

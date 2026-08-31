@@ -482,9 +482,11 @@ body {
 }
 
 /* Data Table */
-.table-wrapper {
+.table-wrapper,
+.table-responsive {
   width: 100%;
   overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .data-table {
