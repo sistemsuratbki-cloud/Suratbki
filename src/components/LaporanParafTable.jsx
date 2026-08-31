@@ -23,6 +23,7 @@ import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
+import { filterDataByRole } from '../utils/filterData';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SpsModal } from './SpsModal';
@@ -191,22 +192,24 @@ export const LaporanParafTable = () => {
   }, [startDate, endDate, selectedMonth, selectedYear]);
 
   const totalTerkirimCount = useMemo(() => {
-    return suratTugas.filter((item) => {
+    const roleFiltered = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+    return roleFiltered.filter((item) => {
       if (item.docType === 'PDS' || item.isPds) return false;
       const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
       if (!isVisit1) return false;
       return item.isParafSent === true || (item.isParafSent === undefined && item.status === 'Selesai');
     }).length;
-  }, [suratTugas]);
+  }, [suratTugas, currentUser, role]);
 
   const totalMenungguCount = useMemo(() => {
-    return suratTugas.filter((item) => {
+    const roleFiltered = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+    return roleFiltered.filter((item) => {
       if (item.docType === 'PDS' || item.isPds) return false;
       const isVisit1 = !item.visit || item.visit === '1' || item.visit === 1 || item.visit === true || item.visit === 'Visit 1' || item.visit !== '2';
       if (!isVisit1) return false;
       return !item.isParafSent && item.status !== 'Selesai';
     }).length;
-  }, [suratTugas]);
+  }, [suratTugas, currentUser, role]);
 
   const handleKirimParaf = (item) => {
     updateSuratTugas(item.id, {
@@ -228,8 +231,11 @@ export const LaporanParafTable = () => {
 
   // Filter ONLY Visit Pertama items (`visit === '1' || visit === 1 || visit === true`)
   const filteredData = useMemo(() => {
+    // 0. Filter by user role (Surveyor only sees their own tasks)
+    const roleFiltered = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+
     // 1. Filter
-    const result = suratTugas.filter((item) => {
+    const result = roleFiltered.filter((item) => {
       // Hanya tampilkan dokumen per kapal (SPS individual), exclude gabungan multi-kapal (PDS)
       if (item.docType === 'PDS' || item.isPds) {
         return false;
@@ -752,19 +758,39 @@ export const LaporanParafTable = () => {
 
           {/* Surveyor Filter */}
           <div>
-            <select
-              className="form-select"
-              value={surveyorFilter}
-              onChange={(e) => setSurveyorFilter(e.target.value)}
-              style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
-            >
-              <option value="Semua">👤 Semua Surveyor</option>
-              {surveyors.map((s) => (
-                <option key={s.id} value={s.name}>
-                  👤 {s.name}
-                </option>
-              ))}
-            </select>
+            {role === 'surveyor' ? (
+              <div
+                style={{
+                  width: '100%',
+                  fontSize: '0.78rem',
+                  padding: '0.25rem 0.5rem',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)'
+                }}
+              >
+                👤 {currentUser?.name || 'Surveyor'}
+              </div>
+            ) : (
+              <select
+                className="form-select"
+                value={surveyorFilter}
+                onChange={(e) => setSurveyorFilter(e.target.value)}
+                style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
+              >
+                <option value="Semua">👤 Semua Surveyor</option>
+                {surveyors.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    👤 {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Sortir / Short Dropdown */}

@@ -62,6 +62,7 @@ import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
+import { filterDataByRole } from '../utils/filterData';
 
 export const DayDetailModal = ({
   isOpen,
@@ -102,12 +103,13 @@ export const DayDetailModal = ({
 
   const shipDatabase = masterKapal;
 
-  // Available pending SPS items across all assignments
+  // Available pending SPS items across assignments (strictly filtered by role)
   const availableSpsItems = useMemo(() => {
-    return (allSuratTugas || []).filter(
+    const roleFilteredSurat = filterDataByRole(allSuratTugas || [], currentUser, role, 'petugas');
+    return roleFilteredSurat.filter(
       (st) => (st.docType === 'SPS' || st.isSps || (!st.docType && st.status === 'Menunggu Survei')) && !st.pdsId && st.status !== 'Selesai'
     );
-  }, [allSuratTugas]);
+  }, [allSuratTugas, currentUser, role]);
 
   const [activeTab, setActiveTab] = useState('view');
   const [selectedSpsIds, setSelectedSpsIds] = useState([]);
@@ -215,11 +217,13 @@ export const DayDetailModal = ({
     tarifExpertise: 1500000
   });
 
-  // Separate tasks on selected date into Pending SPS vs Completed/Active PDS
+  // Separate tasks on selected date into Pending SPS vs Completed/Active PDS (role filtered)
   const { pendingSpsList, pdsList } = useMemo(() => {
     const sps = [];
     const pds = [];
-    const pool = (allSuratTugas && allSuratTugas.length > 0) ? allSuratTugas : tasksOnDate;
+    const roleFilteredSurat = filterDataByRole(allSuratTugas || [], currentUser, role, 'petugas');
+    const roleFilteredTasksOnDate = filterDataByRole(tasksOnDate || [], currentUser, role, 'petugas');
+    const pool = (roleFilteredSurat && roleFilteredSurat.length > 0) ? roleFilteredSurat : roleFilteredTasksOnDate;
     const formattedDateStr = selectedDate ? (selectedDate.includes('T') ? selectedDate.split('T')[0] : selectedDate) : '';
 
     pool.forEach((st) => {
@@ -243,7 +247,7 @@ export const DayDetailModal = ({
     });
 
     return { pendingSpsList: sps, pdsList: pds };
-  }, [allSuratTugas, tasksOnDate, selectedDate]);
+  }, [allSuratTugas, tasksOnDate, selectedDate, currentUser, role]);
 
   const hasExistingPds = pdsList.length > 0;
   const effectiveActiveTab = hasExistingPds ? 'view' : activeTab;
@@ -895,7 +899,7 @@ export const DayDetailModal = ({
     setIsLaporanPrintModalOpen(true);
   };
 
-  const canDelete = (role === 'admin' || role === 'developer' || role === 'kacab' || role === 'surveyor') && !isFinance;
+  const canDelete = role === 'admin' || role === 'developer';
 
   const [isConfirmDeleteOpen, setIsConfirmDeleteOpen] = useState(false);
   const [itemToDelete, setItemToDelete] = useState(null);
@@ -929,7 +933,7 @@ export const DayDetailModal = ({
                   Survei Kapal BKI • Tanggal {formattedDate}
                 </h3>
                 <div className="card-subtitle" style={{ fontSize: '0.75rem' }}>
-                  {pendingSpsList.length} SPS Menunggu Survei • {pdsList.length} PDS Terlaksana
+                  {pdsList.length} Dokumen PDS Terbit & Terlaksana
                 </div>
               </div>
             </div>
@@ -955,7 +959,7 @@ export const DayDetailModal = ({
                 onClick={() => setActiveTab('view')}
               >
                 <Calendar size={16} />
-                <span>Daftar Tugas & Kapal ({tasksOnDate.length})</span>
+                <span>Daftar Tugas & Kapal ({pdsList.length})</span>
               </button>
               <button
                 className="btn"
@@ -1435,158 +1439,6 @@ export const DayDetailModal = ({
                     </div>
                   )}
                 </div>
-
-                {/* 2. SEKSI ANTRIAN SPS (DARI ADMIN) */}
-                {pendingSpsList.length > 0 && (
-                  <div
-                    style={{
-                      background: 'var(--bg-card)',
-                      border: '1.5px solid var(--border-color)',
-                      borderRadius: 'var(--radius-md)',
-                      padding: '1.25rem'
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                        <Layers size={18} color="var(--accent-primary)" />
-                        <h4 style={{ margin: 0, fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                          📋 Penugasan SPS dari Admin
-                        </h4>
-                        <span className="badge" style={{ background: 'rgba(234, 179, 8, 0.15)', color: '#ca8a04', fontWeight: 700 }}>
-                          {pendingSpsList.length} SPS
-                        </span>
-                      </div>
-                    </div>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                      {pendingSpsList.map((sps) => (
-                        <div
-                          key={sps.id}
-                          style={{
-                            background: 'var(--bg-main)',
-                            border: '1px solid var(--border-color)',
-                            borderRadius: 'var(--radius-sm)',
-                            padding: '0.75rem 1rem',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            gap: '1rem'
-                          }}
-                        >
-                          <div>
-                            <div style={{ fontSize: '0.95rem', fontWeight: 800, color: 'var(--text-primary)' }}>
-                              🚢 {sps.namaKapal}
-                            </div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                              Agenda: <strong>{sps.noAgenda || sps.agenda || '-'}</strong> • 📍 {sps.lokasi || sps.tempatSurvey} • 👤 {sps.petugas}
-                            </div>
-                          </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.45rem', flexWrap: 'wrap' }}>
-                            {!sps.isParafSent ? (
-                              <button
-                                type="button"
-                                className="btn btn-sm"
-                                style={{
-                                  padding: '0.25rem 0.6rem',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 700,
-                                  background: '#0284c7',
-                                  color: '#ffffff',
-                                  border: 'none',
-                                  borderRadius: '4px',
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  cursor: 'pointer'
-                                }}
-                                onClick={() => {
-                                  updateSuratTugas(sps.id, {
-                                    isParafSent: true,
-                                    parafSentAt: new Date().toISOString(),
-                                    parafSentBy: currentUser?.name || sps.petugas
-                                  });
-                                  toast.success(`Laporan Paraf untuk kapal ${sps.namaKapal} berhasil dikirim ke Laporan Paraf BKI!`);
-                                }}
-                                title="Kirim Laporan Paraf (Masuk ke Laporan Paraf BKI)"
-                              >
-                                <Send size={12} />
-                                <span>Kirim Paraf</span>
-                              </button>
-                            ) : (
-                              <span
-                                style={{
-                                  display: 'inline-flex',
-                                  alignItems: 'center',
-                                  gap: '3px',
-                                  fontSize: '0.7rem',
-                                  fontWeight: 700,
-                                  background: '#ecfdf5',
-                                  color: '#047857',
-                                  border: '1px solid #a7f3d0',
-                                  padding: '0.2rem 0.5rem',
-                                  borderRadius: '4px'
-                                }}
-                              >
-                                <CheckCheck size={12} /> Paraf Terkirim
-                              </span>
-                            )}
-
-                            {hasExistingPds ? (
-                              <button
-                                type="button"
-                                className="btn btn-secondary btn-sm"
-                                style={{ fontSize: '0.75rem', fontWeight: 700 }}
-                                onClick={() => {
-                                  setEditingPdsItem(pdsList[0]);
-                                  setIsEditPdsModalOpen(true);
-                                }}
-                                title="Hari ini sudah ada 1 PDS. Klik untuk menambah atau mengedit kapal pada PDS yang ada."
-                              >
-                                <span>Edit PDS (Tambah Kapal)</span>
-                              </button>
-                            ) : (
-                              <button
-                                type="button"
-                                className="btn btn-primary btn-sm"
-                                style={{ fontSize: '0.75rem', fontWeight: 700 }}
-                                onClick={() => {
-                                  handleToggleSelectSps(sps);
-                                  setActiveTab('input');
-                                }}
-                              >
-                                <span>Buat PDS Kapal Ini</span>
-                              </button>
-                            )}
-
-                            {/* Tombol Hapus SPS */}
-                            {canDelete && (
-                              <button
-                                type="button"
-                                className="btn btn-danger btn-sm"
-                                style={{
-                                  padding: '0.25rem 0.55rem',
-                                  fontSize: '0.74rem',
-                                  fontWeight: 700,
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  gap: '0.25rem',
-                                  background: '#ef4444',
-                                  borderColor: '#ef4444',
-                                  color: '#ffffff'
-                                }}
-                                onClick={() => promptDelete(sps)}
-                                title="Hapus Surat Tugas SPS ini"
-                              >
-                                <Trash2 size={13} />
-                                <span>Hapus</span>
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             ) : (
               /* TAB 2: INPUT PERJALANAN DINAS SURVEYOR (PDS) */

@@ -395,17 +395,22 @@ export const AuthProvider = ({ children }) => {
   // Change Password (hashed)
   const changePassword = useCallback(async (userId, newPassword) => {
     const hashedPw = await hashPassword(newPassword);
+    let updatedUserObj = null;
 
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
           const updated = { ...u, password: hashedPw };
-          saveUserToCloud(updated);
+          updatedUserObj = updated;
           return updated;
         }
         return u;
       })
     );
+
+    if (updatedUserObj) {
+      await saveUserToCloud(updatedUserObj);
+    }
 
     // Don't store password in currentUser
     if (currentUser && currentUser.id === userId) {
@@ -424,17 +429,22 @@ export const AuthProvider = ({ children }) => {
   // Reset Password by Admin (hashed)
   const resetPassword = useCallback(async (userId, defaultPass = 'password123') => {
     const hashedPw = await hashPassword(defaultPass);
+    let updatedUserObj = null;
 
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
           const updated = { ...u, password: hashedPw };
-          saveUserToCloud(updated);
+          updatedUserObj = updated;
           return updated;
         }
         return u;
       })
     );
+
+    if (updatedUserObj) {
+      await saveUserToCloud(updatedUserObj);
+    }
   }, []);
 
   // User Management Actions for Admin
@@ -462,7 +472,7 @@ export const AuthProvider = ({ children }) => {
     };
 
     setUsersList((prev) => [newUser, ...prev]);
-    saveUserToCloud(newUser);
+    await saveUserToCloud(newUser);
   }, []);
 
   const updateUser = useCallback(async (id, updatedData) => {
@@ -472,16 +482,21 @@ export const AuthProvider = ({ children }) => {
       dataToSave.password = await hashPassword(dataToSave.password);
     }
 
+    let updatedUserObj = null;
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id === id) {
           const updated = { ...u, ...dataToSave };
-          saveUserToCloud(updated);
+          updatedUserObj = updated;
           return updated;
         }
         return u;
       })
     );
+
+    if (updatedUserObj) {
+      await saveUserToCloud(updatedUserObj);
+    }
 
     if (currentUser && currentUser.id === id) {
       const { password, ...safeUpdate } = dataToSave;
@@ -489,13 +504,13 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  const deleteUser = useCallback((id) => {
+  const deleteUser = useCallback(async (id) => {
     if (currentUser && currentUser.id === id) {
       alert('Anda tidak dapat menghapus akun Anda sendiri yang sedang aktif login!');
       return;
     }
     setUsersList((prev) => prev.filter((u) => u.id !== id));
-    deleteUserFromCloud(id);
+    await deleteUserFromCloud(id);
   }, [currentUser]);
 
   const resetUsers = useCallback(() => {

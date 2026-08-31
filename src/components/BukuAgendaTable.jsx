@@ -33,6 +33,7 @@ import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber, formatRupiah, parseAttachmentFiles } from '../utils/formatters';
+import { filterDataByRole } from '../utils/filterData';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { ModalPortal } from './ModalPortal';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
@@ -643,7 +644,10 @@ export const BukuAgendaTable = () => {
 
   // Filter and Sort Data
   const filteredData = useMemo(() => {
-    const result = suratTugas.filter((item) => {
+    // 0. Filter by user role (Surveyor only sees their own data)
+    const roleFiltered = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+
+    const result = roleFiltered.filter((item) => {
       // Sumber data Buku Agenda berasal dari dokumen PDS (Perjalanan Dinas Surveyor)
       const isPds = item.docType === 'PDS' || item.isPds === true || (!item.docType && item.status !== 'Menunggu Survei' && !item.isSps);
       if (!isPds) {
@@ -1052,19 +1056,39 @@ export const BukuAgendaTable = () => {
           </div>
 
           {/* Surveyor Dropdown */}
-          <select
-            className="form-select"
-            style={{ height: '38px', fontSize: '0.85rem', width: '100%', background: 'var(--card-bg)' }}
-            value={surveyorFilter}
-            onChange={(e) => setSurveyorFilter(e.target.value)}
-          >
-            <option value="Semua">-- Semua Surveyor --</option>
-            {surveyors.map((s) => (
-              <option key={s.id} value={s.name}>
-                {s.name}
-              </option>
-            ))}
-          </select>
+          {role === 'surveyor' ? (
+            <div
+              style={{
+                height: '38px',
+                fontSize: '0.85rem',
+                width: '100%',
+                background: 'var(--card-bg)',
+                border: '1px solid var(--border-color)',
+                borderRadius: 'var(--radius-sm)',
+                padding: '0 0.75rem',
+                display: 'flex',
+                alignItems: 'center',
+                fontWeight: 700,
+                color: 'var(--text-primary)'
+              }}
+            >
+              👤 {currentUser?.name || 'Surveyor'}
+            </div>
+          ) : (
+            <select
+              className="form-select"
+              style={{ height: '38px', fontSize: '0.85rem', width: '100%', background: 'var(--card-bg)' }}
+              value={surveyorFilter}
+              onChange={(e) => setSurveyorFilter(e.target.value)}
+            >
+              <option value="Semua">-- Semua Surveyor --</option>
+              {surveyors.map((s) => (
+                <option key={s.id} value={s.name}>
+                  {s.name}
+                </option>
+              ))}
+            </select>
+          )}
 
           {/* Status Dropdown */}
           <select

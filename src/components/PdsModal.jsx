@@ -46,6 +46,7 @@ import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
+import { filterDataByRole } from '../utils/filterData';
 
 export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
   const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs, masterKapal, updateMasterKapal, addMasterKapal } = useData();
@@ -66,12 +67,13 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     [usersList]
   );
 
-  // Available pending SPS items for linking
+  // Available pending SPS items for linking (filtered by role)
   const availableSpsItems = useMemo(() => {
-    return (suratTugas || []).filter(
+    const roleFilteredSurat = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+    return roleFilteredSurat.filter(
       (st) => (st.docType === 'SPS' || st.isSps || (!st.docType && st.status === 'Menunggu Survei')) && !st.pdsId && st.status !== 'Selesai'
     );
-  }, [suratTugas]);
+  }, [suratTugas, currentUser, role]);
 
   const [selectedSpsIds, setSelectedSpsIds] = useState([]);
   const [shipsDetail, setShipsDetail] = useState([]);

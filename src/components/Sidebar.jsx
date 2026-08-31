@@ -24,7 +24,8 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
 
   const spsCount = filteredSurat.filter((st) => st.docType !== 'PDS' && !st.isPds).length;
   const pdsCount = filteredSurat.filter((st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps)).length;
-  const visitCount = (visitSurvei || []).filter((v) => v.status !== 'Selesai').length;
+  const filteredVisitSurvei = filterDataByRole(visitSurvei || [], currentUser, role, 'nama');
+  const visitCount = filteredVisitSurvei.filter((v) => v.status !== 'Selesai').length;
   
   // Laporan Paraf Terkirim count (SPS visit 1 yang terkirim)
   const parafCount = filteredSurat.filter((item) => {

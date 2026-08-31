@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User, FileCheck2, Upload, Trash2,
   Database, HardDrive, Zap, Loader2, CheckCircle2, AlertCircle, HelpCircle, Copy, CheckCheck, ExternalLink
@@ -249,8 +249,20 @@ export const SettingsTab = () => {
   const [profileInput, setProfileInput] = useState({
     name: currentUser?.name || '',
     email: currentUser?.email || '',
-    phone: currentUser?.phone || ''
+    phone: currentUser?.phone || '',
+    signatureUrl: currentUser?.signatureUrl || ''
   });
+
+  useEffect(() => {
+    if (currentUser) {
+      setProfileInput({
+        name: currentUser.name || '',
+        email: currentUser.email || '',
+        phone: currentUser.phone || '',
+        signatureUrl: currentUser.signatureUrl || ''
+      });
+    }
+  }, [currentUser]);
 
   const [showCurrentPass, setShowCurrentPass] = useState(false);
   const [showNewPass, setShowNewPass] = useState(false);
@@ -262,6 +274,8 @@ export const SettingsTab = () => {
   const [isSubmittingPass, setIsSubmittingPass] = useState(false);
   const [isUploadingKacabTtd, setIsUploadingKacabTtd] = useState(false);
   const [isUploadingPembuatTtd, setIsUploadingPembuatTtd] = useState(false);
+  const [isUploadingUserTtd, setIsUploadingUserTtd] = useState(false);
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Google Drive State
   const [gdriveConfig, setGdriveConfig] = useState(() => getGoogleDriveConfig());
@@ -386,13 +400,48 @@ export const SettingsTab = () => {
     }
   };
 
+  const handleUserSignatureUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    setIsUploadingUserTtd(true);
+    try {
+      const dataUrl = await fileToSignatureDataUrl(file);
+      setProfileInput((prev) => ({
+        ...prev,
+        signatureUrl: dataUrl
+      }));
+      toast.success('TTD Digital berhasil diunggah! Klik Simpan untuk memperbarui database.');
+
+      if (supabase && currentUser?.id) {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `user_${currentUser.id}_${Date.now()}.${fileExt}`;
+        const filePath = `signatures/${fileName}`;
+        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
+      }
+    } catch (err) {
+      console.error('Upload TTD failed:', err);
+      toast.error('Gagal memproses berkas TTD Digital.');
+    } finally {
+      setIsUploadingUserTtd(false);
+      e.target.value = '';
+    }
+  };
+
   const handleUpdateProfile = async (e) => {
     e.preventDefault();
+    setIsSavingProfile(true);
+    setMessage({ type: '', text: '' });
     try {
       await updateUser(currentUser.id, profileInput);
-      setMessage({ type: 'success', text: 'Profil Anda berhasil diperbarui!' });
+      setMessage({ type: 'success', text: 'Profil dan database berhasil diperbarui secara otomatis!' });
+      toast.success('Profil & Database Supabase berhasil diperbarui!');
     } catch (err) {
-      setMessage({ type: 'error', text: 'Gagal memperbarui profil.' });
+      console.error('Update profile error:', err);
+      setMessage({ type: 'error', text: 'Gagal memperbarui profil di database.' });
+      toast.error('Gagal memperbarui profil di database.');
+    } finally {
+      setIsSavingProfile(false);
     }
   };
 
@@ -480,7 +529,9 @@ export const SettingsTab = () => {
             <User size={22} color="var(--accent-primary)" />
             <div>
               <h3 className="card-title">Profil Pengguna</h3>
-              <div className="card-subtitle">Perbarui informasi nama dan kontak akun Anda</div>
+              <div className="card-subtitle">
+                Perbarui informasi nama, kontak, dan TTD digital akun Anda (otomatis tersinkron ke database Supabase)
+              </div>
             </div>
           </div>
         </div>
@@ -501,6 +552,21 @@ export const SettingsTab = () => {
           </div>
         )}
 
+        {/* User Role & Grade Badges */}
+        <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
+          <span className="badge" style={{ background: 'var(--bg-main)', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', padding: '0.35rem 0.65rem' }}>
+            👤 Username: <strong style={{ color: 'var(--text-primary)' }}>{currentUser?.username || '-'}</strong>
+          </span>
+          <span className="badge" style={{ background: 'rgba(2, 132, 199, 0.1)', border: '1px solid rgba(2, 132, 199, 0.25)', color: '#0284c7', padding: '0.35rem 0.65rem' }}>
+            🎖️ Peran: <strong style={{ textTransform: 'capitalize' }}>{currentUser?.role || 'Surveyor'}</strong>
+          </span>
+          {currentUser?.grade && (
+            <span className="badge" style={{ background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.25)', color: '#059669', padding: '0.35rem 0.65rem' }}>
+              ⭐ Grade: <strong>{currentUser.grade}</strong>
+            </span>
+          )}
+        </div>
+
         <form onSubmit={handleUpdateProfile} style={{ maxWidth: '560px' }}>
           <div className="form-group">
             <label className="form-label">Nama Lengkap</label>
@@ -513,8 +579,8 @@ export const SettingsTab = () => {
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-            <div className="form-group">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+            <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">Alamat Email</label>
               <input
                 type="email"
@@ -523,7 +589,7 @@ export const SettingsTab = () => {
                 onChange={(e) => setProfileInput({ ...profileInput, email: e.target.value })}
               />
             </div>
-            <div className="form-group">
+            <div className="form-group" style={{ margin: 0 }}>
               <label className="form-label">Nomor Telepon</label>
               <input
                 type="text"
@@ -534,9 +600,72 @@ export const SettingsTab = () => {
             </div>
           </div>
 
-          <button type="submit" className="btn btn-primary" style={{ marginTop: '0.25rem' }}>
-            <Check size={16} />
-            <span>Simpan Perubahan Profil</span>
+          {/* Tanda Tangan Digital Akun */}
+          <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            <label className="form-label">Tanda Tangan Digital (TTD)</label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '1rem', flexWrap: 'wrap' }}>
+              <div
+                style={{
+                  width: '180px',
+                  height: '80px',
+                  border: '1.5px dashed var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  background: '#ffffff',
+                  overflow: 'hidden'
+                }}
+              >
+                {isValidSignature(profileInput.signatureUrl) ? (
+                  <img
+                    src={profileInput.signatureUrl}
+                    alt="TTD Akun"
+                    style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                  />
+                ) : (
+                  <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>Belum ada TTD</span>
+                )}
+              </div>
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                <label className="btn btn-secondary btn-sm" style={{ cursor: 'pointer', display: 'inline-flex', alignItems: 'center', gap: '0.4rem' }}>
+                  {isUploadingUserTtd ? <Loader2 size={14} className="spin" /> : <Upload size={14} />}
+                  <span>{isUploadingUserTtd ? 'Mengunggah...' : 'Unggah TTD Baru'}</span>
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    style={{ display: 'none' }}
+                    onChange={handleUserSignatureUpload}
+                    disabled={isUploadingUserTtd}
+                  />
+                </label>
+                {isValidSignature(profileInput.signatureUrl) && (
+                  <button
+                    type="button"
+                    className="btn btn-danger btn-sm"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: '0.4rem', padding: '0.25rem 0.5rem', fontSize: '0.75rem' }}
+                    onClick={() => setProfileInput({ ...profileInput, signatureUrl: '' })}
+                  >
+                    <Trash2 size={13} />
+                    <span>Hapus TTD</span>
+                  </button>
+                )}
+              </div>
+            </div>
+            <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+              Format PNG transparan disarankan. TTD ini digunakan saat mencetak surat tugas & dokumen resmi.
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            className="btn btn-primary"
+            disabled={isSavingProfile}
+            style={{ marginTop: '0.25rem', display: 'inline-flex', alignItems: 'center', gap: '0.4rem', fontWeight: 700 }}
+          >
+            {isSavingProfile ? <Loader2 size={16} className="spin" /> : <Check size={16} />}
+            <span>{isSavingProfile ? 'Menyimpan ke Database...' : 'Simpan Perubahan Profil'}</span>
           </button>
         </form>
       </div>

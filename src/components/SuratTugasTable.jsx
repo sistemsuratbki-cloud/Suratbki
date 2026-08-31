@@ -527,19 +527,39 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
 
           {/* Surveyor Filter */}
           <div>
-            <select
-              className="form-select"
-              value={surveyorFilter}
-              onChange={(e) => setSurveyorFilter(e.target.value)}
-              style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
-            >
-              <option value="Semua">👤 Semua Surveyor</option>
-              {surveyors.map((s) => (
-                <option key={s.id} value={s.name}>
-                  👤 {s.name}
-                </option>
-              ))}
-            </select>
+            {role === 'surveyor' ? (
+              <div
+                style={{
+                  width: '100%',
+                  fontSize: '0.78rem',
+                  padding: '0.25rem 0.5rem',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)'
+                }}
+              >
+                👤 {currentUser?.name || 'Surveyor'}
+              </div>
+            ) : (
+              <select
+                className="form-select"
+                value={surveyorFilter}
+                onChange={(e) => setSurveyorFilter(e.target.value)}
+                style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
+              >
+                <option value="Semua">👤 Semua Surveyor</option>
+                {surveyors.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    👤 {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Status Filter */}

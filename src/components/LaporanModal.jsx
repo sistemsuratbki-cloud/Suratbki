@@ -5,6 +5,7 @@ import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { isEditWindowExpired, formatRupiah, cleanDocNumber, formatDateIndo, extractAgendaNumber } from '../utils/formatters';
+import { filterDataByRole } from '../utils/filterData';
 import { ModalPortal } from './ModalPortal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
 import MultiShipInput from './MultiShipInput';
@@ -109,7 +110,8 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
         fileKwitansiHotelData: editItem.fileKwitansiHotelData || ''
       });
     } else {
-      const validSuratList = (suratTugas || []).filter((st) => Boolean(st.nomor && st.nomor.trim() && st.nomor.trim() !== '-'));
+      const roleFilteredSurat = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+      const validSuratList = roleFilteredSurat.filter((st) => Boolean(st.nomor && st.nomor.trim() && st.nomor.trim() !== '-'));
       const defaultSurat = validSuratList.length > 0 ? validSuratList[0] : null;
       const todayDate = new Date().toISOString().split('T')[0];
 
@@ -451,7 +453,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
                   onChange={(e) => handleSuratChange(e.target.value)}
                 >
                   <option value="">-- Input Bebas / Tanpa Surat Tugas Terkait --</option>
-                  {(suratTugas || [])
+                  {filterDataByRole(suratTugas || [], currentUser, role, 'petugas')
                     .filter((st) => Boolean(st.nomor && st.nomor.trim() && st.nomor.trim() !== '-'))
                     .map((st) => (
                       <option key={st.id} value={st.id}>

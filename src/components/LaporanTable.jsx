@@ -32,6 +32,7 @@ import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah, cleanDocNumber, extractAgendaNumber } from '../utils/formatters';
+import { filterDataByRole } from '../utils/filterData';
 import { LaporanModal } from './LaporanModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -40,7 +41,7 @@ import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 export const LaporanTable = () => {
   // UPDATED: Gunakan suratTugas (PDS) sebagai data source, bukan laporanSurvei
   const { suratTugas, updateSuratTugas, deleteSuratTugas, requestEditApproval, approveEditRequest, adminSettings } = useData();
-  const { role, usersList } = useAuth();
+  const { role, usersList, currentUser } = useAuth();
 
   // Search & Basic Filters
   const [searchTerm, setSearchTerm] = useState('');
@@ -219,8 +220,11 @@ export const LaporanTable = () => {
 
   // Filter & Sort Data
   const filteredData = useMemo(() => {
+    // 0. Filter by user role (Surveyor only sees their own data)
+    const roleFiltered = filterDataByRole(suratTugas || [], currentUser, role, 'petugas');
+
     // 1. Filter PDS items only (tidak include SPS yang pending)
-    const pdsItems = suratTugas.filter(
+    const pdsItems = roleFiltered.filter(
       (item) => item.docType === 'PDS' || item.isPds === true || (!item.docType && item.status !== 'Menunggu Survei')
     );
     
@@ -1004,19 +1008,39 @@ export const LaporanTable = () => {
 
           {/* Surveyor Filter */}
           <div>
-            <select
-              className="form-select"
-              value={surveyorFilter}
-              onChange={(e) => setSurveyorFilter(e.target.value)}
-              style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
-            >
-              <option value="Semua">👤 Semua Surveyor</option>
-              {surveyors.map((s) => (
-                <option key={s.id} value={s.name}>
-                  👤 {s.name}
-                </option>
-              ))}
-            </select>
+            {role === 'surveyor' ? (
+              <div
+                style={{
+                  width: '100%',
+                  fontSize: '0.78rem',
+                  padding: '0.25rem 0.5rem',
+                  height: '32px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  background: 'var(--bg-main)',
+                  border: '1px solid var(--border-color)',
+                  borderRadius: 'var(--radius-sm)',
+                  fontWeight: 700,
+                  color: 'var(--text-primary)'
+                }}
+              >
+                👤 {currentUser?.name || 'Surveyor'}
+              </div>
+            ) : (
+              <select
+                className="form-select"
+                value={surveyorFilter}
+                onChange={(e) => setSurveyorFilter(e.target.value)}
+                style={{ width: '100%', fontSize: '0.78rem', padding: '0.25rem 0.5rem', height: '32px' }}
+              >
+                <option value="Semua">👤 Semua Surveyor</option>
+                {surveyors.map((s) => (
+                  <option key={s.id} value={s.name}>
+                    👤 {s.name}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* Sortir / Short Selector */}
