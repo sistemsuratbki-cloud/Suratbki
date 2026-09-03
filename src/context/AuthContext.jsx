@@ -88,7 +88,7 @@ export const INITIAL_USERS = [
     id: 'usr-septian',
     username: 'septian',
     password: 'password123',
-    name: 'SEPTIAN AJI',
+    name: 'SEPTIAN AJI DEWANGKARA',
     email: 'septian@gmail.com',
     phone: '+620000000005',
     role: 'surveyor',
@@ -234,9 +234,15 @@ export const AuthProvider = ({ children }) => {
             needsMigration = true;
             updatedUser.signatureUrl = '/signatures/andre_handwritten.png';
           }
-          if ((updatedUser.username === 'septian' || (updatedUser.name && updatedUser.name.includes('SEPTIAN'))) && !updatedUser.signatureUrl) {
-            needsMigration = true;
-            updatedUser.signatureUrl = '/signatures/septian_handwritten.png';
+          if (updatedUser.username === 'septian' || (updatedUser.name && updatedUser.name.includes('SEPTIAN'))) {
+            if (updatedUser.name === 'SEPTIAN AJI' || !updatedUser.name.includes('DEWANGKARA')) {
+              needsMigration = true;
+              updatedUser.name = 'SEPTIAN AJI DEWANGKARA';
+            }
+            if (!updatedUser.signatureUrl) {
+              needsMigration = true;
+              updatedUser.signatureUrl = '/signatures/septian_handwritten.png';
+            }
           }
           if ((updatedUser.username === 'muhson' || (updatedUser.name && updatedUser.name.includes('MUHSON'))) && !updatedUser.signatureUrl) {
             needsMigration = true;
@@ -482,10 +488,12 @@ export const AuthProvider = ({ children }) => {
       dataToSave.password = await hashPassword(dataToSave.password);
     }
 
+    let oldUserObj = null;
     let updatedUserObj = null;
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id === id) {
+          oldUserObj = u;
           const updated = { ...u, ...dataToSave };
           updatedUserObj = updated;
           return updated;
@@ -496,6 +504,18 @@ export const AuthProvider = ({ children }) => {
 
     if (updatedUserObj) {
       await saveUserToCloud(updatedUserObj);
+    }
+
+    if (oldUserObj && dataToSave.name && oldUserObj.name !== dataToSave.name) {
+      try {
+        window.dispatchEvent(
+          new CustomEvent('st_user_renamed', {
+            detail: { oldName: oldUserObj.name, newName: dataToSave.name, id }
+          })
+        );
+      } catch (e) {
+        console.warn('Dispatch st_user_renamed warning:', e);
+      }
     }
 
     if (currentUser && currentUser.id === id) {

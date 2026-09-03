@@ -46,7 +46,7 @@ import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, findSurveyorUser } from '../utils/filterData';
 
 export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) => {
   const { suratTugas, laporanSurvei, createPdsFromSurvey, updateSuratTugas, adminSettings, tariffs, gradeTariffs, masterKapal, updateMasterKapal, addMasterKapal } = useData();
@@ -271,7 +271,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
         ? (currentUser?.name || surveyorUsers[0]?.name || '')
         : (surveyorUsers[0]?.name || '');
-      const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
+      const userGrade = (findSurveyorUser(surveyorUsers, defaultSurveyor) || {})?.grade || 'GRADE 6 A';
       const todayDate = new Date().toISOString().split('T')[0];
 
       const initialLoc = defaultLocation || 'WAJOK';
@@ -681,7 +681,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
   // Surveyor change -> sync grade
   const handleSurveyorChange = (name) => {
-    const user = surveyorUsers.find((u) => u.name === name);
+    const user = findSurveyorUser(surveyorUsers, name);
     const grade = user?.grade || 'GRADE 6 A';
     setFormData((prev) => ({
       ...prev,

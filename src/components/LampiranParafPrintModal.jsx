@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Printer, FileCheck } from 'lucide-react';
 import { formatDateIndo } from '../utils/formatters';
+import { findSurveyorUser } from '../utils/filterData';
 import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
 import bkiLogo from '/bki-logo.svg';
@@ -149,7 +150,7 @@ export const LampiranParafPrintModal = ({
                   </thead>
                   <tbody>
                     {itemsList.map((item, idx) => {
-                      const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || item.noHp || '-';
+                      const surveyorPhone = findSurveyorUser(usersList, item.petugas)?.phone || item.noHp || '-';
                       const tglFormatted = formatDateIndo(item.tglMulai || item.tglSelesai);
                       const lokasi = (item.tempatSurvey || item.lokasi || item.tujuan || 'PONTIANAK').toUpperCase();
                       const jenis = (item.jenisSurvey || item.perihal || '-').toUpperCase();

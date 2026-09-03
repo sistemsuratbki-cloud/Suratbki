@@ -2,17 +2,17 @@ import React from 'react';
 import { ClipboardList, BarChart2, TrendingUp, Check, Monitor, ExternalLink } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, isSameSurveyor } from '../utils/filterData';
 
 export const SummaryCards = ({ surveyorFilter, onOpenMonitor }) => {
   const { suratTugas } = useData();
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, usersList } = useAuth();
 
   // Sinkronkan filter dengan CalendarView (hanya menghitung dokumen PDS yang tampil di kalender)
   const isPdsItem = (st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps && st.docType !== 'SPS');
 
   const filteredSurat = filterDataByRole(suratTugas, currentUser, role, 'petugas')
-    .filter(item => !surveyorFilter || item.petugas === surveyorFilter)
+    .filter(item => !surveyorFilter || isSameSurveyor(item.petugas, surveyorFilter, usersList))
     .filter(item => isPdsItem(item));
 
   const totalSurat = filteredSurat.length;

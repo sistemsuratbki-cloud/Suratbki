@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
 import { isValidSignature } from '../utils/signatureHelper';
+import { findSurveyorUser } from '../utils/filterData';
 import { ModalPortal } from './ModalPortal';
 import { DanantaraLogo } from './DanantaraLogo';
 import { IDSurveyLogo } from './IDSurveyLogo';
@@ -67,7 +68,7 @@ export const SuratTugasPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const kacabSignature = adminSettings?.kacabSignatureUrl || kacabUser.signatureUrl || '/signatures/kacab_muhson_signature.png';
 
   // Get Handwritten Scan for Surveyor (Sandi, Andre, Septian, Bone, dan Kosongkan jika Muhson)
-  const surveyorUser = usersList?.find((u) => u.name === suratTugas.petugas) || {};
+  const surveyorUser = findSurveyorUser(usersList, suratTugas.petugas) || {};
   const isMuhson = surveyorName.includes('MUHSON');
   
   let surveyorHandwrittenSrc = null;

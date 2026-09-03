@@ -23,7 +23,7 @@ import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, isSameSurveyor, findSurveyorUser } from '../utils/filterData';
 import { LampiranParafPrintModal } from './LampiranParafPrintModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
 import { SpsModal } from './SpsModal';
@@ -250,8 +250,8 @@ export const LaporanParafTable = () => {
       if (statusTab === 'terkirim' && !isSent) return false;
       if (statusTab === 'menunggu' && isSent) return false;
 
-      // Surveyor Filter
-      if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
+      // Surveyor Filter (fleksibel: SEPTIAN AJI <=> SEPTIAN AJI DEWANGKARA)
+      if (surveyorFilter !== 'Semua' && !isSameSurveyor(item.petugas, surveyorFilter, usersList)) {
         return false;
       }
 
@@ -345,7 +345,7 @@ export const LaporanParafTable = () => {
     });
 
     return result;
-  }, [suratTugas, statusTab, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
+  }, [suratTugas, statusTab, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy, usersList]);
 
   // Open Accumulated Print Modal (All filtered items)
   const handleOpenPrintAll = () => {
@@ -434,7 +434,7 @@ export const LaporanParafTable = () => {
       : filteredData;
 
     targetData.forEach((item, idx) => {
-      const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || '-';
+      const surveyorPhone = findSurveyorUser(usersList, item.petugas)?.phone || '-';
       const isEven = idx % 2 === 0;
       const row = ws.addRow([
         idx + 1,
@@ -479,7 +479,7 @@ export const LaporanParafTable = () => {
 
     const headers = ['No', 'Nama Kapal', 'Surveyor', 'No HP', 'Jenis Survey', 'Tgl Survey', 'Lokasi Survey', 'RFQ / No Order'];
     const rows = targetData.map((item, idx) => {
-      const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || '-';
+      const surveyorPhone = findSurveyorUser(usersList, item.petugas)?.phone || '-';
       return [
         idx + 1,
         `"${(item.namaKapal || '').replace(/"/g, '""')}"`,
@@ -1102,7 +1102,7 @@ export const LaporanParafTable = () => {
             ) : (
               filteredData.map((item, index) => {
                 const isSelected = selectedRowIds.includes(item.id);
-                const surveyorPhone = usersList?.find((u) => u.name === item.petugas)?.phone || item.noHp || '-';
+                const surveyorPhone = findSurveyorUser(usersList, item.petugas)?.phone || item.noHp || '-';
                 const tglFormatted = formatDateIndo(item.tglMulai || item.tglSelesai);
                 const lokasi = (item.tempatSurvey || item.lokasi || item.tujuan || 'PONTIANAK').toUpperCase();
                 const jenis = (item.jenisSurvey || item.perihal || '-').toUpperCase();

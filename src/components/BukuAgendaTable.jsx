@@ -33,7 +33,7 @@ import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber, formatRupiah, parseAttachmentFiles } from '../utils/formatters';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, isSameSurveyor, findSurveyorUser } from '../utils/filterData';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { ModalPortal } from './ModalPortal';
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
@@ -503,7 +503,7 @@ export const BukuAgendaTable = () => {
       hrLbr = count;
     }
 
-    const surveyor = usersList?.find(u => u.name === item.petugas) || {};
+    const surveyor = findSurveyorUser(usersList, item.petugas) || {};
     const surveyorGrade = item.pangkat || surveyor.grade || 'GRADE 6 A';
     const gradeData = (gradeTariffs || []).find(
       (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === surveyorGrade.replace(/\s+/g, '').toUpperCase()
@@ -654,8 +654,8 @@ export const BukuAgendaTable = () => {
         return false;
       }
 
-      // Surveyor filter
-      if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
+      // Surveyor filter (fleksibel: SEPTIAN AJI <=> SEPTIAN AJI DEWANGKARA)
+      if (surveyorFilter !== 'Semua' && !isSameSurveyor(item.petugas, surveyorFilter, usersList)) {
         return false;
       }
 
@@ -762,7 +762,7 @@ export const BukuAgendaTable = () => {
     });
 
     return result;
-  }, [suratTugas, surveyorFilter, statusFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy]);
+  }, [suratTugas, surveyorFilter, statusFilter, selectedMonth, selectedYear, startDate, endDate, searchTerm, sortBy, usersList]);
 
   // Total Biaya Accumulation
   const totalBiayaAkumulasi = useMemo(() => {

@@ -7,6 +7,7 @@ import {
 import { INITIAL_LOCATION_TARIFFS, INITIAL_GRADE_TARIFFS } from '../utils/tariffData';
 import { DEFAULT_MASTER_KAPAL, mergeWithDefaultMasterKapal } from '../data/defaultMasterKapal';
 import { cleanDocNumber } from '../utils/formatters';
+import { isSameSurveyor } from '../utils/filterData';
 import {
   fetchSuratTugasFromCloud,
   saveSuratTugasToCloud,
@@ -114,6 +115,23 @@ const cleanEntityObject = (item) => {
   for (const [k, v] of Object.entries(item)) {
     cleaned[k] = typeof v === 'string' ? cleanDocNumber(v) : v;
   }
+  // Normalisasi nama Septian jika tersimpan sebagai 'SEPTIAN AJI' / 'Septian Aji'
+  if (cleaned.petugas && (cleaned.petugas.trim().toUpperCase() === 'SEPTIAN AJI' || cleaned.petugas.trim().toUpperCase() === 'SEPTIAN')) {
+    cleaned.petugas = 'SEPTIAN AJI DEWANGKARA';
+  }
+  if (cleaned.penerima && (cleaned.penerima.trim().toUpperCase() === 'SEPTIAN AJI' || cleaned.penerima.trim().toUpperCase() === 'SEPTIAN')) {
+    cleaned.penerima = 'SEPTIAN AJI DEWANGKARA';
+  }
+  if (Array.isArray(cleaned.shipsDetail)) {
+    cleaned.shipsDetail = cleaned.shipsDetail.map((sh) => {
+      if (!sh || typeof sh !== 'object') return sh;
+      const shCleaned = { ...sh };
+      if (shCleaned.petugas && (shCleaned.petugas.trim().toUpperCase() === 'SEPTIAN AJI' || shCleaned.petugas.trim().toUpperCase() === 'SEPTIAN')) {
+        shCleaned.petugas = 'SEPTIAN AJI DEWANGKARA';
+      }
+      return shCleaned;
+    });
+  }
   return cleaned;
 };
 
@@ -205,6 +223,62 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     safeSetLocalStorage('st_visit_survei', visitSurvei);
   }, [visitSurvei]);
+
+  // Sinkronisasi otomatis dokumen jika nama pengguna/surveyor diubah
+  useEffect(() => {
+    const handleUserRenamed = (e) => {
+      const { oldName, newName } = e.detail || {};
+      if (!oldName || !newName || oldName === newName) return;
+
+      setSuratTugas((prev) => {
+        let changed = false;
+        const updated = prev.map((st) => {
+          if (st.petugas && isSameSurveyor(st.petugas, oldName)) {
+            changed = true;
+            const newSt = { ...st, petugas: newName };
+            saveSuratTugasToCloud(newSt).catch(() => {});
+            return newSt;
+          }
+          return st;
+        });
+        if (changed) safeSetLocalStorage('st_surat_tugas', updated);
+        return changed ? updated : prev;
+      });
+
+      setKwitansiHonor((prev) => {
+        let changed = false;
+        const updated = prev.map((kh) => {
+          if (kh.penerima && isSameSurveyor(kh.penerima, oldName)) {
+            changed = true;
+            const newKh = { ...kh, penerima: newName };
+            saveKwitansiToCloud(newKh).catch(() => {});
+            return newKh;
+          }
+          return kh;
+        });
+        if (changed) safeSetLocalStorage('st_kwitansi_honor', updated);
+        return changed ? updated : prev;
+      });
+
+      setLaporanSurvei((prev) => {
+        let changed = false;
+        const updated = prev.map((lp) => {
+          if (lp.petugas && isSameSurveyor(lp.petugas, oldName)) {
+            changed = true;
+            const newLp = { ...lp, petugas: newName };
+            saveLaporanToCloud(newLp).catch(() => {});
+            return newLp;
+          }
+          return lp;
+        });
+        if (changed) safeSetLocalStorage('st_laporan_survei', updated);
+        return changed ? updated : prev;
+      });
+    };
+
+    window.addEventListener('st_user_renamed', handleUserRenamed);
+    return () => window.removeEventListener('st_user_renamed', handleUserRenamed);
+  }, []);
 
   // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
   const refreshAllFromCloud = useCallback(async () => {

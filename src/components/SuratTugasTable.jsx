@@ -32,7 +32,7 @@ import { toast } from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, getStatusBadgeClass, cleanDocNumber, formatRupiah, isDocumentLocked } from '../utils/formatters';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, isSameSurveyor } from '../utils/filterData';
 import { SpsModal } from './SpsModal';
 import { PdsModal } from './PdsModal';
 import { SuratTugasPrintModal } from './SuratTugasPrintModal';
@@ -310,8 +310,8 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         return false;
       }
 
-      // Surveyor Filter
-      if (surveyorFilter !== 'Semua' && item.petugas !== surveyorFilter) {
+      // Surveyor Filter (fleksibel: SEPTIAN AJI <=> SEPTIAN AJI DEWANGKARA)
+      if (surveyorFilter !== 'Semua' && !isSameSurveyor(item.petugas, surveyorFilter, usersList)) {
         return false;
       }
 
@@ -386,7 +386,7 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
     });
 
     return result;
-  }, [suratTugas, currentUser, role, filterType, searchTerm, statusFilter, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, sortBy]);
+  }, [suratTugas, currentUser, role, filterType, searchTerm, statusFilter, surveyorFilter, selectedMonth, selectedYear, startDate, endDate, sortBy, usersList]);
 
   // Statistics calculation
   const totalHariKegiatan = useMemo(() => {

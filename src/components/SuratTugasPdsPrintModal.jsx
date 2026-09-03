@@ -2,6 +2,7 @@ import React, { useRef, useState, useMemo, useEffect } from 'react';
 import { X, Printer, FileText, Maximize2, Minimize2, Monitor, Smartphone } from 'lucide-react';
 import { formatDateIndo, cleanDocNumber } from '../utils/formatters';
 import { isValidSignature } from '../utils/signatureHelper';
+import { findSurveyorUser } from '../utils/filterData';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { ModalPortal } from './ModalPortal';
@@ -115,7 +116,8 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
   const tglSelesai = formatDateIndo(suratTugas.tglSelesai);
   
   const surveyorName = suratTugas.petugas || '';
-  const pangkat = suratTugas.pangkat || '';
+  const surveyorUser = findSurveyorUser(usersList, surveyorName) || {};
+  const pangkat = suratTugas.pangkat || surveyorUser.grade || '';
   const jabatan = suratTugas.jabatan || 'SURVEYOR';
   
   const keperluan1 = 'DINAS SURVEY KLAS';

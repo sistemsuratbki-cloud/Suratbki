@@ -62,7 +62,7 @@ import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, findSurveyorUser } from '../utils/filterData';
 
 export const DayDetailModal = ({
   isOpen,
@@ -265,7 +265,7 @@ export const DayDetailModal = ({
       const defaultSurveyor = (role === 'surveyor' || role === 'kacab')
         ? (currentUser?.name || surveyorUsers[0]?.name || '')
         : (surveyorUsers[0]?.name || '');
-      const userGrade = surveyorUsers.find((u) => u.name === defaultSurveyor)?.grade || 'GRADE 6 A';
+      const userGrade = (findSurveyorUser(surveyorUsers, defaultSurveyor) || {})?.grade || 'GRADE 6 A';
 
       setFormData((prev) => ({
         ...prev,
@@ -301,7 +301,7 @@ export const DayDetailModal = ({
 
   // Handle Surveyor Change
   const handleSurveyorChange = (val) => {
-    const user = surveyorUsers.find((u) => u.name === val);
+    const user = findSurveyorUser(surveyorUsers, val);
     setFormData((prev) => ({
       ...prev,
       petugas: val,

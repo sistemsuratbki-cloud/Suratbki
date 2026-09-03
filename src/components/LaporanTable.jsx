@@ -32,7 +32,7 @@ import ExcelJS from 'exceljs';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, getStatusBadgeClass, isEditWindowExpired, formatRupiah, cleanDocNumber, extractAgendaNumber } from '../utils/formatters';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, isSameSurveyor } from '../utils/filterData';
 import { LaporanModal } from './LaporanModal';
 import { LaporanPrintModal } from './LaporanPrintModal';
 import { ConfirmModal } from './ConfirmModal';
@@ -263,9 +263,9 @@ export const LaporanTable = () => {
         if (itemStart && itemStart > endDate) return false;
       }
 
-      // Surveyor Filter
+      // Surveyor Filter (fleksibel: SEPTIAN AJI <=> SEPTIAN AJI DEWANGKARA)
       const surveyorName = item.petugas || '';
-      if (surveyorFilter !== 'Semua' && surveyorName !== surveyorFilter) {
+      if (surveyorFilter !== 'Semua' && !isSameSurveyor(surveyorName, surveyorFilter, usersList)) {
         return false;
       }
 
@@ -291,7 +291,7 @@ export const LaporanTable = () => {
     });
 
     return result;
-  }, [suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm]);
+  }, [suratTugas, selectedMonth, selectedYear, startDate, endDate, surveyorFilter, searchTerm, usersList]);
 
   // Helper untuk mendapatkan Total Nilai Rincian PDS secara akurat
   const getItemNilaiTotal = (item) => {

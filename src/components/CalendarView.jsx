@@ -3,26 +3,26 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-reac
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
-import { filterDataByRole } from '../utils/filterData';
+import { filterDataByRole, isSameSurveyor } from '../utils/filterData';
 import { checkHolidayOrWeekend } from '../utils/holidays';
 import { DayDetailModal } from './DayDetailModal';
 
 export const CalendarView = ({ surveyorFilter }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei } = useData();
-  const { currentUser, role } = useAuth();
+  const { currentUser, role, usersList } = useAuth();
 
   // Filter tasks & reports specifically for logged-in surveyor
   // Exclude pending SPS that has not been filled as PDS yet
   const isPdsItem = (st) => st.docType === 'PDS' || st.isPds || (st.status !== 'Menunggu Survei' && !st.isSps && st.docType !== 'SPS');
 
   const filteredSuratTugas = filterDataByRole(suratTugas, currentUser, role, 'petugas')
-    .filter(item => !surveyorFilter || item.petugas === surveyorFilter)
+    .filter(item => !surveyorFilter || isSameSurveyor(item.petugas, surveyorFilter, usersList))
     .filter(item => isPdsItem(item));
 
   const filteredKwitansi = filterDataByRole(kwitansiHonor, currentUser, role, 'penerima')
-    .filter(item => !surveyorFilter || item.penerima === surveyorFilter);
+    .filter(item => !surveyorFilter || isSameSurveyor(item.penerima, surveyorFilter, usersList));
   const filteredLaporan = filterDataByRole(laporanSurvei, currentUser, role, 'petugas')
-    .filter(item => !surveyorFilter || item.petugas === surveyorFilter);
+    .filter(item => !surveyorFilter || isSameSurveyor(item.petugas, surveyorFilter, usersList));
 
   // Default to today's current date / month
   const [currentDate, setCurrentDate] = useState(new Date());

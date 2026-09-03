@@ -4,6 +4,7 @@ import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, cleanDocNumber, formatRupiah } from '../utils/formatters';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
+import { findSurveyorUser } from '../utils/filterData';
 import { ModalPortal } from './ModalPortal';
 
 export const BukuAgendaPrintModal = ({
@@ -47,7 +48,7 @@ export const BukuAgendaPrintModal = ({
       hrLbr = count;
     }
 
-    const surveyor = usersList?.find(u => u.name === item.petugas) || {};
+    const surveyor = findSurveyorUser(usersList, item.petugas) || {};
     const surveyorGrade = item.pangkat || surveyor.grade || 'GRADE 6 A';
     const gradeData = (gradeTariffs || []).find(
       (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === surveyorGrade.replace(/\s+/g, '').toUpperCase()

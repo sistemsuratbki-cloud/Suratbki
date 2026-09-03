@@ -7,6 +7,7 @@ import { useAuth } from '../context/AuthContext';
 import { formatDateIndo, formatRupiah, cleanDocNumber, terbilang } from '../utils/formatters';
 import { countHolidaysAndWeekendsInRange } from '../utils/holidays';
 import { isValidSignature } from '../utils/signatureHelper';
+import { findSurveyorUser } from '../utils/filterData';
 import { ModalPortal } from './ModalPortal';
 import { BKILogo } from './BKILogo';
 import { DanantaraLogo } from './DanantaraLogo';
@@ -63,7 +64,7 @@ export const BiayaPdsPrintModal = ({
   }
 
   // Get Surveyor Data
-  const surveyor = usersList?.find(u => u.name === suratTugas.petugas) || {};
+  const surveyor = findSurveyorUser(usersList, suratTugas.petugas) || {};
   const surveyorGrade = suratTugas.pangkat || surveyor.grade || 'GRADE 6 A';
   const gradeData = (gradeTariffs || []).find(
     (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === surveyorGrade.replace(/\s+/g, '').toUpperCase()

@@ -1,6 +1,7 @@
 import * as ExcelJS from 'exceljs/dist/exceljs.min.js';
 import { formatDateIndo } from './formatters';
 import { countHolidaysAndWeekendsInRange } from './holidays';
+import { findSurveyorUser } from './filterData';
 
 export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTariffs = []) => {
   try {
@@ -25,7 +26,7 @@ export const exportBiayaPerjalananDinas = async (item, usersList = [], gradeTari
     }
 
     // Get Surveyor Data
-    const surveyor = usersList.find(u => u.name === item.petugas) || {};
+    const surveyor = findSurveyorUser(usersList, item.petugas) || {};
     const surveyorGrade = surveyor.grade || 'GRADE 6 A';
     const gradeData = gradeTariffs.find(g => g.grade === surveyorGrade) || {};
 
