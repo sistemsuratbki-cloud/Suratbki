@@ -130,6 +130,24 @@ const mapFromDb = (row) => {
   if (row.tat_luar_kota !== undefined && row.tat_luar_kota !== null) merged.tatLuarKota = row.tat_luar_kota;
   else if (raw.tatLuarKota !== undefined) merged.tatLuarKota = raw.tatLuarKota;
 
+  // Normalisasi flags & relasi SPS - PDS
+  if (row.is_sps !== undefined && row.is_sps !== null) merged.isSps = Boolean(row.is_sps);
+  else if (raw.isSps !== undefined) merged.isSps = Boolean(raw.isSps);
+
+  if (row.is_pds !== undefined && row.is_pds !== null) merged.isPds = Boolean(row.is_pds);
+  else if (raw.isPds !== undefined) merged.isPds = Boolean(raw.isPds);
+
+  if (row.pds_id !== undefined) merged.pdsId = row.pds_id || null;
+  else if (raw.pdsId !== undefined) merged.pdsId = raw.pdsId || null;
+
+  if (row.linked_sps_ids !== undefined && row.linked_sps_ids !== null) {
+    merged.linkedSpsIds = typeof row.linked_sps_ids === 'string'
+      ? (() => { try { return JSON.parse(row.linked_sps_ids); } catch (e) { return []; } })()
+      : (Array.isArray(row.linked_sps_ids) ? row.linked_sps_ids : []);
+  } else if (raw.linkedSpsIds !== undefined) {
+    merged.linkedSpsIds = Array.isArray(raw.linkedSpsIds) ? raw.linkedSpsIds : [];
+  }
+
   // Normalisasi shipsDetail
   if (row.ships_detail !== undefined && row.ships_detail !== null) {
     merged.shipsDetail = typeof row.ships_detail === 'string' ? (() => { try { return JSON.parse(row.ships_detail); } catch (e) { return []; } })() : row.ships_detail;
@@ -625,11 +643,11 @@ export const fetchMasterKapalFromCloud = async () => {
 export const saveMasterKapalToCloud = async (item) => {
   if (!supabase || !item?.id) return;
   const payload = {
-    id:         String(item.id),
-    nama_kapal: item.namaKapal || '',
-    no_agenda:  item.noAgenda  || '',
-    pemohon:    item.pemohon   || '',
-    raw_data:   item,
+    id:           String(item.id),
+    nama_kapal:   item.namaKapal || '',
+    no_agenda:    item.noAgenda  || '',
+    jenis_survey: item.jenisSurvey || '',
+    raw_data:     item,
   };
   return withRetry(async () => {
     const { error } = await supabase

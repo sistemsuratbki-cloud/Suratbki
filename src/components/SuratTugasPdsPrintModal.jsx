@@ -138,26 +138,49 @@ export const SuratTugasPdsPrintModal = ({ isOpen, onClose, suratTugas }) => {
     const slashIdx = clean.indexOf('/');
     if (slashIdx !== -1) {
       const prefix = clean.substring(0, slashIdx).trim();
-      const suffix = clean.substring(slashIdx);
-      if (!prefix) {
-        // Jika prefix A0 tidak diisi/dikosongkan, sediakan spasi kosong lebar agar bisa ditulis tangan dengan pensil
+      const rawSuffix = clean.substring(slashIdx).trim();
+      const suffix = rawSuffix.startsWith('/') ? rawSuffix : '/' + rawSuffix;
+
+      // Cek apakah nomor masih default A0 / kosong (belum diisi nomor surat resmi)
+      const isDefaultA0 = !prefix || /^A[\s.]*0*$/i.test(prefix) || prefix === '-';
+
+      if (isDefaultA0) {
+        // Ketika default A0 / kosong: sediakan jarak/spasi yang cukup lebar agar bisa diisi manual
+        const displayPrefix = prefix || 'A 0';
         return (
           <span>
-            NO.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{suffix}
+            NO. {displayPrefix}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{suffix}
           </span>
         );
       }
-      // Jika prefix terisi, berikan spasi proporsional antara NO., prefix, dan suffix /SV...
+
+      // Ketika nomor sudah diisi (misal: A 845, A.845, dll): rapat dan rapi
+      const normalizedPrefix = prefix.replace(/\s+/g, ' ');
       return (
         <span>
-          NO. {prefix}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;{suffix}
+          NO. {normalizedPrefix} {suffix}
         </span>
       );
     }
+
     if (!clean) {
-      return <span>NO.&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/SV.201/PK/KI-26</span>;
+      return (
+        <span>
+          NO. A 0&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/SV.201/PK/KI-26
+        </span>
+      );
     }
-    return <span>NO. {clean}</span>;
+
+    const isDefaultNoSlash = /^A[\s.]*0*$/i.test(clean) || clean === '-';
+    if (isDefaultNoSlash) {
+      return (
+        <span>
+          NO. {clean}&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/SV.201/PK/KI-26
+        </span>
+      );
+    }
+
+    return <span>NO. {clean.replace(/\s+/g, ' ')}</span>;
   };
 
   return (

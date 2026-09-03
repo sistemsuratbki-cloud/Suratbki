@@ -366,7 +366,9 @@ export const BiayaPdsPrintModal = ({
   const cleanNomor = cleanDocNumber(suratTugas.nomor || '').trim();
   const slashIdx = cleanNomor.indexOf('/');
   const nomorPrefix = slashIdx !== -1 ? cleanNomor.substring(0, slashIdx).trim() : cleanNomor;
-  const nomorSuffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx).trim() : '/SV.201/PK/KI-26';
+  const rawSuffix = slashIdx !== -1 ? cleanNomor.substring(slashIdx).trim() : '/SV.201/PK/KI-26';
+  const nomorSuffix = rawSuffix.startsWith('/') ? rawSuffix : '/' + rawSuffix;
+  const isDefaultA0 = !nomorPrefix || /^A[\s.]*0*$/i.test(nomorPrefix) || nomorPrefix === '-';
 
   return (
     <ModalPortal>
@@ -579,10 +581,10 @@ export const BiayaPdsPrintModal = ({
                       <tr>
                         <td style={{ whiteSpace: 'nowrap', paddingRight: '0.75rem' }}>
                           <span style={{ display: 'inline-flex', alignItems: 'center' }}>
-                            <span style={{ display: 'inline-block', textAlign: 'left', minWidth: nomorPrefix ? 'auto' : '50px' }}>
-                              {nomorPrefix || <span>&nbsp;</span>}
+                            <span style={{ display: 'inline-block', textAlign: 'left', minWidth: isDefaultA0 ? '50px' : 'auto' }}>
+                              {nomorPrefix || (isDefaultA0 ? 'A 0' : <span>&nbsp;</span>)}
                             </span>
-                            <span style={{ paddingLeft: '1.25rem' }}>{nomorSuffix}</span>
+                            <span style={{ paddingLeft: isDefaultA0 ? '1.5rem' : '0.35rem' }}>{nomorSuffix}</span>
                           </span>
                         </td>
                         <td style={{ width: '15px', textAlign: 'center' }}>:</td>

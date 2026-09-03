@@ -1055,7 +1055,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                             onChange={(e) => {
                               const newPrefix = e.target.value;
                               const currentSuffix = suffix.startsWith('/') ? suffix : '/' + suffix;
-                              const combined = newPrefix ? `${newPrefix}    ${currentSuffix}` : `        ${currentSuffix}`;
+                              const isDef = !newPrefix || /^A[\s.]*0*$/i.test(newPrefix.trim());
+                              const combined = isDef
+                                ? `${newPrefix ? newPrefix.trim() : 'A 0'}    ${currentSuffix}`
+                                : `${newPrefix.trim()} ${currentSuffix}`;
                               setFormData({ ...formData, nomor: combined });
                             }}
                             style={{ fontWeight: 800, textAlign: 'center', color: 'var(--accent-primary)', letterSpacing: '0.05em' }}
@@ -1073,7 +1076,10 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                               if (newSuffix && !newSuffix.startsWith('/')) {
                                 newSuffix = '/' + newSuffix;
                               }
-                              const combined = prefix ? `${prefix}    ${newSuffix}` : `        ${newSuffix}`;
+                              const isDef = !prefix || /^A[\s.]*0*$/i.test(prefix.trim());
+                              const combined = isDef
+                                ? `${prefix ? prefix.trim() : 'A 0'}    ${newSuffix}`
+                                : `${prefix.trim()} ${newSuffix}`;
                               setFormData({ ...formData, nomor: combined });
                             }}
                             required

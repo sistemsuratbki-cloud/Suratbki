@@ -221,7 +221,26 @@ export const DataProvider = ({ children }) => {
       ]);
 
       if (Array.isArray(cloudSurat) && cloudSurat.length > 0) {
-        setSuratTugas(cloudSurat.map(cleanEntityObject));
+        // Auto-heal orphan SPS: jika ada SPS yang memiliki pdsId mengarah ke PDS yang sudah tidak ada di database,
+        // kembalikan statusnya ke 'Menunggu Survei' dan pdsId ke null agar tidak hilang/tersembunyi di UI.
+        const pdsIdSet = new Set(
+          cloudSurat
+            .filter((s) => s && (s.docType === 'PDS' || s.isPds))
+            .map((s) => s.id)
+        );
+
+        const healedSurat = cloudSurat.map((st) => {
+          const isSps = st && (st.docType === 'SPS' || st.isSps);
+          if (isSps && st.pdsId && !pdsIdSet.has(st.pdsId)) {
+            console.warn(`[AutoHeal] Memulihkan SPS ${st.id} (${st.namaKapal}) karena PDS induknya (${st.pdsId}) sudah dihapus.`);
+            const restored = { ...st, pdsId: null, status: 'Menunggu Survei' };
+            saveSuratTugasToCloud(restored);
+            return restored;
+          }
+          return st;
+        });
+
+        setSuratTugas(healedSurat.map(cleanEntityObject));
       }
       if (Array.isArray(cloudKw) && cloudKw.length > 0) {
         setKwitansiHonor(cloudKw.map(cleanEntityObject));
@@ -599,6 +618,134 @@ export const DataProvider = ({ children }) => {
     deleteMasterKapalFromCloud(id);
   };
 
+  // ====== AUTO-SYNC KAPAL KE MASTER_KAPAL DATABASE ======
+  // Memastikan semua kapal dari PDS/SPS tersimpan di database kapal dan TIDAK terhapus
+  const syncShipsToMasterKapal = useCallback((item) => {
+    if (!item) return;
+    const shipsToSync = [];
+
+    // 1. Dari array shipsDetail
+    if (Array.isArray(item.shipsDetail) && item.shipsDetail.length > 0) {
+      item.shipsDetail.forEach((sh) => {
+        const name = (sh.namaKapal || '').trim().toUpperCase();
+        if (name && name !== '-' && name !== 'KAPAL') {
+          shipsToSync.push({
+            namaKapal: name,
+            noAgenda: (sh.noAgenda && sh.noAgenda !== '-' ? sh.noAgenda : item.noAgenda || '').trim(),
+            pemohon: (sh.pemohon || item.pemohon || '').trim(),
+            jenisSurvey: (sh.jenisSurvey || item.jenisSurvey || '').trim()
+          });
+        }
+      });
+    }
+
+    // 2. Dari array shipsList
+    if (Array.isArray(item.shipsList) && item.shipsList.length > 0) {
+      item.shipsList.forEach((sh) => {
+        const name = (typeof sh === 'string' ? sh : sh.namaKapal || '').trim().toUpperCase();
+        if (name && name !== '-' && name !== 'KAPAL') {
+          shipsToSync.push({
+            namaKapal: name,
+            noAgenda: (item.noAgenda && item.noAgenda !== '-' ? item.noAgenda : '').trim(),
+            pemohon: (item.pemohon || '').trim(),
+            jenisSurvey: (item.jenisSurvey || '').trim()
+          });
+        }
+      });
+    }
+
+    // 3. Dari namaKapal langsung (bisa multi kapal dengan pemisah koma, garis miring, atau titik koma)
+    if (item.namaKapal) {
+      const names = String(item.namaKapal)
+        .split(/[,/;]/)
+        .map((s) => s.trim().toUpperCase())
+        .filter((s) => s && s !== '-' && s !== 'KAPAL');
+
+      names.forEach((name) => {
+        shipsToSync.push({
+          namaKapal: name,
+          noAgenda: (item.noAgenda && item.noAgenda !== '-' ? item.noAgenda : item.agenda || '').trim(),
+          pemohon: (item.pemohon || '').trim(),
+          jenisSurvey: (item.jenisSurvey || item.perihal || '').trim()
+        });
+      });
+    }
+
+    // 4. Dari raw_data jika ada
+    if (item.raw_data && typeof item.raw_data === 'object') {
+      if (Array.isArray(item.raw_data.shipsDetail)) {
+        item.raw_data.shipsDetail.forEach((sh) => {
+          const name = (sh.namaKapal || '').trim().toUpperCase();
+          if (name && name !== '-' && name !== 'KAPAL') {
+            shipsToSync.push({
+              namaKapal: name,
+              noAgenda: (sh.noAgenda && sh.noAgenda !== '-' ? sh.noAgenda : '').trim(),
+              pemohon: (sh.pemohon || '').trim(),
+              jenisSurvey: (sh.jenisSurvey || '').trim()
+            });
+          }
+        });
+      }
+    }
+
+    if (shipsToSync.length === 0) return;
+
+    setMasterKapal((prev) => {
+      const updatedList = [...prev];
+      let hasChange = false;
+
+      shipsToSync.forEach((targetShip) => {
+        const cleanName = targetShip.namaKapal;
+        if (!cleanName) return;
+
+        const existingIndex = updatedList.findIndex(
+          (k) => (k.namaKapal || '').trim().toUpperCase() === cleanName
+        );
+
+        if (existingIndex === -1) {
+          // Kapal baru -> simpan ke database master_kapal
+          const cleanAgenda = targetShip.noAgenda && targetShip.noAgenda !== '-' ? targetShip.noAgenda : '';
+          const newKapal = {
+            id: `kapal-${Date.now().toString().slice(-8)}-${Math.floor(Math.random() * 9000 + 1000)}`,
+            namaKapal: cleanName,
+            noAgenda: cleanAgenda,
+            pemohon: targetShip.pemohon || '',
+            jenisSurvey: targetShip.jenisSurvey || '',
+            createdAt: new Date().toISOString()
+          };
+          updatedList.push(newKapal);
+          saveMasterKapalToCloud(newKapal);
+          hasChange = true;
+        } else {
+          // Kapal sudah ada -> lengkapi jika ada data yang masih kosong
+          const existing = updatedList[existingIndex];
+          const cleanAgenda = targetShip.noAgenda && targetShip.noAgenda !== '-' ? targetShip.noAgenda : '';
+          const needsUpdate =
+            (!existing.noAgenda && cleanAgenda) ||
+            (!existing.pemohon && targetShip.pemohon) ||
+            (!existing.jenisSurvey && targetShip.jenisSurvey);
+
+          if (needsUpdate) {
+            const updated = {
+              ...existing,
+              noAgenda: existing.noAgenda || cleanAgenda || '',
+              pemohon: existing.pemohon || targetShip.pemohon || '',
+              jenisSurvey: existing.jenisSurvey || targetShip.jenisSurvey || ''
+            };
+            updatedList[existingIndex] = updated;
+            saveMasterKapalToCloud(updated);
+            hasChange = true;
+          }
+        }
+      });
+
+      if (hasChange) {
+        safeSetLocalStorage('st_master_kapal', updatedList);
+      }
+      return hasChange ? updatedList : prev;
+    });
+  }, []);
+
   // ====== VISIT SURVEI (LAYAR MONITOR & CLOUD SUPABASE) ======
   const addVisitSurvei = (data) => {
     const newVisit = cleanEntityObject({
@@ -762,6 +909,7 @@ export const DataProvider = ({ children }) => {
       return next;
     });
     saveSuratTugasToCloud(newSurat);
+    syncShipsToMasterKapal(newSurat);
 
     // ====== GENERATE KWITANSI & LAPORAN FOR THIS PDS ======
     const baseRate = Number(cleanedData.tarifDasar) || 3000000;
@@ -874,6 +1022,7 @@ export const DataProvider = ({ children }) => {
     };
 
     saveSuratTugasToCloud(newPds);
+    syncShipsToMasterKapal(newPds);
 
     // Update Surat Tugas state: Add new PDS and update status of linked SPS items
     setSuratTugas((prev) => {
@@ -970,17 +1119,44 @@ export const DataProvider = ({ children }) => {
     let updatedItem = null;
 
     setSuratTugas((prev) => {
+      const existing = prev.find((item) => item.id === id);
+      const isPds = (cleanedData.docType || existing?.docType) === 'PDS' || cleanedData.isPds || existing?.isPds;
+
+      // Pantau jika ada perubahan relasi SPS pada PDS saat diedit
+      let newlyUnlinkedSpsIds = [];
+      let newlyLinkedSpsIds = [];
+      if (isPds && existing && Array.isArray(cleanedData.linkedSpsIds)) {
+        const oldLinks = Array.isArray(existing.linkedSpsIds) ? existing.linkedSpsIds : [];
+        const newLinks = cleanedData.linkedSpsIds;
+        newlyUnlinkedSpsIds = oldLinks.filter((oid) => !newLinks.includes(oid));
+        newlyLinkedSpsIds = newLinks.filter((nid) => !oldLinks.includes(nid));
+      }
+
       const next = prev.map((item) => {
         if (item.id === id) {
           updatedItem = { ...item, ...cleanedData, nomor: cleanDocNumber(cleanedData.nomor || item.nomor) };
           saveSuratTugasToCloud(updatedItem);
           return updatedItem;
         }
+        if (newlyUnlinkedSpsIds.includes(item.id)) {
+          const unlinkedSps = { ...item, pdsId: null, pds_id: null, status: 'Menunggu Survei' };
+          saveSuratTugasToCloud(unlinkedSps);
+          return unlinkedSps;
+        }
+        if (newlyLinkedSpsIds.includes(item.id)) {
+          const linkedSps = { ...item, pdsId: id, pds_id: id, status: 'Selesai' };
+          saveSuratTugasToCloud(linkedSps);
+          return linkedSps;
+        }
         return item;
       });
       safeSetLocalStorage('st_surat_tugas', next);
       return next;
     });
+
+    if (updatedItem) {
+      syncShipsToMasterKapal(updatedItem);
+    }
 
     // Auto-update linked Kwitansi Honor
     const baseRate = Number(cleanedData.tarifDasar) || 0;
@@ -1156,18 +1332,74 @@ export const DataProvider = ({ children }) => {
 
   const deleteSuratTugas = (id) => {
     const itemToDelete = suratTugas.find((item) => item.id === id);
+    const isPds = itemToDelete && (itemToDelete.docType === 'PDS' || itemToDelete.isPds);
+    const isSps = itemToDelete && (itemToDelete.docType === 'SPS' || itemToDelete.isSps);
+
+    // 1. PASTIKAN NAMA KAPAL DARI DOKUMEN INI TETAP MASUK / TERSIMPAN DI DATABASE KAPAL (MASTER_KAPAL)
+    // Nama kapal TIDAK AKAN HILANG, yang terhapus HANYA data surat/PDS-nya saja.
+    if (itemToDelete) {
+      syncShipsToMasterKapal(itemToDelete);
+      deleteEntityFilesFromGoogleDrive(itemToDelete);
+    }
+
     const relatedLaporan = laporanSurvei.filter((item) => item.suratId === id || item.id === id);
     const relatedKwitansi = kwitansiHonor.filter((item) => item.suratId === id || item.id === id);
-
-    if (itemToDelete) deleteEntityFilesFromGoogleDrive(itemToDelete);
     relatedLaporan.forEach(deleteEntityFilesFromGoogleDrive);
     relatedKwitansi.forEach(deleteEntityFilesFromGoogleDrive);
 
+    // 2. JIKA YANG DIHAPUS ADALAH PDS:
+    // SPS TERKAIT TIDAK BOLEH IKUT TERHAPUS ATAU HILANG!
+    // KEMBALIKAN STATUS SPS KE 'Menunggu Survei' & HAPUS LINK pdsId-NYA
+    let linkedSpsIdsToReset = [];
+    if (isPds && itemToDelete) {
+      const fromPdsLinks = Array.isArray(itemToDelete.linkedSpsIds) ? itemToDelete.linkedSpsIds : [];
+      const fromPdsDbLinks = Array.isArray(itemToDelete.linked_sps_ids) ? itemToDelete.linked_sps_ids : [];
+      linkedSpsIdsToReset = [...fromPdsLinks, ...fromPdsDbLinks];
+    }
+
     setSuratTugas((prev) => {
-      const next = prev.filter((item) => item.id !== id);
+      const next = prev
+        .filter((item) => item.id !== id)
+        .map((item) => {
+          // Jika item ini adalah SPS yang terhubung ke PDS yang sedang dihapus
+          const isLinkedSps =
+            linkedSpsIdsToReset.includes(item.id) ||
+            item.pdsId === id ||
+            item.pds_id === id;
+
+          if (isLinkedSps) {
+            const restoredSps = {
+              ...item,
+              pdsId: null,
+              pds_id: null,
+              status: 'Menunggu Survei'
+            };
+            saveSuratTugasToCloud(restoredSps);
+            return restoredSps;
+          }
+
+          // Jika yang dihapus adalah SPS dan item ini adalah parent PDS-nya
+          if (isSps && itemToDelete?.pdsId && item.id === itemToDelete.pdsId) {
+            const updatedLinked = (item.linkedSpsIds || []).filter((lid) => lid !== id);
+            const updatedShipsDetail = Array.isArray(item.shipsDetail)
+              ? item.shipsDetail.filter((sh) => sh.spsId !== id)
+              : item.shipsDetail;
+            const updatedPds = {
+              ...item,
+              linkedSpsIds: updatedLinked,
+              shipsDetail: updatedShipsDetail
+            };
+            saveSuratTugasToCloud(updatedPds);
+            return updatedPds;
+          }
+
+          return item;
+        });
+
       safeSetLocalStorage('st_surat_tugas', next);
       return next;
     });
+
     setKwitansiHonor((prev) => prev.filter((item) => item.suratId !== id));
     setLaporanSurvei((prev) => prev.filter((item) => item.suratId !== id));
     deleteSuratTugasFromCloud(id);
