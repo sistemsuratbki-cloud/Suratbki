@@ -1,6 +1,6 @@
 # =========================================================================
 # Hostinger LiteSpeed & Apache — BKI Pontianak (Root public_html)
-# MINIMAL CONFIG — semua routing lewat index.php, TANPA SPA rewrite
+# STATIC SPA serving from dist/ — NO PHP router needed
 # =========================================================================
 
 # 1. Prevent LiteSpeed 408 Timeouts & Premature Aborts
@@ -9,10 +9,10 @@
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. Default document: index.php handles EVERYTHING
-DirectoryIndex index.php
+# 2. Default document
+DirectoryIndex dist/index.html index.html
 
-# 3. URL Rewriting — MINIMAL, hanya forward headers + route ke index.php
+# 3. URL Rewriting
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -21,26 +21,34 @@ DirectoryIndex index.php
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # STOP: index.php itself — prevent loop
-  RewriteRule ^index\.php$ - [L]
+  # ── STOP conditions (no further processing) ──
 
-  # STOP: Direct API access — let api/.htaccess handle it
+  # API requests → let api/.htaccess handle
   RewriteRule ^api/ - [L]
 
-  # STOP: Existing real files (assets, images, fonts, etc.) — serve directly
+  # Health check
+  RewriteRule ^health\.php$ - [L]
+
+  # Already dist/index.html → stop (prevent loop)
+  RewriteRule ^dist/index\.html$ - [L]
+
+  # Existing files in root (favicon, logos, etc.) → serve directly
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # STOP: Files inside dist/ that exist physically
+  # ── Map virtual paths to dist/ ──
+
+  # Files that exist inside dist/ → serve them from dist/
   RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
   RewriteRule ^(.+)$ dist/$1 [L]
 
-  # EVERYTHING ELSE → index.php (PHP router, no more .htaccess loops)
-  RewriteRule ^ index.php [L]
+  # ── SPA Fallback ──
+  # All remaining routes → dist/index.html (React client-side routing)
+  RewriteRule ^ dist/index.html [L]
 </IfModule>
 
 # 4. Block sensitive files
-<FilesMatch "^(\.(git|env|htpasswd)|config\.php|package(-lock)?\.json|vite\.config\.js)">
+<FilesMatch "^(\.(git|env|htpasswd)|config\.php|package(-lock)?\.json|vite\.config\.js|index\.php)">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>
@@ -71,4 +79,9 @@ DirectoryIndex index.php
   ExpiresByType font/woff "access plus 1 year"
   ExpiresByType font/woff2 "access plus 1 year"
   ExpiresByType font/ttf "access plus 1 year"
+</IfModule>
+
+# 7. GZIP Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
 </IfModule>
