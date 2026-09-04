@@ -1,60 +1,56 @@
 # =========================================================================
 # Hostinger LiteSpeed & Apache — BKI Pontianak (Root public_html)
-# STATIC SPA serving from dist/ — NO PHP router needed
+# Serve React SPA from dist/ — NO PHP router
 # =========================================================================
 
-# 1. Prevent LiteSpeed 408 Timeouts & Premature Aborts
+# 1. Prevent LiteSpeed 408 Timeouts
 <IfModule Litespeed>
   RewriteEngine On
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. Default document
-DirectoryIndex dist/index.html index.html
-
-# 3. URL Rewriting
+# 2. Rewrite Rules
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Forward auth headers to PHP environment (LiteSpeed/FastCGI strips them)
+  # Forward auth headers to PHP (LiteSpeed/FastCGI strips them)
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # ── STOP conditions (no further processing) ──
-
-  # API requests → let api/.htaccess handle
+  # ── STOP: API requests → let api/.htaccess handle ──
   RewriteRule ^api/ - [L]
 
-  # Health check
+  # ── STOP: health check ──
   RewriteRule ^health\.php$ - [L]
 
-  # Already dist/index.html → stop (prevent loop)
-  RewriteRule ^dist/index\.html$ - [L]
+  # ── STOP: prevent loop on dist/ internal access ──
+  RewriteRule ^dist/ - [L]
 
-  # Existing files in root (favicon, logos, etc.) → serve directly
-  RewriteCond %{REQUEST_FILENAME} -f
-  RewriteRule ^ - [L]
+  # ── ROOT "/" request → rewrite to dist/index.html ──
+  RewriteRule ^$ dist/index.html [L]
 
-  # ── Map virtual paths to dist/ ──
-
-  # Files that exist inside dist/ → serve them from dist/
+  # ── Files that exist inside dist/ → proxy to dist/ ──
   RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
   RewriteRule ^(.+)$ dist/$1 [L]
 
-  # ── SPA Fallback ──
-  # All remaining routes → dist/index.html (React client-side routing)
+  # ── Existing files in root (NOT index.html/index.php) → serve directly ──
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteCond %{REQUEST_URI} !^/index\.(html|php)$ [NC]
+  RewriteRule ^ - [L]
+
+  # ── SPA Fallback: all other routes → dist/index.html ──
   RewriteRule ^ dist/index.html [L]
 </IfModule>
 
-# 4. Block sensitive files
-<FilesMatch "^(\.(git|env|htpasswd)|config\.php|package(-lock)?\.json|vite\.config\.js|index\.php)">
+# 3. Block sensitive files from direct browser access
+<FilesMatch "^(\.(git|env|htpasswd)|config\.php|package(-lock)?\.json|vite\.config\.js|index\.(php|html))$">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>
 </FilesMatch>
 
-# 5. Security Headers
+# 4. Security Headers
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-XSS-Protection "1; mode=block"
@@ -62,7 +58,7 @@ DirectoryIndex dist/index.html index.html
   Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# 6. Cache Control
+# 5. Cache Control
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresDefault "access plus 1 month"
@@ -81,7 +77,7 @@ DirectoryIndex dist/index.html index.html
   ExpiresByType font/ttf "access plus 1 year"
 </IfModule>
 
-# 7. GZIP Compression
+# 6. GZIP Compression
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
 </IfModule>
