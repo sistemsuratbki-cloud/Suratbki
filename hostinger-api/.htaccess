@@ -4,23 +4,25 @@
 # Enable Rewrite Engine
 RewriteEngine On
 
+# Disable Directory Indexing
+Options -Indexes
+
 # Route all API requests to api.php
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ api.php [QSA,L]
 
-# Security: Block access to config file
-<Files "config.php">
-    Order Allow,Deny
-    Deny from all
-</Files>
+# Security: Block access to config file and sensitive files
+<FilesMatch "^(config\.php|setup\.lock|\.env.*)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
 
-# Security: Block access to setup script after initial use
-# Uncomment line below after setup is complete:
-# <Files "setup.php">
-#     Order Allow,Deny
-#     Deny from all
-# </Files>
 
 # CORS Headers (backup, juga diset di PHP)
 <IfModule mod_headers.c>

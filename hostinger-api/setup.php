@@ -18,6 +18,17 @@ require_once __DIR__ . '/config.php';
 header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
 
+// ── Keamanan: Cek apakah setup sudah pernah dijalankan ────────────────────
+$lockFile = __DIR__ . '/setup.lock';
+if (file_exists($lockFile)) {
+    http_response_code(403);
+    echo json_encode([
+        'success' => false,
+        'message' => 'Setup telah dikunci karena database sudah pernah diinisialisasi. Untuk menjalankan ulang, hapus file setup.lock di server.'
+    ], JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT);
+    exit;
+}
+
 try {
     $pdo = new PDO(
         'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET,
@@ -110,9 +121,12 @@ try {
         $results[] = "✅ Tabel `{$name}` berhasil dibuat/sudah ada";
     }
 
+    // Kunci setup script secara otomatis
+    @file_put_contents($lockFile, date('Y-m-d H:i:s') . " - Database setup completed successfully.\n");
+
     echo json_encode([
         'success' => true,
-        'message' => 'Setup database berhasil!',
+        'message' => 'Setup database berhasil! File setup.lock telah dibuat untuk keamanan.',
         'tables' => $results,
         'database' => DB_NAME,
         'timestamp' => date('c')

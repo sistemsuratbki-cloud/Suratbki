@@ -20,6 +20,7 @@ export function getHostingerConfig() {
       return {
         enabled: parsed.enabled ?? false,
         apiUrl: (parsed.apiUrl || '').trim(),
+        apiToken: (parsed.apiToken || 'bki-pontianak-2026-secret-token').trim(),
         lastSync: parsed.lastSync || null,
         lastSyncStatus: parsed.lastSyncStatus || null
       };
@@ -31,6 +32,7 @@ export function getHostingerConfig() {
   return {
     enabled: false,
     apiUrl: '',
+    apiToken: 'bki-pontianak-2026-secret-token',
     lastSync: null,
     lastSyncStatus: null
   };
@@ -58,6 +60,20 @@ export function getHostingerApiUrl() {
   return (config.enabled && config.apiUrl) ? config.apiUrl : '';
 }
 
+export function getHostingerApiToken() {
+  const config = getHostingerConfig();
+  return config.apiToken || 'bki-pontianak-2026-secret-token';
+}
+
+function getAuthHeaders(additional = {}) {
+  const token = getHostingerApiToken();
+  return {
+    'Accept': 'application/json',
+    ...(token ? { 'X-API-Token': token } : {}),
+    ...additional
+  };
+}
+
 /**
  * Test koneksi ke API Hostinger
  */
@@ -78,7 +94,7 @@ export async function testHostingerConnection(apiUrl) {
     const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping&_t=' + Date.now();
     const res = await fetch(targetUrl, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: getAuthHeaders()
     });
 
     const text = await res.text();
@@ -131,7 +147,7 @@ export async function fetchHostingerAllData(forceRefresh = false) {
     const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=getAllData&_t=' + Date.now();
     const res = await fetch(targetUrl, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: getAuthHeaders()
     });
 
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
@@ -168,7 +184,7 @@ export async function saveHostingerItem(table, item) {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload)
     });
 
@@ -200,7 +216,7 @@ export async function deleteHostingerItem(table, id) {
 
     const res = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload)
     });
 
@@ -230,7 +246,7 @@ export async function syncAllToHostinger(fullData) {
 
   const res = await fetch(url, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload)
   });
 
@@ -259,7 +275,7 @@ export async function fetchHostingerStats() {
     const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=stats&_t=' + Date.now();
     const res = await fetch(targetUrl, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: getAuthHeaders()
     });
 
     const json = await res.json();

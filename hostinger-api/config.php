@@ -14,6 +14,14 @@
  * =========================================================================
  */
 
+// ── Keamanan: Cegah akses langsung via browser ────────────────────────────
+if (basename($_SERVER['PHP_SELF'] ?? '') === 'config.php' || basename($_SERVER['SCRIPT_FILENAME'] ?? '') === 'config.php') {
+    http_response_code(403);
+    header('Content-Type: application/json; charset=utf-8');
+    echo json_encode(['error' => '403 Forbidden', 'message' => 'Akses langsung ke file konfigurasi dilarang.']);
+    exit;
+}
+
 // ── Koneksi Database MySQL Hostinger ──────────────────────────────────────
 define('DB_HOST',     'localhost');              // Biasanya 'localhost' di Hostinger
 define('DB_NAME',     'u123456789_suratbki');    // Nama database Anda

@@ -1286,6 +1286,23 @@ export const SettingsTab = () => {
                 </div>
               </div>
 
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>
+                  API Token (Otorisasi &amp; Keamanan)
+                </label>
+                <input
+                  type="text"
+                  className="form-input"
+                  placeholder="bki-pontianak-2026-secret-token"
+                  value={hostingerConfig.apiToken || ''}
+                  onChange={(e) => setHostingerConfig({ ...hostingerConfig, apiToken: e.target.value })}
+                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+                />
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                  Token rahasia yang sama dengan <code>API_TOKEN</code> di file <code>config.php</code> server. Melindungi database dari akses tidak sah.
+                </div>
+              </div>
+
               <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                 <button
                   type="button"

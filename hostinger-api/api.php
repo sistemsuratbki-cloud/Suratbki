@@ -36,6 +36,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
+// ── API Token Authentication ─────────────────────────────────────────────
+// Semua request POST (write operations) WAJIB menyertakan header X-API-Token
+// Request GET (read) boleh tanpa token untuk kemudahan integrasi
+function verifyApiToken() {
+    $action = isset($_GET['action']) ? $_GET['action'] : '';
+    
+    // Ping diperbolehkan tanpa token (untuk testing koneksi)
+    if ($action === 'ping') return;
+    
+    // GET requests diperbolehkan tanpa token (read-only)
+    if ($_SERVER['REQUEST_METHOD'] === 'GET') return;
+    
+    // POST requests wajib token
+    $token = '';
+    if (isset($_SERVER['HTTP_X_API_TOKEN'])) {
+        $token = $_SERVER['HTTP_X_API_TOKEN'];
+    } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+        $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']);
+    }
+
+    if (defined('API_TOKEN') && API_TOKEN !== '') {
+        if ($token !== API_TOKEN) {
+            http_response_code(401);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Akses ditolak: API Token tidak valid atau tidak ditemukan. Sertakan header X-API-Token.'
+            ], JSON_UNESCAPED_UNICODE);
+            exit;
+        }
+    }
+}
+verifyApiToken();
+
+
 // ── Database Connection ──────────────────────────────────────────────────
 function getDb() {
     static $pdo = null;
