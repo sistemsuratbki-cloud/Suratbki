@@ -53,11 +53,32 @@ export function saveHostingerConfig(config) {
 }
 
 /**
+ * Menormalkan URL API Hostinger agar selalu mengarah ke endpoint api.php
+ * Contoh:
+ *   "https://pkadminclass.com" -> "https://pkadminclass.com/api/api.php"
+ *   "https://pkadminclass.com/api" -> "https://pkadminclass.com/api/api.php"
+ *   "https://pkadminclass.com/api/api.php" -> "https://pkadminclass.com/api/api.php"
+ */
+export function normalizeHostingerApiUrl(rawUrl) {
+  let url = (rawUrl || '').trim();
+  if (!url) return '';
+  url = url.replace(/\/+$/, ''); // hapus trailing slashes
+  if (!url.endsWith('.php')) {
+    if (url.endsWith('/api')) {
+      url = url + '/api.php';
+    } else {
+      url = url + '/api/api.php';
+    }
+  }
+  return url;
+}
+
+/**
  * Mendapatkan URL API Hostinger yang aktif
  */
 export function getHostingerApiUrl() {
   const config = getHostingerConfig();
-  return (config.enabled && config.apiUrl) ? config.apiUrl : '';
+  return (config.enabled && config.apiUrl) ? normalizeHostingerApiUrl(config.apiUrl) : '';
 }
 
 export function getHostingerApiToken() {
@@ -78,7 +99,7 @@ function getAuthHeaders(additional = {}) {
  * Test koneksi ke API Hostinger
  */
 export async function testHostingerConnection(apiUrl) {
-  const url = (apiUrl || getHostingerApiUrl() || '').trim();
+  const url = normalizeHostingerApiUrl(apiUrl || getHostingerApiUrl());
 
   if (!url) {
     throw new Error('URL API Hostinger belum diisi');
