@@ -1,42 +1,37 @@
 <?php
 /**
- * Production Entry Router for BKI Pontianak (Hostinger Git Deployment)
+ * Production Entry Router — BKI Pontianak (Hostinger)
  * 
- * Melayani aplikasi React Single Page Application (SPA) dari direktori dist/
- * TANPA bergantung pada .htaccess SPA rewrite (mencegah loop LiteSpeed 408).
+ * Semua request (kecuali file statis & API) masuk ke sini.
+ * PHP membaca dist/index.html dan mengirimkannya ke browser.
+ * TANPA rewrite internal = TANPA loop 408.
  * 
- * Kompatibel PHP 7.0+ (TIDAK menggunakan str_starts_with / str_contains)
+ * Kompatibel PHP 7.0+ (tidak pakai str_starts_with)
  */
 
-// Error handling — jangan tampilkan error PHP ke browser
+// Matikan display errors
 ini_set('display_errors', '0');
 error_reporting(E_ALL);
 
-// 1. Ambil path dari URI
-$uri = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
+// Ambil path request
+$uri  = isset($_SERVER['REQUEST_URI']) ? $_SERVER['REQUEST_URI'] : '/';
 $path = parse_url($uri, PHP_URL_PATH);
 if (!$path) $path = '/';
 
-// 2. Jika request menuju API, serahkan ke api/api.php
+// ── 1. API requests → forward ke api/api.php ──
 if (substr($path, 0, 4) === '/api') {
-    $apiScript = __DIR__ . '/api/api.php';
-    if (file_exists($apiScript)) {
-        require $apiScript;
-        exit;
-    }
-    // Fallback: coba hostinger-api
-    $altApi = __DIR__ . '/hostinger-api/api.php';
-    if (file_exists($altApi)) {
-        require $altApi;
+    $apiFile = __DIR__ . '/api/api.php';
+    if (file_exists($apiFile)) {
+        require $apiFile;
         exit;
     }
     http_response_code(404);
-    header('Content-Type: application/json; charset=utf-8');
-    echo json_encode(['success' => false, 'message' => 'API file not found']);
+    header('Content-Type: application/json');
+    echo '{"success":false,"message":"API not found"}';
     exit;
 }
 
-// 3. Jika request menargetkan file statis yang ada di dist/
+// ── 2. File statis di dist/ (JS, CSS, images, fonts, dll.) ──
 $distFile = __DIR__ . '/dist' . $path;
 if ($path !== '/' && is_file($distFile)) {
     $ext = strtolower(pathinfo($distFile, PATHINFO_EXTENSION));
@@ -62,24 +57,20 @@ if ($path !== '/' && is_file($distFile)) {
         'xml'   => 'application/xml',
         'map'   => 'application/json'
     ];
-    $contentType = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
+    $ct = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
 
-    // Untuk HTML, jangan cache. Untuk yang lain, cache agresif.
     if ($ext === 'html') {
         header('Cache-Control: no-cache, no-store, must-revalidate');
-        header('Pragma: no-cache');
-        header('Expires: 0');
     } else {
         header('Cache-Control: public, max-age=31536000, immutable');
     }
-    
-    header('Content-Type: ' . $contentType);
+    header('Content-Type: ' . $ct);
     header('Content-Length: ' . filesize($distFile));
     readfile($distFile);
     exit;
 }
 
-// 4. Untuk semua rute frontend SPA lainnya, sajikan dist/index.html
+// ── 3. SPA Fallback: serve dist/index.html untuk semua rute ──
 $distIndex = __DIR__ . '/dist/index.html';
 if (file_exists($distIndex)) {
     header('Content-Type: text/html; charset=utf-8');
@@ -91,8 +82,9 @@ if (file_exists($distIndex)) {
     exit;
 }
 
-// 5. Fallback jika dist belum ter-build
+// ── 4. Fallback jika dist belum build ──
 http_response_code(503);
 header('Content-Type: text/html; charset=utf-8');
-echo '<h1>Aplikasi sedang dipersiapkan...</h1><p>File dist/index.html belum ditemukan. Harap tunggu beberapa saat.</p>';
+echo '<h1>Aplikasi sedang dipersiapkan...</h1>';
+echo '<p>File dist/index.html belum ditemukan.</p>';
 exit;

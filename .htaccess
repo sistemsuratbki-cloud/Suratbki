@@ -1,50 +1,35 @@
 # =========================================================================
-# Hostinger LiteSpeed & Apache — BKI Pontianak (Root public_html)
-# Bulletproof SPA Routing from dist/ with Zero Rewrite Loops
+# Hostinger LiteSpeed — BKI Pontianak
+# ZERO REWRITE — Semua routing via index.php (PHP)
 # =========================================================================
 
-# 1. Prevent LiteSpeed Timeouts & Premature Aborts
+# 1. Prevent LiteSpeed Timeouts
 <IfModule Litespeed>
   RewriteEngine On
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. DirectoryIndex — serve React SPA directly from dist/index.html
-DirectoryIndex dist/index.html index.html index.php
+# 2. PHP handles everything
+DirectoryIndex index.php
 
-# 3. URL Rewriting
+# 3. Minimal rewrite — ONLY forward headers + route non-files to index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Forward Authorization headers to PHP
+  # Forward auth headers
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # CRITICAL: Stop if request has already been internally rewritten (stops 408 loops)
-  RewriteCond %{ENV:REDIRECT_STATUS} 200
+  # Existing files → serve directly (NO internal rewrite)
+  RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # ── Direct API requests → pass to api/ ──
+  # API folder → let api/.htaccess handle
   RewriteRule ^api/ - [L]
 
-  # ── Requests already in dist/ → pass directly without rewrite ──
-  RewriteRule ^dist/ - [L]
-
-  # ── Never serve uncompiled root index.html or raw index.php → map to dist/index.html ──
-  RewriteRule ^index\.(html|php)$ dist/index.html [L]
-
-  # ── Real files in root (health.php, robots.txt, etc.) → serve directly ──
-  RewriteCond %{REQUEST_FILENAME} -f [OR]
-  RewriteCond %{REQUEST_FILENAME} -d
-  RewriteRule ^ - [L]
-
-  # ── Static assets in dist/ (assets, signatures, svg, icons, images) ──
-  RewriteRule ^(assets|signatures)/(.*)$ dist/$1/$2 [L]
-  RewriteRule ^(bki-logo\.svg|danantara-logo\.svg|idsurvey-logo\.svg|favicon\..*)$ dist/$1 [L]
-
-  # ── SPA Fallback: all remaining routes (/, /login, /dashboard, etc.) ──
-  RewriteRule ^ dist/index.html [L]
+  # Everything else → index.php (PHP router, zero loop risk)
+  RewriteRule ^ index.php [L]
 </IfModule>
 
 # 4. Block sensitive files
