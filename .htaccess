@@ -1,6 +1,6 @@
 # =========================================================================
-# Hostinger LiteSpeed & Apache Configuration for BKI Pontianak (Root)
-# Hostinger public_html Configuration
+# Hostinger LiteSpeed & Apache — BKI Pontianak (Root public_html)
+# MINIMAL CONFIG — semua routing lewat index.php, TANPA SPA rewrite
 # =========================================================================
 
 # 1. Prevent LiteSpeed 408 Timeouts & Premature Aborts
@@ -9,51 +9,44 @@
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. Set index.php as default document
-DirectoryIndex index.php dist/index.html index.html
+# 2. Default document: index.php handles EVERYTHING
+DirectoryIndex index.php
 
-# 3. URL Rewriting
+# 3. URL Rewriting — MINIMAL, hanya forward headers + route ke index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Forward Authorization and custom headers to PHP environment
+  # Forward auth headers to PHP environment (LiteSpeed/FastCGI strips them)
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # Stop loop for index.php
+  # STOP: index.php itself — prevent loop
   RewriteRule ^index\.php$ - [L]
 
-  # Direct access to /api folder
-  RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [NC]
-  RewriteRule ^ - [L]
+  # STOP: Direct API access — let api/.htaccess handle it
+  RewriteRule ^api/ - [L]
 
-  # Block sensitive repository files
-  <FilesMatch "^(\.git|\.env|package\.json|package-lock\.json|vite\.config\.js)">
-    <IfModule mod_authz_core.c>
-      Require all denied
-    </IfModule>
-    <IfModule !mod_authz_core.c>
-      Order Allow,Deny
-      Deny from all
-    </IfModule>
-  </FilesMatch>
-
-  # Serve existing files in dist/ (e.g. assets, images)
-  RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
-  RewriteRule ^(.*)$ dist/$1 [L]
-
-  # Serve existing files directly
+  # STOP: Existing real files (assets, images, fonts, etc.) — serve directly
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
 
-  # All other routes route through index.php
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
+  # STOP: Files inside dist/ that exist physically
+  RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
+  RewriteRule ^(.+)$ dist/$1 [L]
+
+  # EVERYTHING ELSE → index.php (PHP router, no more .htaccess loops)
   RewriteRule ^ index.php [L]
 </IfModule>
 
-# 4. Security Headers
+# 4. Block sensitive files
+<FilesMatch "^(\.(git|env|htpasswd)|config\.php|package(-lock)?\.json|vite\.config\.js)">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+# 5. Security Headers
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-XSS-Protection "1; mode=block"
@@ -61,7 +54,7 @@ DirectoryIndex index.php dist/index.html index.html
   Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# 5. Cache Control
+# 6. Cache Control
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresDefault "access plus 1 month"
