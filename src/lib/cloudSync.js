@@ -13,12 +13,14 @@
 import {
   fetchGoogleSheetAllData,
   saveGoogleSheetItem,
-  deleteGoogleSheetItem
+  deleteGoogleSheetItem,
+  syncAllToGoogleSheet
 } from '../utils/googleSheetsService';
 import {
   fetchHostingerAllData,
   saveHostingerItem,
   deleteHostingerItem,
+  syncAllToHostinger,
   getHostingerConfig
 } from '../utils/hostingerDbService';
 import { uploadToGoogleDrive, deleteFromGoogleDrive } from '../utils/googleDriveService';
@@ -438,7 +440,29 @@ export async function deleteVisitSurveiFromCloud(id) {
 // ==============================================================================
 
 export const clearOperationalDataFromCloud = async () => {
-  console.log('[CloudSync] Operational data clear requested.');
+  const emptyData = {
+    surat_tugas: [],
+    kwitansi_honor: [],
+    laporan_survei: [],
+    visit_survei: []
+  };
+
+  const promises = [];
+  if (isHostingerEnabled()) {
+    promises.push(
+      syncAllToHostinger(emptyData).catch(e =>
+        console.warn('[CloudSync] Hostinger clear operational data warning:', e.message)
+      )
+    );
+  }
+
+  promises.push(
+    syncAllToGoogleSheet(emptyData).catch(e =>
+      console.warn('[CloudSync] GSheets clear operational data warning:', e.message)
+    )
+  );
+
+  await Promise.allSettled(promises);
 };
 
 export const subscribeToRealtimeChanges = (callbacks = {}) => {
