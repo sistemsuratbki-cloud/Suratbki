@@ -1,11 +1,11 @@
-# ── Apache Configuration for BKI API ──
+# ── Apache / LiteSpeed Configuration for BKI API ──
 # Upload file ini ke folder yang sama dengan api.php
 
 # Enable Rewrite Engine
 RewriteEngine On
 
-# Disable Directory Indexing
-Options -Indexes
+# Stop loop if api.php is requested directly
+RewriteRule ^api\.php$ - [L]
 
 # Route all API requests to api.php
 RewriteCond %{REQUEST_FILENAME} !-f
@@ -23,7 +23,6 @@ RewriteRule ^(.*)$ api.php [QSA,L]
     </IfModule>
 </FilesMatch>
 
-
 # CORS Headers (backup, juga diset di PHP)
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
@@ -32,11 +31,3 @@ RewriteRule ^(.*)$ api.php [QSA,L]
     Header always set Access-Control-Max-Age "86400"
 </IfModule>
 
-# PHP Settings
-<IfModule mod_php.c>
-    php_value upload_max_filesize 64M
-    php_value post_max_size 64M
-    php_value max_execution_time 120
-    php_value max_input_time 120
-    php_value memory_limit 256M
-</IfModule>

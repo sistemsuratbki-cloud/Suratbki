@@ -1,24 +1,29 @@
 # =========================================================================
-# Apache Configuration for BKI Pontianak (Vite React SPA + PHP API)
+# Apache / LiteSpeed Configuration for BKI Pontianak (Vite React SPA)
 # Hostinger public_html Configuration
 # =========================================================================
 
-# 1. Enable URL Rewriting
+DirectoryIndex index.html index.php
+
+# 1. Enable URL Rewriting for React SPA
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
+
+  # Stop loop if already targeting index.html
+  RewriteRule ^index\.html$ - [L]
+
+  # Exclude /api directory so PHP API is never touched by SPA routing
+  RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [NC]
+  RewriteRule ^ - [L]
 
   # Allow direct access to existing files and directories
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # Exclude API folder from SPA rewrite (so PHP API works seamlessly)
-  RewriteCond %{REQUEST_URI} ^/api(/.*)?$ [NC]
-  RewriteRule ^ - [L]
-
-  # Route all other frontend requests to index.html for client-side routing
-  RewriteRule ^ index.html [L]
+  # Route all other frontend requests to /index.html for React client-side routing
+  RewriteRule . /index.html [L]
 </IfModule>
 
 # 2. Security Headers
@@ -55,11 +60,3 @@
   ExpiresByType font/woff2 "access plus 1 year"
   ExpiresByType font/ttf "access plus 1 year"
 </IfModule>
-
-# 4. Gzip / Deflate Compression
-<IfModule mod_deflate.c>
-  AddOutputFilterByType DEFLATE text/html text/plain text/xml text/css application/javascript application/json image/svg+xml
-</IfModule>
-
-# 5. Disable Directory Browsing
-Options -Indexes
