@@ -12,7 +12,10 @@
 # 2. Custom Error Document — catch CDN 408 and redirect to SPA
 ErrorDocument 408 /dist/index.html
 
-# 3. Rewrite Rules
+# 3. DirectoryIndex — app.php serves dist/index.html via PHP (bypasses CDN cache)
+DirectoryIndex app.php dist/index.html index.html
+
+# 4. Rewrite Rules
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
