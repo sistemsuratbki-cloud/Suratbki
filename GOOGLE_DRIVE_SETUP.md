@@ -1,66 +1,95 @@
-# 📁 Panduan Setup Integrasi Google Drive — Sistem Surat Tugas BKI
+# 📊 Panduan Lengkap Integrasi Google Workspace: Google Sheets & Google Drive
+### Sistem Administrasi Surat Tugas, Kwitansi & Laporan BKI Cabang Pontianak
 
-Fitur ini memungkinkan seluruh berkas lampiran (**Foto Dokumentasi**, **Bukti Visit & Selfie**, **Tiket Transportasi**, dan **Kwitansi Hotel**) disimpan langsung ke **Google Drive** secara otomatis, terstruktur per folder Tahun, Bulan, Nomor Surat / Agenda, dan Nama Kapal.
+Fitur ini mengintegrasikan **Google Workspace (100% Gratis & Serverless)** untuk sistem BKI:
+1. **Google Sheets sebagai Database Cloud Utama**: Menyimpan seluruh data operasional (Surat Tugas SPS & PDS, Kwitansi Honor, Laporan Survei, Master Kapal, Tarif, Pengaturan, Akun Pengguna, dan Data Visit).
+2. **Google Drive sebagai Penyimpanan Lampiran Berkas**: Menyimpan seluruh berkas fisik (PDF Tiket Pesawat/Kapal, Kwitansi Hotel/Penginapan, Foto Dokumentasi Survei, dan Foto Selfie Visit Lapangan).
 
 ---
 
-## ⚡ Langkah Mudah Setup (Kurang dari 2 Menit):
+## ⚡ Langkah Mudah Setup / Update (Hanya 1 Menit)
+
+Jika Anda sudah memiliki Google Apps Script Web App sebelumnya (`sistemsuratbki@gmail.com`), Anda hanya perlu memperbarui kodenya ke versi baru ini.
 
 ### 1. Buka Google Apps Script
 - Kunjungi: [https://script.google.com/](https://script.google.com/)
-- Pastikan login dengan akun Google (Gmail biasa 15GB gratis atau Google Workspace BKI).
+- Pastikan login dengan akun Google Anda: **`sistemsuratbki@gmail.com`**.
+- Buka proyek yang sudah dibuat (misal: `BKI Drive Service` atau `BKI Surat Drive API`).
 
-### 2. Buat Proyek Baru
-- Klik tombol **"New project"** (Proyek baru).
-- Beri judul proyek di pojok kiri atas, misal: `BKI Surat Drive API`.
+### 2. Perbarui Kode di `Code.gs`
+- Hapus semua isi kode yang ada di tab `Code.gs`.
+- Salin seluruh isi berkas:  
+  📁 [`google-apps-script/Code.gs`](file:///d:/3.%20Dokumen%20Pribadi%20Pena%20Pras/Pras/Project%20BKI/Suratbki/google-apps-script/Code.gs)
+- Tempelkan (Paste) ke editor `Code.gs` di Google Apps Script.
+- Klik ikon **Simpan** (ikon disket 💾 atau tekan `Ctrl + S`).
 
-### 3. Salin & Tempel Kode Backend
-- Hapus semua kode default `myFunction()` di editor `Code.gs`.
-- Salin seluruh isi berkas [google-apps-script/Code.gs](file:///d:/3.%20Dokumen%20Pribadi%20Pena%20Pras/Pras/Project%20BKI/Suratbki/google-apps-script/Code.gs) dan tempelkan ke editor Google Apps Script.
+### 3. Deploy Versi Baru (New Version)
+> ⚠️ **PENTING**: Setiap ada perubahan kode, wajib membuat **New Version** agar URL Web App menjalankan kode terbaru!
 
-### 4. Deploy sebagai Web App
-- Klik tombol biru **"Deploy"** (Terapkan) di pojok kanan atas > pilih **"New deployment"** (Penerapan baru).
-- Klik ikon roda gigi (*Select type*) > pilih **"Web app"** (Aplikasi web).
-- Konfigurasikan:
-  - **Description:** `BKI Drive Upload v1`
-  - **Execute as:** `Me (Akun Google Anda)`
-  - **Who has access:** `Anyone` *(Siapa saja yang memiliki link)*
-- Klik **"Deploy"**.
-
-### 5. Otorisasi Akses Google
-- Klik **"Authorize access"** (Izinkan akses).
-- Pilih akun Google Anda.
-- Jika muncul peringatan *"Google hasn't verified this app"*, klik **Advanced** (*Lanjutan*) > klik **Go to BKI Surat Drive API (unsafe)**.
-- Klik **"Allow"** (Izinkan).
-
-### 6. Salin Web App URL ke Pengaturan Aplikasi
-- Salin **Web app URL** yang muncul (format: `https://script.google.com/macros/s/AKfycb.../exec`).
-- Buka aplikasi **Surat BKI** > Menu **Pengaturan (Settings)**.
-- Gulir ke seksi **"Penyimpanan Berkas Google Drive"**.
-- Aktifkan toggle **"Aktifkan Penyimpanan Google Drive"**.
-- Tempelkan URL pada kolom **Google Apps Script Web App URL**.
-- Klik tombol **"Tes Koneksi Drive"** untuk memastikan koneksi aktif (hijau) 🟢.
-- Klik **"Simpan"**.
+1. Klik tombol biru **"Deploy"** (Terapkan) di pojok kanan atas > pilih **"Manage deployments"** (Kelola penerapan).
+2. Klik ikon **Pensil** (Edit) pada penerapan yang aktif.
+3. Pada dropdown **Version** (Versi), pilih **"New version"** (Versi Baru).
+4. Pastikan:
+   - **Execute as:** `Me (sistemsuratbki@gmail.com)`
+   - **Who has access:** `Anyone` (Siapa saja yang memiliki link)
+5. Klik tombol **"Deploy"** (Terapkan).
+6. Jika Google meminta otorisasi ulang:
+   - Klik **Authorize access** > Pilih akun Google > Klik **Advanced** (*Lanjutan*) > Klik **Go to BKI Surat Drive API (unsafe)** > Klik **Allow** (*Izinkan*).
+7. Salin **Web app URL** yang muncul (misalnya: `https://script.google.com/macros/s/AKfycbxMYYfKw5rwpj_G1HoGh4lIXQxh6KI8mMZo7SEBWDQHTzoQbbGou1e8I58K3yer5xrSmg/exec`).
 
 ---
 
-## 📂 Struktur Folder Otomatis di Google Drive:
+## 🚀 Pengaturan di Aplikasi Web BKI
 
+1. Buka aplikasi web Surat BKI di browser (`http://localhost:3000/` atau domain produksi Anda).
+2. Masuk ke menu **Pengaturan** (ikon gerigi di navigasi atas).
+3. Gulir ke bagian **"Penyimpanan Berkas Google Drive & Database Google Sheets"**.
+4. Pastikan toggle **"Aktifkan Penyimpanan Google Drive & Database Google Sheets"** sudah menyala (hijau).
+5. Masukkan / periksa **Google Apps Script Web App URL**.
+6. Klik tombol **"Tes Koneksi Drive & Sheets"**:
+   - Sistem akan menguji koneksi. Jika berhasil, akan muncul notifikasi sukses beserta kapasitas penyimpanan akun Google Anda.
+7. Klik tombol hijau **"Kirim Data ke Google Sheets"**:
+   - Sistem akan secara otomatis mengunggah seluruh data lokal saat ini (8 Surat Tugas, 3 Kwitansi, 2 Laporan, 627 Master Kapal, 44 Tarif, dll) ke Google Spreadsheet.
+   - Spreadsheet bernama **`DATABASE_SURAT_BKI_PONTIANAK`** akan otomatis dibuat di Google Drive Anda dengan tab rapi untuk setiap tabel.
+   - Tautan langsung ke Google Spreadsheet akan muncul di aplikasi sehingga Anda bisa membukanya kapan saja!
+8. Klik **"Simpan Pengaturan"**.
+
+---
+
+## 🗄️ Struktur Database di Google Sheets
+
+Spreadsheet bernama **`DATABASE_SURAT_BKI_PONTIANAK`** akan berisi tab-tab berikut:
+1. `surat_tugas`: Data Surat Perintah Survei (SPS) dan Perjalanan Dinas (PDS), lengkap dengan nomor, tanggal, status, kapal, dan surveyor.
+2. `kwitansi_honor`: Data kwitansi honor surveyor, rincian biaya tiket, hotel, uang harian, dan total honor.
+3. `laporan_survei`: Laporan teknis survei beserta kesimpulan, checklist kondisi kapal, dan rekomendasi surveyor.
+4. `master_kapal`: 627 data registrasi kapal (Nama Kapal, No BKI, Tipe, Gross Tonnage, Pemilik/Agen).
+5. `tariffs` & `grade_tariffs`: Standar biaya survei, transport, dan honor harian per grade surveyor.
+6. `admin_settings`: Konfigurasi kop surat, nomor agenda, pejabat penandatangan, dan preferensi sistem.
+7. `users`: Akun pengguna dan hak akses (Admin, Surveyor, Staff).
+8. `visit_survei`: Data check-in / visit surveyor di lokasi kapal.
+
+Setiap baris dilengkapi kolom ringkasan manusiawi (`ID`, `NOMOR / NAMA`, `STATUS / DETAIL`, `PETUGAS / USER`) serta kolom `RAW_DATA` (JSON lengkap) yang menjamin data tidak akan pernah terpotong atau korup.
+
+---
+
+## 📁 Struktur Penyimpanan Lampiran di Google Drive
+
+Semua berkas lampiran otomatis disimpan ke Google Drive dengan susunan folder yang rapi:
 ```text
-📁 BKI_DOKUMEN_SURAT (Root Folder)
+📁 BKI_DOKUMEN_SURAT (Folder Utama)
   └── 📁 2026 (Tahun)
       └── 📁 08-Agustus (Bulan)
           └── 📁 SP-0012_TB_TRANSPOWER_123 (No Agenda & Nama Kapal)
-              ├── 📁 1_Foto_Dokumentasi
-              ├── 📁 2_Bukti_Visit_Selfie
-              ├── 📁 3_Tiket_Transport
-              └── 📁 4_Kwitansi_Hotel
+              ├── 📁 1_Foto_Dokumentasi (Foto kondisi lambung, mesin, deck)
+              ├── 📁 2_Bukti_Visit_Selfie (Foto selfie surveyor di lokasi)
+              ├── 📁 3_Tiket_Transport (PDF tiket pesawat, boarding pass, kapal)
+              └── 📁 4_Kwitansi_Hotel (PDF / Foto kwitansi penginapan)
 ```
 
 ---
 
-## 🛡️ Keunggulan Sistem Ini:
-1. **Zero Server Maintenance**: Berjalan 100% di serverless Google Drive gratis.
-2. **Tanpa Perlu Login Setiap Surveyor**: Surveyor di lapangan langsung upload tanpa perlu popup login Google.
-3. **Database Ringan**: Database Supabase & LocalStorage hanya menyimpan URL dan metadata beberapa byte.
-4. **Fallback Otomatis**: Jika internet/Google Drive belum dikonfigurasi, sistem otomatis menggunakan Supabase Storage / mode lokal tanpa menghentikan pekerjaan surveyor.
+## 🛡️ Keunggulan Arsitektur Ini
+- **Bebas Ketergantungan Supabase**: Tidak perlu khawatir kuota gratis Supabase habis atau database dinonaktifkan jika lama tidak diakses.
+- **Transparan & Mudah Diaudit**: Manajemen BKI dapat langsung membuka spreadsheet di Google Sheets dan folder di Google Drive tanpa perlu membuka database database teknis.
+- **Offline Resilient**: Bila koneksi internet lambat atau terputus di lapangan, aplikasi tetap berfungsi normal menggunakan LocalStorage, dan otomatis sinkron saat terhubung kembali.
+- **Zero Cost**: Memanfaatkan kuota 15 GB Google Drive & Google Sheets gratis bawaan akun Google.

@@ -15,7 +15,6 @@ import {
   Files
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { supabase } from '../lib/supabase';
 import { validateFileUpload } from '../utils/security';
 import { uploadUniversalFile } from '../utils/fileStorageHelper';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';

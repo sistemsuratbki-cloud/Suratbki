@@ -34,8 +34,7 @@ import {
   deleteVisitSurveiFromCloud,
   clearOperationalDataFromCloud,
   subscribeToRealtimeChanges
-} from '../lib/supabaseSync';
-import { supabase } from '../lib/supabase';
+} from '../lib/cloudSync';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 
 const deleteEntityFilesFromGoogleDrive = (item) => {
@@ -1583,7 +1582,7 @@ export const DataProvider = ({ children }) => {
     );
   };
 
-  // Hapus semua data operasional (SPS, PDS, Laporan, Kwitansi, Lampiran) baik lokal maupun di Supabase Cloud.
+  // Hapus semua data operasional (SPS, PDS, Laporan, Kwitansi, Lampiran) baik lokal maupun di Cloud.
   // TETAP MENYIMPAN: Manajemen Tarif, Grade Tarif, Manajemen User, Database Kapal, dan Pengaturan Admin.
   const resetData = async () => {
     // 1. Clear operational states
@@ -1596,12 +1595,12 @@ export const DataProvider = ({ children }) => {
     localStorage.removeItem('st_kwitansi_honor');
     localStorage.removeItem('st_laporan_survei');
 
-    // 3. Clear from Supabase Cloud
+    // 3. Clear from Cloud
     try {
       await clearOperationalDataFromCloud();
-      console.log('[DataContext] Data SPS, PDS, Laporan, dan Kwitansi berhasil dihapus dari Supabase Cloud');
+      console.log('[DataContext] Data SPS, PDS, Laporan, dan Kwitansi berhasil dibersihkan');
     } catch (error) {
-      console.error('[DataContext] Error clearing Supabase operational data:', error);
+      console.error('[DataContext] Error clearing operational data:', error);
     }
   };
 

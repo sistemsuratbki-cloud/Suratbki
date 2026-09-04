@@ -23,7 +23,6 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-          supabase: ['@supabase/supabase-js'],
           pdfjs: ['pdfjs-dist']
         }
       }
@@ -34,7 +33,7 @@ export default defineConfig({
     minify: 'esbuild'
   },
   optimizeDeps: {
-    include: ['@supabase/supabase-js', 'react', 'react-dom'],
+    include: ['react', 'react-dom'],
     esbuildOptions: {
       target: 'es2015'
     }

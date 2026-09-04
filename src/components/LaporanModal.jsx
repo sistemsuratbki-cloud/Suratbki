@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase';
 import React, { useState, useEffect } from 'react';
 import { X, Save, Anchor, Printer, Lock, Camera, FileCheck2, Plane, Receipt, MapPin, Calendar, Hash, FileText, Sparkles, Eye, Check, ClipboardList, UserCheck, User } from 'lucide-react';
 import { toast } from 'react-hot-toast';

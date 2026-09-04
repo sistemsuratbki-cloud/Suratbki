@@ -104,7 +104,7 @@ export const Header = ({ theme, setTheme, setIsMobileMenuOpen, setActiveTab }) =
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmReset}
         title="Konfirmasi Reset Data"
-        message="Tindakan ini akan menghapus semua data Surat Tugas (SPS & PDS), Laporan BKI, Kwitansi, dan Lampiran dari sistem lokal & Cloud Supabase. Data Manajemen Tarif, Manajemen User, dan Database Kapal TIDAK AKAN DIHAPUS. Masukkan password untuk melanjutkan."
+        message="Tindakan ini akan menghapus semua data Surat Tugas (SPS & PDS), Laporan BKI, Kwitansi, dan Lampiran dari sistem lokal & Cloud. Data Manajemen Tarif, Manajemen User, dan Database Kapal TIDAK AKAN DIHAPUS. Masukkan password untuk melanjutkan."
         confirmText="Ya, Reset Data"
         type="danger"
         requirePassword={true}

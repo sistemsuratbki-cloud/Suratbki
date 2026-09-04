@@ -10,7 +10,7 @@ import {
   isSessionValid,
   destroySession
 } from '../utils/security';
-import { fetchUsersFromCloud, saveUserToCloud, deleteUserFromCloud } from '../lib/supabaseSync';
+import { fetchUsersFromCloud, saveUserToCloud, deleteUserFromCloud } from '../lib/cloudSync';
 
 const AuthContext = createContext();
 

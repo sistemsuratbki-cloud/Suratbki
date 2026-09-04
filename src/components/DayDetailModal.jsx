@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import {
@@ -53,6 +52,7 @@ import { LaporanPrintModal } from './LaporanPrintModal';
 import { PdsModal } from './PdsModal';
 import { ConfirmModal } from './ConfirmModal';
 import { sanitizeFormData, validateFileUpload } from '../utils/security';
+import { uploadUniversalFile } from '../utils/fileStorageHelper';
 import MultiPhotoUpload from './MultiPhotoUpload';
 import ShipDatabaseSearchSelect from './ShipDatabaseSearchSelect';
 import SearchableLocationSelect from './SearchableLocationSelect';
@@ -758,24 +758,21 @@ export const DayDetailModal = ({
     if (fieldKey === 'visit') setIsUploadingVisit(true);
 
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${Date.now()}_${fieldKey}_${Math.random().toString(36).substring(2, 7)}.${fileExt}`;
-      const filePath = `documents/${fileName}`;
+      const uploadRes = await uploadUniversalFile({
+        file,
+        folderContext: {
+          subFolder: formData.noAgenda || formData.nomor || 'SPS',
+          shipName: formData.namaKapal || '',
+          category: fieldKey
+        }
+      });
 
-      const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
-      // Convert File to ArrayBuffer to prevent multipart form-data corruption
-      const fileBuffer = await file.arrayBuffer();
-      const { data, error } = await supabase.storage.from('surat-tugas').upload(filePath, fileBuffer, { contentType: mimeType, cacheControl: '3600', upsert: false });
-
-      if (error) throw error;
-
-      const { data: publicUrlData } = supabase.storage.from('surat-tugas').getPublicUrl(filePath);
-      const url = publicUrlData?.publicUrl || filePath;
-
+      const url = uploadRes?.url || '';
       if (fieldKey === 'tiketTransport') setFormData((prev) => ({ ...prev, fileTiketTransportName: url }));
       if (fieldKey === 'kwitansiHotel') setFormData((prev) => ({ ...prev, fileKwitansiHotelName: url }));
       if (fieldKey === 'visit') setFormData((prev) => ({ ...prev, fileVisitName: url }));
     } catch (err) {
+      console.warn('Upload file warning, fallback to local reader:', err);
       const reader = new FileReader();
       reader.onloadend = () => {
         if (fieldKey === 'tiketTransport') setFormData((prev) => ({ ...prev, fileTiketTransportName: reader.result }));

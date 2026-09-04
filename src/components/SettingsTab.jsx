@@ -1,9 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import {
   KeyRound, Check, Shield, Eye, EyeOff, RotateCcw, User, FileCheck2, Upload, Trash2,
-  Database, HardDrive, Zap, Loader2, CheckCircle2, AlertCircle, HelpCircle, Copy, CheckCheck, ExternalLink
+  Database, HardDrive, Zap, Loader2, CheckCircle2, AlertCircle, HelpCircle, Copy, CheckCheck, ExternalLink, Server
 } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/AuthContext';
 import { useData } from '../context/DataContext';
 import { ConfirmModal } from './ConfirmModal';
@@ -14,233 +13,22 @@ import {
   saveGoogleDriveConfig,
   testGoogleDriveConnection
 } from '../utils/googleDriveService';
+import { syncAllToGoogleSheet, getSavedSpreadsheetUrl } from '../utils/googleSheetsService';
+import {
+  getHostingerConfig,
+  saveHostingerConfig,
+  testHostingerConnection,
+  syncAllToHostinger,
+  fetchHostingerStats
+} from '../utils/hostingerDbService';
 import { toast } from 'react-hot-toast';
 
-const GDRIVE_SCRIPT_CODE = `/**
- * Google Apps Script Web App Template (Versi Terupdate & Paling Stabil)
- * Sistem Surat Tugas BKI Pontianak — Integrasi Google Drive
- */
-
-function doGet(e) {
-  var callback = (e && e.parameter && e.parameter.callback) || "";
-  var action = (e && e.parameter && e.parameter.action) || "ping";
-  
-  var activeUser = "";
-  try {
-    activeUser = Session.getActiveUser().getEmail();
-  } catch (err) {}
-  if (!activeUser) {
-    try {
-      activeUser = Session.getEffectiveUser().getEmail();
-    } catch (err) {}
-  }
-  
-  var responseData = {
-    success: true,
-    message: "Google Drive API BKI Pontianak aktif dan siap digunakan!",
-    action: action,
-    userEmail: activeUser || "Akun Google Terhubung",
-    quotaRemaining: getDriveQuotaInfo(),
-    timestamp: new Date().toISOString()
-  };
-
-  if (callback) {
-    return ContentService.createTextOutput(callback + "(" + JSON.stringify(responseData) + ");")
-      .setMimeType(ContentService.MimeType.JAVASCRIPT);
-  }
-
-  return ContentService.createTextOutput(JSON.stringify(responseData))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-function doPost(e) {
-  try {
-    var payload = {};
-
-    if (e && e.postData && e.postData.contents) {
-      try {
-        payload = JSON.parse(e.postData.contents);
-      } catch (jsonErr) {
-        payload = e.parameter || {};
-      }
-    } else if (e && e.parameter) {
-      payload = e.parameter;
-    }
-
-    var action = payload.action || "ping";
-
-    // 1. PING / TEST KONEKSI
-    if (action === "ping") {
-      var userEmail = "";
-      try {
-        userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail();
-      } catch (err) {}
-
-      return createJsonResponse({
-        success: true,
-        message: "Koneksi ke Google Drive BKI berhasil terhubung!",
-        userEmail: userEmail || "Akun Google Terhubung",
-        quota: getDriveQuotaInfo(),
-        timestamp: new Date().toISOString()
-      });
-    }
-
-    // 2. UPLOAD FILE KE GOOGLE DRIVE
-    if (action === "uploadFile" || action === "upload") {
-      var rootFolderName = payload.rootFolder || "BKI_DOKUMEN_SURAT";
-      var year = payload.year || new Date().getFullYear().toString();
-      var month = payload.month || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || "GMT+7", "MM-MMMM");
-      var subFolder = payload.subFolder || "UMUM";
-      var category = payload.category || "Dokumen_Lampiran";
-
-      var fileName = payload.fileName || ("file_" + Date.now());
-      var mimeType = payload.mimeType || "application/octet-stream";
-      var base64Data = payload.base64Data || "";
-
-      if (!base64Data) {
-        return createJsonResponse({
-          success: false,
-          message: "Data file (base64) tidak ditemukan atau kosong."
-        }, 400);
-      }
-
-      // Bersihkan prefix data URL (contoh: data:image/jpeg;base64,xxxx)
-      if (base64Data.indexOf(",") > -1) {
-        var parts = base64Data.split(",");
-        base64Data = parts[1];
-        if (parts[0].indexOf(":") > -1 && parts[0].indexOf(";") > -1) {
-          mimeType = parts[0].split(":")[1].split(";")[0] || mimeType;
-        }
-      }
-
-      // Decode base64 menjadi Blob
-      var decodedBytes = Utilities.base64Decode(base64Data);
-      var decodedBlob = Utilities.newBlob(decodedBytes, mimeType, fileName);
-
-      // Cari atau buat folder berjenjang: Root -> Tahun -> Bulan -> SubFolder -> Kategori
-      var targetFolder = getOrCreateFolderPath([rootFolderName, year, month, subFolder, category]);
-
-      // Simpan file
-      var createdFile = targetFolder.createFile(decodedBlob);
-
-      try {
-        createdFile.setDescription("Diunggah via Sistem Surat Tugas BKI Pontianak pada " + new Date().toLocaleString());
-      } catch (eDesc) {}
-
-      // Set izin sharing
-      try {
-        createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
-      } catch (errSharing) {
-        Logger.log("Sharing notice: " + errSharing);
-      }
-
-      var fileId = createdFile.getId();
-      var viewUrl = "https://drive.google.com/file/d/" + fileId + "/view?usp=sharing";
-      var previewUrl = "https://drive.google.com/file/d/" + fileId + "/preview";
-      var directUrl = "https://lh3.googleusercontent.com/d/" + fileId;
-      var downloadUrl = "https://drive.google.com/uc?export=download&id=" + fileId;
-      var thumbnailUrl = "https://lh3.googleusercontent.com/d/" + fileId + "=s800";
-      var folderUrl = targetFolder.getUrl();
-
-      return createJsonResponse({
-        success: true,
-        fileId: fileId,
-        fileName: createdFile.getName(),
-        url: viewUrl,
-        viewUrl: viewUrl,
-        previewUrl: previewUrl,
-        directUrl: directUrl,
-        downloadUrl: downloadUrl,
-        thumbnailUrl: thumbnailUrl,
-        folderUrl: folderUrl,
-        folderName: targetFolder.getName(),
-        size: createdFile.getSize(),
-        mimeType: createdFile.getMimeType(),
-        storageProvider: "gdrive",
-        uploadedAt: new Date().toISOString()
-      });
-    }
-
-    // 3. HAPUS FILE DARI GOOGLE DRIVE
-    if (action === "deleteFile" || action === "delete") {
-      var rawId = payload.fileId || payload.fileUrl || "";
-      if (!rawId) {
-        return createJsonResponse({ success: false, message: "fileId atau URL tidak ditemukan" }, 400);
-      }
-
-      var fileId = rawId;
-      var match = rawId.match(/\\/file\\/d\\/([a-zA-Z0-9_-]{20,})/) ||
-                  rawId.match(/\\/d\\/([a-zA-Z0-9_-]{20,})/) ||
-                  rawId.match(/id=([a-zA-Z0-9_-]{20,})/);
-      if (match && match[1]) {
-        fileId = match[1];
-      }
-
-      try {
-        var file = DriveApp.getFileById(fileId);
-        var fileName = file.getName();
-        file.setTrashed(true);
-        return createJsonResponse({
-          success: true,
-          message: "File '" + fileName + "' berhasil dipindahkan ke Sampah Google Drive",
-          fileId: fileId,
-          fileName: fileName
-        });
-      } catch (delErr) {
-        return createJsonResponse({
-          success: false,
-          message: "Gagal menghapus file (" + fileId + "): " + delErr.toString()
-        }, 500);
-      }
-    }
-
-    return createJsonResponse({ success: false, message: "Aksi tidak dikenali." }, 400);
-
-  } catch (error) {
-    return createJsonResponse({
-      success: false,
-      message: "Terjadi kesalahan di server Google Apps Script: " + error.toString()
-    }, 500);
-  }
-}
-
-function getOrCreateFolderPath(folderNames) {
-  var currentFolder = DriveApp.getRootFolder();
-  for (var i = 0; i < folderNames.length; i++) {
-    var name = String(folderNames[i]).trim();
-    if (!name) continue;
-    name = name.replace(/[/\\\\?%*:|"<>]/g, "_");
-    var subFolders = currentFolder.getFoldersByName(name);
-    if (subFolders.hasNext()) {
-      currentFolder = subFolders.next();
-    } else {
-      currentFolder = currentFolder.createFolder(name);
-    }
-  }
-  return currentFolder;
-}
-
-function getDriveQuotaInfo() {
-  try {
-    var storageUsed = DriveApp.getStorageUsed();
-    var storageLimit = DriveApp.getStorageLimit();
-    return {
-      usedMB: Math.round(storageUsed / (1024 * 1024)),
-      limitMB: Math.round(storageLimit / (1024 * 1024))
-    };
-  } catch (e) {
-    return null;
-  }
-}
-
-function createJsonResponse(data) {
-  return ContentService.createTextOutput(JSON.stringify(data))
-    .setMimeType(ContentService.MimeType.JSON);
-}`;
+const GDRIVE_SCRIPT_CODE = "/**\n * Google Apps Script Web App — Sistem Surat Tugas BKI Pontianak\n * \n * INTEGRASI DUA-DALAM-SATU:\n * 1. GOOGLE SHEETS DATABASE — Menyimpan semua data tabel (SPS/PDS, Kwitansi, Laporan, Tarif, Kapal, dll)\n * 2. GOOGLE DRIVE STORAGE   — Menyimpan semua berkas lampiran (PDF Tiket, Kwitansi Hotel, Foto Survei)\n * \n * =========================================================================\n * PANDUAN PENERAPAN (DEPLOY) DI GOOGLE APPS SCRIPT:\n * =========================================================================\n * 1. Buka https://script.google.com/\n * 2. Buka proyek \"BKI Drive Service\" (atau buat proyek baru).\n * 3. Hapus SEMUA isi Code.gs lama, lalu tempelkan (PASTE) seluruh kode ini.\n * 4. Klik ikon Disket (Save / Simpan).\n * 5. Klik tombol biru \"Deploy\" (Terapkan) di kanan atas -> pilih \"Manage deployments\".\n * 6. Klik ikon Pensil (Edit) -> pada Version pilih \"New version\" (Versi Baru).\n *    Pastikan \"Who has access\" disetel ke \"Anyone\" (Siapa saja).\n * 7. Klik \"Deploy\".\n * =========================================================================\n */\n\nvar DB_SPREADSHEET_NAME = \"DATABASE_SURAT_BKI_PONTIANAK\";\n\n// ─── HTTP GET ─────────────────────────────────────────────────────────────────\nfunction doGet(e) {\n  var callback = (e && e.parameter && e.parameter.callback) || \"\";\n  var action = (e && e.parameter && e.parameter.action) || \"ping\";\n\n  var responseData = {};\n\n  try {\n    if (action === \"getAllData\" || action === \"readAll\") {\n      var db = getOrCreateDatabaseSpreadsheet();\n      var allData = readAllTablesFromSpreadsheet(db);\n      responseData = {\n        success: true,\n        data: allData,\n        spreadsheetUrl: db.getUrl(),\n        timestamp: new Date().toISOString()\n      };\n    } else if (action === \"readTable\") {\n      var tableName = e.parameter.table || \"surat_tugas\";\n      var dbSheet = getOrCreateDatabaseSpreadsheet();\n      var rows = readTableRows(dbSheet, tableName);\n      responseData = {\n        success: true,\n        table: tableName,\n        data: rows,\n        timestamp: new Date().toISOString()\n      };\n    } else {\n      // Default: Ping\n      var activeUser = \"\";\n      try { activeUser = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch (err) {}\n      var dbSpreadsheet = getOrCreateDatabaseSpreadsheet();\n      responseData = {\n        success: true,\n        message: \"Google Workspace API (Drive + Sheets) BKI Pontianak aktif dan siap digunakan!\",\n        action: action,\n        userEmail: activeUser || \"sistemsuratbki@gmail.com\",\n        spreadsheetUrl: dbSpreadsheet.getUrl(),\n        spreadsheetId: dbSpreadsheet.getId(),\n        quotaRemaining: getDriveQuotaInfo(),\n        timestamp: new Date().toISOString()\n      };\n    }\n  } catch (err) {\n    responseData = {\n      success: false,\n      message: \"Error doGet: \" + err.toString()\n    };\n  }\n\n  if (callback) {\n    return ContentService.createTextOutput(callback + \"(\" + JSON.stringify(responseData) + \");\")\n      .setMimeType(ContentService.MimeType.JAVASCRIPT);\n  }\n\n  return ContentService.createTextOutput(JSON.stringify(responseData))\n    .setMimeType(ContentService.MimeType.JSON);\n}\n\n// ─── HTTP POST ────────────────────────────────────────────────────────────────\nfunction doPost(e) {\n  try {\n    var payload = {};\n\n    if (e && e.postData && e.postData.contents) {\n      try {\n        payload = JSON.parse(e.postData.contents);\n      } catch (jsonErr) {\n        payload = e.parameter || {};\n      }\n    } else if (e && e.parameter) {\n      payload = e.parameter;\n    }\n\n    var action = payload.action || \"ping\";\n\n    // 1. PING / TEST KONEKSI\n    if (action === \"ping\") {\n      var userEmail = \"\";\n      try { userEmail = Session.getActiveUser().getEmail() || Session.getEffectiveUser().getEmail(); } catch (err) {}\n      var ss = getOrCreateDatabaseSpreadsheet();\n      return createJsonResponse({\n        success: true,\n        message: \"Koneksi ke Google Drive & Google Sheets BKI berhasil terhubung!\",\n        userEmail: userEmail || \"sistemsuratbki@gmail.com\",\n        spreadsheetUrl: ss.getUrl(),\n        quota: getDriveQuotaInfo(),\n        timestamp: new Date().toISOString()\n      });\n    }\n\n    // 2. GET ALL DATA (DATABASE GOOGLE SHEETS)\n    if (action === \"getAllData\" || action === \"readAll\") {\n      var dbAll = getOrCreateDatabaseSpreadsheet();\n      var dataObj = readAllTablesFromSpreadsheet(dbAll);\n      return createJsonResponse({\n        success: true,\n        data: dataObj,\n        spreadsheetUrl: dbAll.getUrl(),\n        timestamp: new Date().toISOString()\n      });\n    }\n\n    // 3. SAVE SINGLE ITEM (UPSERT ITEM KE SHEET TAB TERTENTU)\n    if (action === \"saveItem\") {\n      var targetTable = payload.table;\n      var itemData = payload.data;\n      if (!targetTable || !itemData || !itemData.id) {\n        return createJsonResponse({ success: false, message: \"Parameter 'table' dan 'data.id' wajib diisi.\" }, 400);\n      }\n\n      var dbSave = getOrCreateDatabaseSpreadsheet();\n      upsertItemToSheet(dbSave, targetTable, itemData);\n\n      return createJsonResponse({\n        success: true,\n        message: \"Item \" + itemData.id + \" berhasil disimpan ke Google Sheets [\" + targetTable + \"]\",\n        table: targetTable,\n        id: itemData.id\n      });\n    }\n\n    // 4. DELETE ITEM DARI GOOGLE SHEET\n    if (action === \"deleteItem\") {\n      var delTable = payload.table;\n      var delId = payload.id;\n      if (!delTable || !delId) {\n        return createJsonResponse({ success: false, message: \"Parameter 'table' dan 'id' wajib diisi.\" }, 400);\n      }\n\n      var dbDel = getOrCreateDatabaseSpreadsheet();\n      deleteItemFromSheet(dbDel, delTable, delId);\n\n      return createJsonResponse({\n        success: true,\n        message: \"Item \" + delId + \" berhasil dihapus dari Google Sheets [\" + delTable + \"]\"\n      });\n    }\n\n    // 5. SYNC ALL DATA (MASSAL KE GOOGLE SHEETS)\n    if (action === \"syncAll\") {\n      var fullData = payload.data || {};\n      var dbSync = getOrCreateDatabaseSpreadsheet();\n\n      var tables = ['surat_tugas', 'kwitansi_honor', 'laporan_survei', 'tariffs', 'grade_tariffs', 'admin_settings', 'master_kapal', 'users', 'visit_survei'];\n      var stats = {};\n\n      for (var i = 0; i < tables.length; i++) {\n        var tbl = tables[i];\n        var rows = fullData[tbl] || fullData[toCamelCase(tbl)] || [];\n        if (Array.isArray(rows) && rows.length > 0) {\n          syncTableBatch(dbSync, tbl, rows);\n          stats[tbl] = rows.length;\n        } else if (tbl === 'admin_settings' && fullData[tbl] && typeof fullData[tbl] === 'object') {\n          syncTableBatch(dbSync, tbl, [fullData[tbl]]);\n          stats[tbl] = 1;\n        }\n      }\n\n      return createJsonResponse({\n        success: true,\n        message: \"Seluruh data berhasil disinkronkan ke Google Sheets!\",\n        stats: stats,\n        spreadsheetUrl: dbSync.getUrl()\n      });\n    }\n\n    // 6. UPLOAD FILE KE GOOGLE DRIVE\n    if (action === \"uploadFile\" || action === \"upload\") {\n      return handleUploadFileToDrive(payload);\n    }\n\n    // 7. HAPUS FILE DARI GOOGLE DRIVE\n    if (action === \"deleteFile\" || action === \"delete\") {\n      return handleDeleteFileFromDrive(payload);\n    }\n\n    return createJsonResponse({\n      success: false,\n      message: \"Aksi '\" + action + \"' tidak dikenali oleh Google Workspace API.\"\n    }, 400);\n\n  } catch (error) {\n    return createJsonResponse({\n      success: false,\n      message: \"Terjadi kesalahan server: \" + error.toString()\n    }, 500);\n  }\n}\n\n// ─── GOOGLE SHEETS HELPER FUNCTIONS ──────────────────────────────────────────\n\nfunction getOrCreateDatabaseSpreadsheet() {\n  var files = DriveApp.getFilesByName(DB_SPREADSHEET_NAME);\n  while (files.hasNext()) {\n    var file = files.next();\n    if (!file.isTrashed()) {\n      try {\n        file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);\n      } catch (eShare) {}\n      return SpreadsheetApp.openById(file.getId());\n    }\n  }\n\n  // Buat baru jika belum ada\n  var newSheet = SpreadsheetApp.create(DB_SPREADSHEET_NAME);\n  try {\n    var fileObj = DriveApp.getFileById(newSheet.getId());\n    fileObj.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.EDIT);\n  } catch (eShare2) {}\n  return newSheet;\n}\n\nfunction getOrCreateSheetTab(ss, tabName) {\n  var sheet = ss.getSheetByName(tabName);\n  if (!sheet) {\n    sheet = ss.insertSheet(tabName);\n    // Inisialisasi Header: ID, Ringkasan, RawData, UpdatedAt\n    sheet.appendRow([\"ID\", \"NOMOR / NAMA\", \"STATUS / DETAIL\", \"PETUGAS / USER\", \"RAW_DATA\", \"UPDATED_AT\"]);\n    sheet.setFrozenRows(1);\n    sheet.getRange(1, 1, 1, 6).setBackground(\"#1e3a8a\").setFontColor(\"#ffffff\").setFontWeight(\"bold\");\n  }\n  return sheet;\n}\n\nfunction upsertItemToSheet(ss, tabName, item) {\n  var sheet = getOrCreateSheetTab(ss, tabName);\n  var id = String(item.id || item.username || \"\");\n  if (!id) return;\n\n  var lastRow = sheet.getLastRow();\n  var rowIndexToUpdate = -1;\n\n  if (lastRow > 1) {\n    var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();\n    for (var i = 0; i < ids.length; i++) {\n      if (String(ids[i][0]) === id) {\n        rowIndexToUpdate = i + 2;\n        break;\n      }\n    }\n  }\n\n  var col2 = item.nomor || item.namaKapal || item.name || item.tujuan || item.grade || item.kepalaCabang || \"\";\n  var col3 = item.status || item.approvalStatus || item.perihal || item.rate || item.uangHarian || item.role || \"\";\n  var col4 = item.petugas || item.penerima || item.username || item.pemohon || \"\";\n  var rawJson = JSON.stringify(item);\n  var updatedAt = new Date().toISOString();\n\n  var rowValues = [id, col2, col3, col4, rawJson, updatedAt];\n\n  if (rowIndexToUpdate > 0) {\n    sheet.getRange(rowIndexToUpdate, 1, 1, 6).setValues([rowValues]);\n  } else {\n    sheet.appendRow(rowValues);\n  }\n}\n\nfunction deleteItemFromSheet(ss, tabName, id) {\n  var sheet = ss.getSheetByName(tabName);\n  if (!sheet) return;\n\n  var lastRow = sheet.getLastRow();\n  if (lastRow <= 1) return;\n\n  var idStr = String(id);\n  var ids = sheet.getRange(2, 1, lastRow - 1, 1).getValues();\n  for (var i = 0; i < ids.length; i++) {\n    if (String(ids[i][0]) === idStr) {\n      sheet.deleteRow(i + 2);\n      break;\n    }\n  }\n}\n\nfunction syncTableBatch(ss, tabName, items) {\n  if (!Array.isArray(items) || items.length === 0) return;\n  var sheet = ss.getSheetByName(tabName);\n  if (sheet) {\n    ss.deleteSheet(sheet);\n  }\n  sheet = ss.insertSheet(tabName);\n  sheet.appendRow([\"ID\", \"NOMOR / NAMA\", \"STATUS / DETAIL\", \"PETUGAS / USER\", \"RAW_DATA\", \"UPDATED_AT\"]);\n  sheet.setFrozenRows(1);\n  sheet.getRange(1, 1, 1, 6).setBackground(\"#1e3a8a\").setFontColor(\"#ffffff\").setFontWeight(\"bold\");\n\n  var rowsToAdd = [];\n  for (var i = 0; i < items.length; i++) {\n    var item = items[i];\n    if (!item) continue;\n    var id = String(item.id || item.username || (\"item_\" + i));\n    var col2 = item.nomor || item.namaKapal || item.name || item.tujuan || item.grade || item.kepalaCabang || \"\";\n    var col3 = item.status || item.approvalStatus || item.perihal || item.rate || item.uangHarian || item.role || \"\";\n    var col4 = item.petugas || item.penerima || item.username || item.pemohon || \"\";\n    var rawJson = JSON.stringify(item);\n    var updatedAt = new Date().toISOString();\n    rowsToAdd.push([id, col2, col3, col4, rawJson, updatedAt]);\n  }\n\n  if (rowsToAdd.length > 0) {\n    sheet.getRange(2, 1, rowsToAdd.length, 6).setValues(rowsToAdd);\n  }\n}\n\nfunction readTableRows(ss, tabName) {\n  var sheet = ss.getSheetByName(tabName);\n  if (!sheet) return [];\n\n  var lastRow = sheet.getLastRow();\n  if (lastRow <= 1) return [];\n\n  // Ambil kolom RAW_DATA (kolom ke-5)\n  var rawDataCol = sheet.getRange(2, 5, lastRow - 1, 1).getValues();\n  var result = [];\n\n  for (var i = 0; i < rawDataCol.length; i++) {\n    var str = rawDataCol[i][0];\n    if (str) {\n      try {\n        result.push(JSON.parse(str));\n      } catch (e) {\n        // Fallback jika bukan JSON murni\n      }\n    }\n  }\n\n  return result;\n}\n\nfunction readAllTablesFromSpreadsheet(ss) {\n  var tables = ['surat_tugas', 'kwitansi_honor', 'laporan_survei', 'tariffs', 'grade_tariffs', 'admin_settings', 'master_kapal', 'users', 'visit_survei'];\n  var result = {};\n\n  for (var i = 0; i < tables.length; i++) {\n    var tbl = tables[i];\n    var rows = readTableRows(ss, tbl);\n    if (tbl === 'admin_settings') {\n      result[tbl] = rows.length > 0 ? rows[0] : null;\n    } else {\n      result[tbl] = rows;\n    }\n  }\n\n  return result;\n}\n\nfunction toCamelCase(str) {\n  return str.replace(/_([a-z])/g, function (g) { return g[1].toUpperCase(); });\n}\n\n// ─── GOOGLE DRIVE ATTACHMENT HELPER FUNCTIONS ────────────────────────────────\n\nfunction handleUploadFileToDrive(payload) {\n  var rootFolderName = payload.rootFolder || \"BKI_DOKUMEN_SURAT\";\n  var year = payload.year || new Date().getFullYear().toString();\n  var month = payload.month || Utilities.formatDate(new Date(), Session.getScriptTimeZone() || \"GMT+7\", \"MM-MMMM\");\n  var subFolder = payload.subFolder || \"UMUM\";\n  var category = payload.category || \"Dokumen_Lampiran\";\n\n  var fileName = payload.fileName || (\"file_\" + Date.now());\n  var mimeType = payload.mimeType || \"application/octet-stream\";\n  var base64Data = payload.base64Data || \"\";\n\n  if (!base64Data) {\n    return createJsonResponse({ success: false, message: \"Data file (base64) tidak ditemukan atau kosong.\" }, 400);\n  }\n\n  if (base64Data.indexOf(\",\") > -1) {\n    var parts = base64Data.split(\",\");\n    base64Data = parts[1];\n    if (parts[0].indexOf(\":\") > -1 && parts[0].indexOf(\";\") > -1) {\n      mimeType = parts[0].split(\":\")[1].split(\";\")[0] || mimeType;\n    }\n  }\n\n  var decodedBytes = Utilities.base64Decode(base64Data);\n  var decodedBlob = Utilities.newBlob(decodedBytes, mimeType, fileName);\n\n  var targetFolder = getOrCreateFolderPath([rootFolderName, year, month, subFolder, category]);\n  var createdFile = targetFolder.createFile(decodedBlob);\n\n  try {\n    createdFile.setDescription(\"Diunggah via Sistem Surat Tugas BKI Pontianak pada \" + new Date().toLocaleString());\n  } catch (eDesc) {}\n\n  try {\n    createdFile.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);\n  } catch (errSharing) {}\n\n  var fileId = createdFile.getId();\n  var viewUrl = \"https://drive.google.com/file/d/\" + fileId + \"/view?usp=sharing\";\n  var previewUrl = \"https://drive.google.com/file/d/\" + fileId + \"/preview\";\n  var directUrl = \"https://lh3.googleusercontent.com/d/\" + fileId;\n  var downloadUrl = \"https://drive.google.com/uc?export=download&id=\" + fileId;\n  var thumbnailUrl = \"https://lh3.googleusercontent.com/d/\" + fileId + \"=s800\";\n  var folderUrl = targetFolder.getUrl();\n\n  return createJsonResponse({\n    success: true,\n    fileId: fileId,\n    fileName: createdFile.getName(),\n    url: viewUrl,\n    viewUrl: viewUrl,\n    previewUrl: previewUrl,\n    directUrl: directUrl,\n    downloadUrl: downloadUrl,\n    thumbnailUrl: thumbnailUrl,\n    folderUrl: folderUrl,\n    folderName: targetFolder.getName(),\n    size: createdFile.getSize(),\n    mimeType: createdFile.getMimeType(),\n    storageProvider: \"gdrive\",\n    uploadedAt: new Date().toISOString()\n  });\n}\n\nfunction handleDeleteFileFromDrive(payload) {\n  var rawId = payload.fileId || payload.fileUrl || \"\";\n  if (!rawId) {\n    return createJsonResponse({ success: false, message: \"fileId atau URL tidak ditemukan\" }, 400);\n  }\n\n  var fileId = rawId;\n  var match = rawId.match(/\\/file\\/d\\/([a-zA-Z0-9_-]{20,})/) ||\n              rawId.match(/\\/d\\/([a-zA-Z0-9_-]{20,})/) ||\n              rawId.match(/id=([a-zA-Z0-9_-]{20,})/);\n  if (match && match[1]) {\n    fileId = match[1];\n  }\n\n  try {\n    var file = DriveApp.getFileById(fileId);\n    var fileName = file.getName();\n    file.setTrashed(true);\n    return createJsonResponse({\n      success: true,\n      message: \"File '\" + fileName + \"' berhasil dipindahkan ke Sampah Google Drive\",\n      fileId: fileId,\n      fileName: fileName\n    });\n  } catch (delErr) {\n    return createJsonResponse({\n      success: false,\n      message: \"Gagal menghapus file: \" + delErr.toString()\n    }, 500);\n  }\n}\n\nfunction getOrCreateFolderPath(folderNames) {\n  var currentFolder = DriveApp.getRootFolder();\n  for (var i = 0; i < folderNames.length; i++) {\n    var name = String(folderNames[i]).trim().replace(/[/\\\\?%*:|\"<>]/g, \"_\");\n    if (!name) continue;\n    var subFolders = currentFolder.getFoldersByName(name);\n    if (subFolders.hasNext()) {\n      currentFolder = subFolders.next();\n    } else {\n      currentFolder = currentFolder.createFolder(name);\n    }\n  }\n  return currentFolder;\n}\n\nfunction getDriveQuotaInfo() {\n  try {\n    var storageUsed = DriveApp.getStorageUsed();\n    var storageLimit = DriveApp.getStorageLimit();\n    return {\n      usedBytes: storageUsed,\n      limitBytes: storageLimit,\n      usedMB: Math.round(storageUsed / (1024 * 1024)),\n      limitMB: Math.round(storageLimit / (1024 * 1024))\n    };\n  } catch (e) {\n    return null;\n  }\n}\n\nfunction createJsonResponse(data, statusCode) {\n  return ContentService.createTextOutput(JSON.stringify(data))\n    .setMimeType(ContentService.MimeType.JSON);\n}\n";
 
 export const SettingsTab = () => {
   const { currentUser, changePassword, verifyCurrentPassword, updateUser, usersList } = useAuth();
-  const { adminSettings, updateAdminSettings, resetData, clearAllDataKeepSettings } = useData();
+  const { adminSettings, updateAdminSettings, resetData, clearAllDataKeepSettings, suratTugas, kwitansiHonor, laporanSurvei, tariffs, gradeTariffs, masterKapal, visitSurvei } = useData();
+  const [isSyncingToSheets, setIsSyncingToSheets] = useState(false);
 
   const [currentPassInput, setCurrentPassInput] = useState('');
   const [newPassInput, setNewPassInput] = useState('');
@@ -284,6 +72,44 @@ export const SettingsTab = () => {
   const [showGDriveGuide, setShowGDriveGuide] = useState(false);
   const [isCopiedScript, setIsCopiedScript] = useState(false);
 
+  // Hostinger MySQL State
+  const [hostingerConfig, setHostingerConfig] = useState(() => getHostingerConfig());
+  const [isTestingHostinger, setIsTestingHostinger] = useState(false);
+  const [hostingerTestResult, setHostingerTestResult] = useState(null);
+  const [isSyncingToHostinger, setIsSyncingToHostinger] = useState(false);
+  const [hostingerStats, setHostingerStats] = useState(null);
+
+  
+  const handleSyncAllToGoogleSheets = async () => {
+    setIsSyncingToSheets(true);
+    try {
+      const fullData = {
+        surat_tugas: suratTugas || [],
+        kwitansi_honor: kwitansiHonor || [],
+        laporan_survei: laporanSurvei || [],
+        tariffs: tariffs || [],
+        grade_tariffs: gradeTariffs || [],
+        admin_settings: adminSettings || {},
+        master_kapal: masterKapal || [],
+        users: usersList || [],
+        visit_survei: visitSurvei || []
+      };
+      const result = await syncAllToGoogleSheet(fullData);
+      toast.success('Seluruh data berhasil disinkronkan ke Google Sheets!');
+      if (result?.spreadsheetUrl) {
+        setGdriveTestResult((prev) => ({
+          ...(prev || {}),
+          success: true,
+          message: `Koneksi Berhasil & Data Tersinkronkan!\nGoogle Spreadsheet: ${result.spreadsheetUrl}`
+        }));
+      }
+    } catch (err) {
+      toast.error('Gagal sinkron ke Google Sheets: ' + err.message);
+    } finally {
+      setIsSyncingToSheets(false);
+    }
+  };
+
   const handleTestGDriveConnection = async () => {
     if (!gdriveConfig.webAppUrl) {
       toast.error('Masukkan Web App URL terlebih dahulu');
@@ -324,6 +150,82 @@ export const SettingsTab = () => {
     setTimeout(() => setIsCopiedScript(false), 3000);
   };
 
+  // ── Hostinger MySQL Handlers ──────────────────────────────────────────────
+  const handleTestHostingerConnection = async () => {
+    if (!hostingerConfig.apiUrl) {
+      toast.error('Masukkan URL API Hostinger terlebih dahulu');
+      return;
+    }
+    setIsTestingHostinger(true);
+    setHostingerTestResult(null);
+    try {
+      const result = await testHostingerConnection(hostingerConfig.apiUrl);
+      setHostingerTestResult({
+        success: true,
+        message: result.message,
+        latencyMs: result.latencyMs,
+        database: result.database
+      });
+      toast.success('Koneksi ke MySQL Hostinger berhasil!');
+      // Fetch stats
+      try {
+        const stats = await fetchHostingerStats();
+        if (stats) setHostingerStats(stats);
+      } catch (e) {}
+    } catch (err) {
+      setHostingerTestResult({
+        success: false,
+        message: err.message
+      });
+      toast.error(err.message || 'Gagal terhubung ke Hostinger');
+    } finally {
+      setIsTestingHostinger(false);
+    }
+  };
+
+  const handleSaveHostingerConfig = () => {
+    saveHostingerConfig(hostingerConfig);
+    toast.success('Pengaturan Database Hostinger berhasil disimpan!');
+  };
+
+  const handleSyncAllToHostinger = async () => {
+    setIsSyncingToHostinger(true);
+    try {
+      const fullData = {
+        surat_tugas: suratTugas || [],
+        kwitansi_honor: kwitansiHonor || [],
+        laporan_survei: laporanSurvei || [],
+        tariffs: tariffs || [],
+        grade_tariffs: gradeTariffs || [],
+        admin_settings: adminSettings || {},
+        master_kapal: masterKapal || [],
+        users: usersList || [],
+        visit_survei: visitSurvei || []
+      };
+      const result = await syncAllToHostinger(fullData);
+      if (result?.success) {
+        toast.success(`Data berhasil disinkronkan ke MySQL Hostinger! (${result.totalSaved || 0} record)`);
+        setHostingerTestResult({
+          success: true,
+          message: `Sinkronisasi berhasil! ${result.totalSaved || 0} record tersimpan di MySQL Hostinger.`
+        });
+        setHostingerConfig(prev => ({ ...prev, lastSync: new Date().toISOString(), lastSyncStatus: 'success' }));
+        // Refresh stats
+        try {
+          const stats = await fetchHostingerStats();
+          if (stats) setHostingerStats(stats);
+        } catch (e) {}
+      } else {
+        toast.error('Gagal sinkron: ' + (result?.message || 'Unknown error'));
+      }
+    } catch (err) {
+      toast.error('Gagal sinkron ke MySQL: ' + err.message);
+      setHostingerConfig(prev => ({ ...prev, lastSyncStatus: 'error' }));
+    } finally {
+      setIsSyncingToHostinger(false);
+    }
+  };
+
   const [signatoryInput, setSignatoryInput] = useState({
     kepalaCabang: adminSettings?.kepalaCabang || 'MUHSON NURROCHMAT',
     nup: adminSettings?.nup || '48199-KI',
@@ -354,14 +256,6 @@ export const SettingsTab = () => {
         kacabSignatureUrl: dataUrl
       }));
       toast.success('TTD Kepala Cabang berhasil diunggah!');
-
-      // Attempt background cloud upload if Supabase is connected
-      if (supabase) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `kacab_${Date.now()}.${fileExt}`;
-        const filePath = `signatures/${fileName}`;
-        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
-      }
     } catch (err) {
       console.error('Upload TTD Kacab failed:', err);
       toast.error('Gagal memproses berkas TTD Kepala Cabang.');
@@ -383,14 +277,6 @@ export const SettingsTab = () => {
         pembuatSignatureUrl: dataUrl
       }));
       toast.success('TTD Pembuat Daftar berhasil diunggah!');
-
-      // Attempt background cloud upload if Supabase is connected
-      if (supabase) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `pembuat_${Date.now()}.${fileExt}`;
-        const filePath = `signatures/${fileName}`;
-        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
-      }
     } catch (err) {
       console.error('Upload TTD Pembuat failed:', err);
       toast.error('Gagal memproses berkas TTD Pembuat Daftar.');
@@ -412,13 +298,6 @@ export const SettingsTab = () => {
         signatureUrl: dataUrl
       }));
       toast.success('TTD Digital berhasil diunggah! Klik Simpan untuk memperbarui database.');
-
-      if (supabase && currentUser?.id) {
-        const fileExt = file.name.split('.').pop();
-        const fileName = `user_${currentUser.id}_${Date.now()}.${fileExt}`;
-        const filePath = `signatures/${fileName}`;
-        supabase.storage.from('lampiran').upload(filePath, file).catch(() => {});
-      }
     } catch (err) {
       console.error('Upload TTD failed:', err);
       toast.error('Gagal memproses berkas TTD Digital.');
@@ -435,7 +314,7 @@ export const SettingsTab = () => {
     try {
       await updateUser(currentUser.id, profileInput);
       setMessage({ type: 'success', text: 'Profil dan database berhasil diperbarui secara otomatis!' });
-      toast.success('Profil & Database Supabase berhasil diperbarui!');
+      toast.success('Profil & Database berhasil diperbarui!');
     } catch (err) {
       console.error('Update profile error:', err);
       setMessage({ type: 'error', text: 'Gagal memperbarui profil di database.' });
@@ -530,7 +409,7 @@ export const SettingsTab = () => {
             <div>
               <h3 className="card-title">Profil Pengguna</h3>
               <div className="card-subtitle">
-                Perbarui informasi nama, kontak, dan TTD digital akun Anda (otomatis tersinkron ke database Supabase)
+                Perbarui informasi nama, kontak, dan TTD digital akun Anda (otomatis tersinkron ke database)
               </div>
             </div>
           </div>
@@ -1025,16 +904,16 @@ export const SettingsTab = () => {
         </div>
       )}
 
-      {/* GOOGLE DRIVE INTEGRATION SETTINGS (ADMIN, KACAB, DEVELOPER) */}
+      {/* GOOGLE WORKSPACE INTEGRATION SETTINGS (ADMIN, KACAB, DEVELOPER) */}
       {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'kacab') && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
           <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
             <div className="card-title-group">
               <HardDrive size={22} color="var(--accent-primary)" />
               <div>
-                <h3 className="card-title">Penyimpanan Berkas Google Drive (Pemisahan Lampiran & Database)</h3>
+                <h3 className="card-title">Integrasi Google Workspace (Google Drive & Google Sheets Database)</h3>
                 <div className="card-subtitle">
-                  Berkas lampiran (foto visit, bukti visit, kwitansi, tiket) disimpan otomatis di Google Drive, sedangkan data operasional (kapal, tarif, SPS, PDS, visit survei) disimpan di Database Supabase.
+                  Google Sheets digunakan sebagai Database penyimpanan seluruh data operasional (SPS, PDS, Kwitansi, Laporan, Tarif, Kapal), dan Google Drive digunakan untuk penyimpanan berkas lampiran (PDF, Foto, Bukti).
                 </div>
               </div>
             </div>
@@ -1045,12 +924,12 @@ export const SettingsTab = () => {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
               <div>
                 <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>
-                  Aktifkan Penyimpanan Google Drive
+                  Aktifkan Integrasi Google Workspace (Drive & Sheets)
                 </div>
                 <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
                   {gdriveConfig.enabled
-                    ? '🟢 Berkas baru yang diunggah akan otomatis disimpan ke Google Drive'
-                    : '⚪ Penyimpanan menggunakan mode standar (Supabase / Local)'}
+                    ? '🟢 Berkas lampiran otomatis disimpan ke Google Drive & data disinkronkan ke Google Sheets'
+                    : '⚪ Penyimpanan menggunakan mode lokal'}
                 </div>
               </div>
               <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px', margin: 0, cursor: 'pointer' }}>
@@ -1061,7 +940,7 @@ export const SettingsTab = () => {
                     const newCfg = { ...gdriveConfig, enabled: e.target.checked };
                     setGdriveConfig(newCfg);
                     saveGoogleDriveConfig(newCfg);
-                    toast.success(e.target.checked ? 'Google Drive diaktifkan!' : 'Google Drive dinonaktifkan.');
+                    toast.success(e.target.checked ? 'Google Drive & Sheets diaktifkan!' : 'Google Drive & Sheets dinonaktifkan.');
                   }}
                   style={{ opacity: 0, width: 0, height: 0 }}
                 />
@@ -1130,7 +1009,27 @@ export const SettingsTab = () => {
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: '0.5rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', flexWrap: 'wrap', gap: '0.5rem', marginBottom: '1rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleSyncAllToGoogleSheets}
+                  disabled={isSyncingToSheets || !gdriveConfig.webAppUrl}
+                  style={{ padding: '0.65rem 1rem', fontSize: '0.82rem', borderColor: '#059669', color: '#065f46', background: '#ecfdf5' }}
+                  title="Kirim seluruh data lokal (Surat Tugas, Kwitansi, Tarif, dll) ke Google Sheets"
+                >
+                  {isSyncingToSheets ? (
+                    <>
+                      <Loader2 size={15} className="spin-icon" />
+                      <span>Sinkronisasi...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Database size={15} color="#059669" />
+                      <span>Kirim Data ke Google Sheets</span>
+                    </>
+                  )}
+                </button>
                 <button
                   type="button"
                   className="btn btn-secondary"
@@ -1303,6 +1202,221 @@ export const SettingsTab = () => {
         </div>
       )}
 
+      {/* HOSTINGER MYSQL DATABASE INTEGRATION (ADMIN, KACAB, DEVELOPER) */}
+      {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'kacab') && (
+        <div className="card-section" style={{ padding: '1.75rem' }}>
+          <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
+            <div className="card-title-group">
+              <Server size={22} color="#8b5cf6" />
+              <div>
+                <h3 className="card-title">Database MySQL Hostinger</h3>
+                <div className="card-subtitle">
+                  Sinkronisasi data ke database MySQL di Hostinger sebagai database tambahan (dual sync bersama Google Sheets).
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '1.25rem' }}>
+            {/* Toggle Switch */}
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#f5f3ff', borderRadius: '8px', border: '1px solid #ddd6fe' }}>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#0f172a' }}>
+                  Aktifkan Sinkronisasi MySQL Hostinger
+                </div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-muted)', marginTop: '0.2rem' }}>
+                  {hostingerConfig.enabled
+                    ? '🟢 Data otomatis disinkronkan ke MySQL Hostinger (dual sync)'
+                    : '⚪ Hanya menggunakan Google Sheets sebagai database cloud'}
+                </div>
+              </div>
+              <label style={{ position: 'relative', display: 'inline-block', width: '48px', height: '26px', margin: 0, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  checked={hostingerConfig.enabled}
+                  onChange={(e) => {
+                    const newCfg = { ...hostingerConfig, enabled: e.target.checked };
+                    setHostingerConfig(newCfg);
+                    saveHostingerConfig(newCfg);
+                    toast.success(e.target.checked ? 'MySQL Hostinger diaktifkan!' : 'MySQL Hostinger dinonaktifkan.');
+                  }}
+                  style={{ opacity: 0, width: 0, height: 0 }}
+                />
+                <span
+                  style={{
+                    position: 'absolute',
+                    cursor: 'pointer',
+                    top: 0, left: 0, right: 0, bottom: 0,
+                    backgroundColor: hostingerConfig.enabled ? '#8b5cf6' : '#cbd5e1',
+                    transition: '.2s',
+                    borderRadius: '26px'
+                  }}
+                >
+                  <span
+                    style={{
+                      position: 'absolute',
+                      height: '20px', width: '20px',
+                      left: hostingerConfig.enabled ? '25px' : '3px',
+                      bottom: '3px',
+                      backgroundColor: 'white',
+                      transition: '.2s',
+                      borderRadius: '50%'
+                    }}
+                  />
+                </span>
+              </label>
+            </div>
+
+            {/* Config Form */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '1rem' }}>
+              <div className="form-group">
+                <label className="form-label" style={{ fontWeight: 700 }}>
+                  URL API Hostinger *
+                </label>
+                <input
+                  type="url"
+                  className="form-input"
+                  placeholder="https://domain-anda.com/api/api.php"
+                  value={hostingerConfig.apiUrl}
+                  onChange={(e) => setHostingerConfig({ ...hostingerConfig, apiUrl: e.target.value })}
+                  style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
+                />
+                <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', marginTop: '0.35rem' }}>
+                  URL file api.php yang sudah di-upload ke hosting Hostinger Anda (contoh: https://domain.com/api/api.php)
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleSyncAllToHostinger}
+                  disabled={isSyncingToHostinger || !hostingerConfig.apiUrl || !hostingerConfig.enabled}
+                  style={{ padding: '0.65rem 1rem', fontSize: '0.82rem', borderColor: '#8b5cf6', color: '#5b21b6', background: '#f5f3ff' }}
+                  title="Kirim seluruh data lokal ke MySQL Hostinger"
+                >
+                  {isSyncingToHostinger ? (
+                    <>
+                      <Loader2 size={15} className="spin-icon" />
+                      <span>Sinkronisasi...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Database size={15} color="#8b5cf6" />
+                      <span>Kirim Data ke MySQL</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={handleTestHostingerConnection}
+                  disabled={isTestingHostinger || !hostingerConfig.apiUrl}
+                  style={{ flex: 1, padding: '0.65rem', fontSize: '0.82rem' }}
+                >
+                  {isTestingHostinger ? (
+                    <>
+                      <Loader2 size={15} className="spin-icon" />
+                      <span>Menguji...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Zap size={15} color="#eab308" />
+                      <span>Tes Koneksi MySQL</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-primary"
+                  onClick={handleSaveHostingerConfig}
+                  style={{ padding: '0.65rem 1.25rem', fontSize: '0.82rem', background: '#8b5cf6', borderColor: '#8b5cf6' }}
+                >
+                  <Check size={15} />
+                  <span>Simpan</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Test Result Indicator */}
+            {hostingerTestResult && (
+              <div
+                style={{
+                  padding: '0.85rem 1rem',
+                  borderRadius: '8px',
+                  fontSize: '0.82rem',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '0.5rem',
+                  background: hostingerTestResult.success ? '#f5f3ff' : '#fef2f2',
+                  border: `1px solid ${hostingerTestResult.success ? '#c4b5fd' : '#fecaca'}`,
+                  color: hostingerTestResult.success ? '#5b21b6' : '#991b1b'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  {hostingerTestResult.success ? <CheckCircle2 size={18} color="#8b5cf6" /> : <AlertCircle size={18} color="#dc2626" />}
+                  <div style={{ flex: 1 }}>
+                    <strong>{hostingerTestResult.success ? 'Koneksi MySQL Berhasil!' : 'Koneksi Gagal'}</strong>
+                    {hostingerTestResult.latencyMs && (
+                      <span style={{ fontSize: '0.72rem', opacity: 0.8, marginLeft: '0.4rem' }}>
+                        ({hostingerTestResult.latencyMs} ms)
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div style={{ fontSize: '0.78rem', whiteSpace: 'pre-line', lineHeight: '1.45', paddingLeft: '1.6rem' }}>
+                  {hostingerTestResult.message}
+                </div>
+                {hostingerTestResult.database && (
+                  <div style={{ fontSize: '0.74rem', paddingLeft: '1.6rem', opacity: 0.85 }}>
+                    Database: <strong>{hostingerTestResult.database}</strong>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Stats */}
+            {hostingerStats && hostingerStats.stats && (
+              <div style={{ padding: '0.85rem 1rem', background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: '8px' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#5b21b6', marginBottom: '0.5rem' }}>
+                  📊 Statistik MySQL Hostinger ({hostingerStats.total || 0} total record)
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: '0.35rem', fontSize: '0.76rem', color: '#4c1d95' }}>
+                  {Object.entries(hostingerStats.stats).map(([tbl, cnt]) => (
+                    <div key={tbl} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.2rem 0.4rem', background: '#ede9fe', borderRadius: '4px' }}>
+                      <span>{tbl}</span>
+                      <strong>{cnt}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Last Sync Info */}
+            {hostingerConfig.lastSync && (
+              <div style={{ fontSize: '0.74rem', color: 'var(--text-muted)', padding: '0.5rem 0.75rem', background: '#f8fafc', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                Sinkronisasi terakhir: <strong>{new Date(hostingerConfig.lastSync).toLocaleString('id-ID')}</strong>
+                {hostingerConfig.lastSyncStatus === 'success' && <span style={{ color: '#059669', marginLeft: '0.5rem' }}>✅ Berhasil</span>}
+                {hostingerConfig.lastSyncStatus === 'error' && <span style={{ color: '#dc2626', marginLeft: '0.5rem' }}>❌ Gagal</span>}
+              </div>
+            )}
+
+            {/* Setup Guide */}
+            <div style={{ background: '#faf5ff', border: '1px solid #ddd6fe', borderRadius: '8px', padding: '1rem', fontSize: '0.8rem', lineHeight: '1.5', color: '#4c1d95' }}>
+              <div style={{ fontWeight: 700, marginBottom: '0.5rem', fontSize: '0.85rem' }}>📋 Panduan Setup Hostinger:</div>
+              <ol style={{ paddingLeft: '1.2rem', margin: 0 }}>
+                <li style={{ marginBottom: '0.3rem' }}>Buat database MySQL di <strong>hPanel Hostinger → Database → MySQL Databases</strong></li>
+                <li style={{ marginBottom: '0.3rem' }}>Edit file <code>config.php</code> di folder <code>hostinger-api/</code> — isi Host, Database, Username, Password</li>
+                <li style={{ marginBottom: '0.3rem' }}>Upload folder <code>hostinger-api/</code> (config.php, api.php, setup.php, .htaccess) ke <code>public_html/api/</code> di Hostinger</li>
+                <li style={{ marginBottom: '0.3rem' }}>Buka <code>https://domain.com/api/setup.php</code> untuk membuat tabel otomatis</li>
+                <li style={{ marginBottom: '0.3rem' }}>Masukkan URL API <code>https://domain.com/api/api.php</code> di kolom di atas, lalu klik Simpan</li>
+                <li>Klik "Tes Koneksi" dan "Kirim Data ke MySQL" untuk sinkronisasi awal</li>
+              </ol>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Developer Maintenance Box */}
       {currentUser?.role === 'developer' && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
@@ -1350,7 +1464,7 @@ export const SettingsTab = () => {
         onClose={() => setIsResetConfirmOpen(false)}
         onConfirm={handleConfirmResetDemo}
         title="Konfirmasi Reset Data"
-        message="Tindakan ini akan menghapus semua data Surat Tugas (SPS & PDS), Laporan BKI, Kwitansi, dan Lampiran dari sistem lokal & Cloud Supabase. Data Manajemen Tarif, Manajemen User, dan Database Kapal TIDAK AKAN DIHAPUS. Masukkan password developer Anda untuk melanjutkan."
+        message="Tindakan ini akan menghapus semua data Surat Tugas (SPS & PDS), Laporan BKI, Kwitansi, dan Lampiran dari sistem lokal & Cloud. Data Manajemen Tarif, Manajemen User, dan Database Kapal TIDAK AKAN DIHAPUS. Masukkan password developer Anda untuk melanjutkan."
         confirmText="Ya, Reset Semua Data"
         type="danger"
         requirePassword={true}

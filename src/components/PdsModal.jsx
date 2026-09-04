@@ -1,4 +1,3 @@
-import { supabase } from '../lib/supabase';
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import {
   X,
@@ -43,6 +42,7 @@ import { getLocationCategory, findTariffByLocation } from '../utils/tariffData';
 
 import { AttachmentPreviewModal } from './AttachmentPreviewModal';
 import { ShipAttachmentsUpload } from './ShipAttachmentsUpload';
+import { uploadUniversalFile } from '../utils/fileStorageHelper';
 import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
 import { MultiDocUpload } from './MultiDocUpload';
 import { countHolidaysAndWeekendsInRange, checkHolidayOrWeekend } from '../utils/holidays';
@@ -863,21 +863,21 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     if (fieldKey === 'visit') setIsUploadingVisit(true);
 
     try {
-      if (!supabase) throw new Error('Supabase not configured');
-      const mimeType = file.type || (fileExt.toLowerCase() === 'pdf' ? 'application/pdf' : 'image/jpeg');
-      // Convert File to ArrayBuffer to prevent multipart form-data corruption
-      const fileBuffer = await file.arrayBuffer();
-      const { data, error } = await supabase.storage.from('lampiran').upload(filePath, fileBuffer, { contentType: mimeType });
-      if (error) throw error;
+      const uploadRes = await uploadUniversalFile({
+        file,
+        folderContext: {
+          subFolder: formData.noAgenda || formData.nomor || 'PDS',
+          shipName: formData.namaKapal || '',
+          category: fieldKey
+        }
+      });
 
-      const { data: publicUrlData } = supabase.storage.from('lampiran').getPublicUrl(filePath);
-      const url = publicUrlData.publicUrl;
-
+      const url = uploadRes?.url || '';
       if (fieldKey === 'tiketTransport') setFormData((prev) => ({ ...prev, fileTiketTransportName: url }));
       if (fieldKey === 'kwitansiHotel') setFormData((prev) => ({ ...prev, fileKwitansiHotelName: url }));
       if (fieldKey === 'visit') setFormData((prev) => ({ ...prev, fileVisitName: url }));
     } catch (err) {
-      console.warn('Fallback to base64 for file:', file.name);
+      console.warn('Fallback to base64 for file:', file.name, err);
       const reader = new FileReader();
       reader.onloadend = () => {
         if (fieldKey === 'tiketTransport') setFormData((prev) => ({ ...prev, fileTiketTransportName: reader.result }));
