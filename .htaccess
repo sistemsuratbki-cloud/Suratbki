@@ -1,55 +1,49 @@
 # =========================================================================
 # Hostinger LiteSpeed & Apache — BKI Pontianak (Root public_html)
-# Serve React SPA from dist/
+# Bulletproof SPA Routing from dist/ with Zero Rewrite Loops
 # =========================================================================
 
-# 1. Prevent LiteSpeed 408 Timeouts
+# 1. Prevent LiteSpeed Timeouts & Aborts
 <IfModule Litespeed>
   RewriteEngine On
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. DirectoryIndex — serve React SPA directly from dist/
+# 2. DirectoryIndex — serve React SPA from dist/index.html
 DirectoryIndex dist/index.html index.html index.php
 
-# 4. Rewrite Rules
+# 3. URL Rewriting
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
 
-  # Forward auth headers to PHP (LiteSpeed/FastCGI strips them)
+  # Forward auth headers to PHP (LiteSpeed FastCGI)
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # ── STOP: API requests → let api/.htaccess handle ──
+  # CRITICAL: Stop if request has already been internally rewritten (prevents 408 loops)
+  RewriteCond %{ENV:REDIRECT_STATUS} 200
+  RewriteRule ^ - [L]
+
+  # ── Direct API requests → pass to api/ ──
   RewriteRule ^api/ - [L]
 
-  # ── STOP: PHP files (health, etc.) ──
-  RewriteCond %{REQUEST_URI} \.php$ [NC]
-  RewriteCond %{REQUEST_FILENAME} -f
-  RewriteRule ^ - [L]
-
-  # ── STOP: anything already in dist/ (prevent loop) ──
+  # ── Requests already in dist/ → pass directly without rewrite ──
   RewriteRule ^dist/ - [L]
 
-  # ── ROOT "/" request → serve dist/index.html ──
-  RewriteRule ^$ dist/index.html [L]
+  # ── Never serve uncompiled root index.html or raw index.php → map to dist/index.html ──
+  RewriteRule ^index\.(html|php)$ dist/index.html [L]
 
-  # ── Redirect root index.html to dist version ──
-  RewriteRule ^index\.html$ dist/index.html [L]
-
-  # ── Redirect root index.php to dist version ──
-  RewriteRule ^index\.php$ dist/index.html [L]
-
-  # ── Files that exist inside dist/ → proxy to dist/ ──
-  RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
-  RewriteRule ^(.+)$ dist/$1 [L]
-
-  # ── Existing files in root → serve directly ──
-  RewriteCond %{REQUEST_FILENAME} -f
+  # ── Existing real files in root (health.php, favicon.ico, etc.) → serve directly ──
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # ── SPA Fallback: all other routes → dist/index.html ──
+  # ── Static assets that exist in dist/ (assets/, signatures/, svg, etc.) ──
+  RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
+  RewriteRule ^(.*)$ dist/$1 [L]
+
+  # ── SPA Fallback: all remaining routes (/, /login, /dashboard, etc.) ──
   RewriteRule ^ dist/index.html [L]
 </IfModule>
 
