@@ -253,12 +253,21 @@ try {
         case 'ping':
             $pdo = getDb();
             $stmt = $pdo->query("SELECT 1");
+            $rootDir = dirname(__DIR__);
+            $gitHead = @file_get_contents($rootDir . '/.git/refs/heads/main');
+            $rootHtaccess = @file_get_contents($rootDir . '/.htaccess');
+            $distHtaccess = @file_get_contents($rootDir . '/dist/.htaccess');
             jsonResponse([
-                'success'   => true,
-                'message'   => 'Koneksi ke Database MySQL Hostinger aktif!',
-                'database'  => DB_NAME,
-                'server'    => 'Hostinger MySQL',
-                'timestamp' => date('c')
+                'success'       => true,
+                'message'       => 'Koneksi ke Database MySQL Hostinger aktif!',
+                'database'      => DB_NAME,
+                'server'        => 'Hostinger MySQL',
+                'timestamp'     => date('c'),
+                'git_head'      => $gitHead ? trim($gitHead) : 'unknown',
+                'root_htaccess_size' => strlen($rootHtaccess ?: ''),
+                'dist_htaccess' => trim($distHtaccess ?: ''),
+                'dist_index_size' => @filesize($rootDir . '/dist/index.html'),
+                'root_index_size' => @filesize($rootDir . '/index.html')
             ]);
             break;
 
