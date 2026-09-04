@@ -118,11 +118,11 @@ export const INITIAL_USERS = [
     name: 'Prasetya',
     email: 'sistemsuratbki@gmail.com',
     phone: '+620000000007',
-    role: 'developer',
+    role: 'admin',
     grade: '-',
-    roleLabel: 'Developer',
+    roleLabel: 'Admin BKI',
     avatarBg: '#eab308',
-    description: 'Developer Sistem'
+    description: 'Admin Sistem'
   },
   {
     id: 'usr-finance',
@@ -217,9 +217,10 @@ export const AuthProvider = ({ children }) => {
             needsMigration = true;
             updatedUser.password = await hashPassword('admin123');
           }
-          if (updatedUser.username === 'admin' && updatedUser.role !== 'developer') {
+          if (updatedUser.username === 'admin' && updatedUser.role !== 'admin') {
             needsMigration = true;
-            updatedUser.role = 'developer';
+            updatedUser.role = 'admin';
+            updatedUser.roleLabel = 'Admin BKI';
           }
           
           if ((updatedUser.username === 'bone' || (updatedUser.name && updatedUser.name.includes('BONE'))) && !updatedUser.signatureUrl) {
@@ -278,8 +279,16 @@ export const AuthProvider = ({ children }) => {
       if (needsMigration) {
         setUsersList(migratedUsers);
         localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));
+        setCurrentUser(prev => {
+          if (prev && (prev.username === 'admin' || prev.id === 'usr-prasetya')) {
+            const updated = { ...prev, role: 'admin', roleLabel: 'Admin BKI' };
+            localStorage.setItem('st_auth_user', JSON.stringify(updated));
+            return updated;
+          }
+          return prev;
+        });
       }
-      localStorage.setItem('st_admin_pass_v', 'admin123_v1');
+      localStorage.setItem('st_admin_pass_v', 'admin123_v3');
       setPasswordsMigrated(true);
     };
 
