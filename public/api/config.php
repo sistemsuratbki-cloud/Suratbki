@@ -24,9 +24,9 @@ if (basename($_SERVER['PHP_SELF'] ?? '') === 'config.php' || basename($_SERVER['
 
 // ── Koneksi Database MySQL Hostinger ──────────────────────────────────────
 define('DB_HOST',     'localhost');              // Biasanya 'localhost' di Hostinger
-define('DB_NAME',     'u123456789_suratbki');    // Nama database Anda
-define('DB_USER',     'u123456789_suratbki');    // Username database
-define('DB_PASS',     'Password_Anda_Disini');   // Password database
+define('DB_NAME',     'u974343860_SuratBKI');    // Nama database Hostinger
+define('DB_USER',     'u974343860_SuratBKI');    // Username database Hostinger
+define('DB_PASS',     'AdminBKI@!2026');         // Password database Hostinger
 define('DB_CHARSET',  'utf8mb4');
 
 // ── API Security ─────────────────────────────────────────────────────────
