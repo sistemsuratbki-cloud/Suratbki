@@ -293,7 +293,7 @@ export const DataProvider = ({ children }) => {
         fetchVisitSurveiFromCloud()
       ]);
 
-      if (Array.isArray(cloudSurat) && cloudSurat.length > 0) {
+      if (Array.isArray(cloudSurat)) {
         // Auto-heal orphan SPS: jika ada SPS yang memiliki pdsId mengarah ke PDS yang sudah tidak ada di database,
         // kembalikan statusnya ke 'Menunggu Survei' dan pdsId ke null agar tidak hilang/tersembunyi di UI.
         const pdsIdSet = new Set(
@@ -313,13 +313,19 @@ export const DataProvider = ({ children }) => {
           return st;
         });
 
-        setSuratTugas(healedSurat.map(cleanEntityObject));
+        const cleanedSurat = healedSurat.map(cleanEntityObject);
+        setSuratTugas(cleanedSurat);
+        safeSetLocalStorage('st_surat_tugas', cleanedSurat);
       }
-      if (Array.isArray(cloudKw) && cloudKw.length > 0) {
-        setKwitansiHonor(cloudKw.map(cleanEntityObject));
+      if (Array.isArray(cloudKw)) {
+        const cleanedKw = cloudKw.map(cleanEntityObject);
+        setKwitansiHonor(cleanedKw);
+        safeSetLocalStorage('st_kwitansi_honor', cleanedKw);
       }
-      if (Array.isArray(cloudLap) && cloudLap.length > 0) {
-        setLaporanSurvei(cloudLap.map(cleanEntityObject));
+      if (Array.isArray(cloudLap)) {
+        const cleanedLap = cloudLap.map(cleanEntityObject);
+        setLaporanSurvei(cleanedLap);
+        safeSetLocalStorage('st_laporan_survei', cleanedLap);
       }
       if (Array.isArray(cloudTariffs) && cloudTariffs.length > 0) {
         setTariffs(cloudTariffs);

@@ -18,8 +18,8 @@ export function getHostingerConfig() {
     if (saved) {
       const parsed = JSON.parse(saved);
       return {
-        enabled: parsed.enabled ?? false,
-        apiUrl: (parsed.apiUrl || '').trim(),
+        enabled: parsed.enabled ?? true,
+        apiUrl: normalizeHostingerApiUrl(parsed.apiUrl || 'https://pkadminclass.com/api/api.php'),
         apiToken: (parsed.apiToken || 'bki-pontianak-2026-secret-token').trim(),
         lastSync: parsed.lastSync || null,
         lastSyncStatus: parsed.lastSyncStatus || null
@@ -30,8 +30,8 @@ export function getHostingerConfig() {
   }
 
   return {
-    enabled: false,
-    apiUrl: '',
+    enabled: true,
+    apiUrl: 'https://pkadminclass.com/api/api.php',
     apiToken: 'bki-pontianak-2026-secret-token',
     lastSync: null,
     lastSyncStatus: null

@@ -129,7 +129,7 @@ const dualFetchTable = async (tableName) => {
   if (isHostingerEnabled()) {
     try {
       const hData = await fetchHostingerAllData();
-      if (hData && Array.isArray(hData[tableName]) && hData[tableName].length > 0) {
+      if (hData && Array.isArray(hData[tableName])) {
         return hData[tableName];
       }
       // Untuk admin_settings (object, bukan array)
@@ -444,10 +444,8 @@ export const clearOperationalDataFromCloud = async () => {
 export const subscribeToRealtimeChanges = (callbacks = {}) => {
   const config = typeof callbacks === 'function' ? { onAny: callbacks } : (callbacks || {});
 
-  // Polling berkala setiap 60 detik — fetch dari sumber primary
-  const intervalId = setInterval(async () => {
+  const checkSync = async () => {
     try {
-      // Coba Hostinger dulu, fallback ke Google Sheets
       let data = null;
       if (isHostingerEnabled()) {
         data = await fetchHostingerAllData(true);
@@ -460,10 +458,28 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
         config.onAny('all', 'REFRESH', data);
       }
     } catch (e) {}
-  }, 60000);
+  };
+
+  // Polling berkala setiap 15 detik
+  const intervalId = setInterval(checkSync, 15000);
+
+  // Auto-sync saat aplikasi dibuka kembali / tab di-fokuskan
+  const handleVisibility = () => {
+    if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+      checkSync();
+    }
+  };
+  if (typeof window !== 'undefined') {
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', checkSync);
+  }
 
   return () => {
     clearInterval(intervalId);
+    if (typeof window !== 'undefined') {
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', checkSync);
+    }
   };
 };
 
