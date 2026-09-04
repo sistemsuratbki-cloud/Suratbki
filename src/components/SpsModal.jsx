@@ -232,7 +232,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
 
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
-            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {/* Section 1: Penugasan Surveyor, Tanggal Pembuatan & Jadwal Survei */}
               <div
                 style={{

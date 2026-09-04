@@ -1008,7 +1008,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
           {/* Form */}
           <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%', overflow: 'hidden' }}>
-            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
+            <div className="modal-body" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
               {/* Lock Warning Banner */}
               {isLocked && (
                 <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 'var(--radius-md)', padding: '0.85rem 1rem', marginBottom: '1.25rem', display: 'flex', alignItems: 'center', gap: '0.65rem', color: '#991b1b', fontSize: '0.84rem' }}>
@@ -1027,7 +1027,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 </div>
               )}
 
-              <fieldset disabled={isLocked} style={{ border: 'none', padding: 0, margin: 0, opacity: isLocked ? 0.9 : 1 }}>
+              <fieldset disabled={isLocked} style={{ border: 'none', padding: 0, margin: 0, minWidth: 0, width: '100%', maxWidth: '100%', opacity: isLocked ? 0.9 : 1 }}>
               {/* Section 1: Nomor Surat PDS & Surveyor */}
               <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr 1fr', gap: '1rem', marginBottom: '1.25rem' }}>
                 <div className="form-group" style={{ margin: 0 }}>
@@ -1709,7 +1709,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                 {/* Table of Selected Ships from Database / SPS */}
                 {shipsDetail.length > 0 ? (
                   <div>
-                    <table style={{ width: '100%', fontSize: '0.82rem', borderCollapse: 'collapse', marginBottom: '0.6rem' }}>
+                    <div style={{ width: '100%', overflowX: 'auto', WebkitOverflowScrolling: 'touch', marginBottom: '0.6rem' }}>
+                      <table style={{ width: '100%', minWidth: '460px', fontSize: '0.82rem', borderCollapse: 'collapse' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-card)', textAlign: 'left', color: 'var(--text-secondary)' }}>
                           <th style={{ padding: '6px 8px', borderBottom: '1px solid var(--border-color)' }}>No</th>
@@ -1821,6 +1822,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                         })()}
                       </tbody>
                     </table>
+                  </div>
 
                     {/* Multi-Ship Split Calculation Banner */}
                     {shipsDetail.length > 1 && (
@@ -1894,9 +1896,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
 
                 <div style={{ marginBottom: '1rem' }}>
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                       <span style={{ fontWeight: 700 }}>Tempat Survey & Tarif SK *</span>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
                         <span className={`badge ${formData.kategoriPerjalanan === 'Luar Kota' ? 'badge-primary' : 'badge-success'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
                           {formData.kategoriPerjalanan || 'Dalam Kota'}
                         </span>

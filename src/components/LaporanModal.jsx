@@ -320,7 +320,7 @@ export const LaporanModal = ({ isOpen, onClose, editItem = null, onPrintSuratTug
             </button>
           </div>
 
-          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', padding: '1.75rem 3rem 14rem', minHeight: 0 }}>
+          <div className="modal-body" style={{ flex: 1, overflowY: 'auto', minHeight: 0 }}>
             {isFinance ? (
               <form onSubmit={handleSubmit}>
                 {/* Summary Info Card for Finance */}

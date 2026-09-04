@@ -13,13 +13,15 @@ const STORAGE_KEY_HOSTINGER_CONFIG = 'st_hostinger_config';
  * Mengambil konfigurasi Hostinger dari localStorage
  */
 export function getHostingerConfig() {
+  const defaultApiUrl = 'https://pkadminclass.com/api/api.php';
   try {
     const saved = localStorage.getItem(STORAGE_KEY_HOSTINGER_CONFIG);
     if (saved) {
       const parsed = JSON.parse(saved);
+      const cleanUrl = normalizeHostingerApiUrl(parsed.apiUrl) || defaultApiUrl;
       return {
-        enabled: parsed.enabled ?? true,
-        apiUrl: normalizeHostingerApiUrl(parsed.apiUrl || 'https://pkadminclass.com/api/api.php'),
+        enabled: parsed.enabled !== undefined ? parsed.enabled : true,
+        apiUrl: cleanUrl,
         apiToken: (parsed.apiToken || 'bki-pontianak-2026-secret-token').trim(),
         lastSync: parsed.lastSync || null,
         lastSyncStatus: parsed.lastSyncStatus || null
@@ -31,7 +33,7 @@ export function getHostingerConfig() {
 
   return {
     enabled: true,
-    apiUrl: 'https://pkadminclass.com/api/api.php',
+    apiUrl: defaultApiUrl,
     apiToken: 'bki-pontianak-2026-secret-token',
     lastSync: null,
     lastSyncStatus: null

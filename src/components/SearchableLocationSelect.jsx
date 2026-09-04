@@ -157,6 +157,7 @@ export default function SearchableLocationSelect({
           <div
             style={{
               flex: 1,
+              minWidth: 0,
               fontSize: '0.84rem',
               fontWeight: 700,
               color: value ? 'var(--text-primary)' : 'var(--text-muted)',
@@ -195,6 +196,7 @@ export default function SearchableLocationSelect({
               outline: 'none',
               background: 'transparent',
               width: '100%',
+              minWidth: 0,
               fontSize: '0.84rem',
               color: 'var(--text-primary)',
               fontWeight: 600,

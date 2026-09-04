@@ -23,6 +23,11 @@ if (ALLOWED_ORIGINS === '*') {
     $allowed = array_map('trim', explode(',', ALLOWED_ORIGINS));
     if (in_array($origin, $allowed)) {
         header('Access-Control-Allow-Origin: ' . $origin);
+    } elseif (
+        preg_match('/^https?:\/\/(localhost|127\.0\.0\.1)(:[0-9]+)?$/', $origin) ||
+        preg_match('/^https?:\/\/([a-z0-9-]+\.)?pkadminclass\.com$/', $origin)
+    ) {
+        header('Access-Control-Allow-Origin: ' . $origin);
     }
 }
 header('Access-Control-Allow-Methods: GET, POST, OPTIONS');
@@ -37,23 +42,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // ── API Token Authentication ─────────────────────────────────────────────
-// Semua request POST (write operations) WAJIB menyertakan header X-API-Token
-// Request GET (read) boleh tanpa token untuk kemudahan integrasi
+// Semua request (kecuali 'ping') WAJIB menyertakan header X-API-Token / Authorization
 function verifyApiToken() {
     $action = isset($_GET['action']) ? $_GET['action'] : '';
     
     // Ping diperbolehkan tanpa token (untuk testing koneksi)
     if ($action === 'ping') return;
     
-    // GET requests diperbolehkan tanpa token (read-only)
-    if ($_SERVER['REQUEST_METHOD'] === 'GET') return;
-    
-    // POST requests wajib token
+    // Token verifikasi
     $token = '';
     if (isset($_SERVER['HTTP_X_API_TOKEN'])) {
         $token = $_SERVER['HTTP_X_API_TOKEN'];
     } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
         $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']);
+    } elseif (isset($_GET['token'])) {
+        $token = $_GET['token'];
     }
 
     if (defined('API_TOKEN') && API_TOKEN !== '') {
@@ -215,8 +218,19 @@ try {
             $allData = [];
             foreach ($VALID_TABLES as $tbl) {
                 if ($tbl === 'admin_settings') {
-                    $rows = readTable($tbl);
-                    $allData[$tbl] = count($rows) > 0 ? $rows[0] : null;
+                    $pdo = getDb();
+                    $stmt = $pdo->query("SELECT `id`, `raw_data`, `created_at`, `updated_at` FROM `admin_settings` ORDER BY (CASE WHEN `id` = 'default' THEN 0 ELSE 1 END), `updated_at` DESC LIMIT 1");
+                    $row = $stmt->fetch();
+                    if ($row) {
+                        $item = ['id' => $row['id'], 'created_at' => $row['created_at'], 'updated_at' => $row['updated_at']];
+                        if ($row['raw_data']) {
+                            $rawDecoded = json_decode($row['raw_data'], true);
+                            if (is_array($rawDecoded)) $item = array_merge($item, $rawDecoded);
+                        }
+                        $allData[$tbl] = $item;
+                    } else {
+                        $allData[$tbl] = null;
+                    }
                 } else {
                     $allData[$tbl] = readTable($tbl);
                 }
@@ -279,10 +293,11 @@ try {
 
                     // admin_settings diperlakukan khusus (single object, bukan array)
                     if ($tableName === 'admin_settings') {
-                        if (is_array($items) && !isset($items[0])) {
-                            // Single object
-                            $itemWithId = $items;
+                        if (is_array($items)) {
+                            $itemWithId = isset($items[0]) && is_array($items[0]) ? $items[0] : $items;
                             if (!isset($itemWithId['id'])) $itemWithId['id'] = 'default';
+                            // Bersihkan duplikasi pengaturan lama
+                            $pdo->exec("DELETE FROM `admin_settings` WHERE `id` != 'default'");
                             $result = upsertItem($tableName, $itemWithId);
                             if ($result['success']) $totalSaved++;
                             $syncResults[$tableName] = 1;

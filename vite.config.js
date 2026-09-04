@@ -18,11 +18,13 @@ export default defineConfig({
     global: 'globalThis'
   },
   build: {
-    chunkSizeWarningLimit: 2000,
+    chunkSizeWarningLimit: 1200,
     rollupOptions: {
       output: {
         manualChunks: {
-          vendor: ['react', 'react-dom'],
+          vendor: ['react', 'react-dom', 'react-hot-toast'],
+          excel: ['exceljs', 'buffer', 'stream-browserify'],
+          icons: ['lucide-react'],
           pdfjs: ['pdfjs-dist']
         }
       }

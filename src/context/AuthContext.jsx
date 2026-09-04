@@ -279,6 +279,8 @@ export const AuthProvider = ({ children }) => {
       if (needsMigration) {
         setUsersList(migratedUsers);
         localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));
+        // Sync migrated users to cloud so cloud database also stores secure hashes
+        migratedUsers.forEach((u) => saveUserToCloud(u).catch(() => {}));
         setCurrentUser(prev => {
           if (prev && (prev.username === 'admin' || prev.id === 'usr-prasetya')) {
             const updated = { ...prev, role: 'admin', roleLabel: 'Admin BKI' };

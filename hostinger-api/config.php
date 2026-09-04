@@ -35,8 +35,7 @@ define('API_TOKEN',   'bki-pontianak-2026-secret-token');
 
 // ── CORS Settings ────────────────────────────────────────────────────────
 // Domain yang diizinkan mengakses API (pisahkan dengan koma)
-// Gunakan '*' untuk mengizinkan semua domain (development only)
-define('ALLOWED_ORIGINS', '*');
+define('ALLOWED_ORIGINS', 'https://pkadminclass.com,http://localhost:5173,http://localhost:3000,http://localhost:4173');
 
 // ── Timezone ─────────────────────────────────────────────────────────────
 date_default_timezone_set('Asia/Pontianak');

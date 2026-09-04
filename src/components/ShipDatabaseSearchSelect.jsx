@@ -104,6 +104,7 @@ export default function ShipDatabaseSearchSelect({
             outline: 'none',
             background: 'transparent',
             width: '100%',
+            minWidth: 0,
             fontSize: '0.84rem',
             color: 'var(--text-primary)',
             fontWeight: 600,
