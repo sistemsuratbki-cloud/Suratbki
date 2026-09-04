@@ -9,11 +9,8 @@
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. Custom Error Document — catch CDN 408 and redirect to SPA
-ErrorDocument 408 /dist/index.html
-
-# 3. DirectoryIndex — app.php serves dist/index.html via PHP (bypasses CDN cache)
-DirectoryIndex app.php dist/index.html index.html
+# 2. DirectoryIndex — serve React SPA directly from dist/
+DirectoryIndex dist/index.html index.html index.php
 
 # 4. Rewrite Rules
 <IfModule mod_rewrite.c>
