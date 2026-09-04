@@ -21,30 +21,35 @@
   # ── STOP: API requests → let api/.htaccess handle ──
   RewriteRule ^api/ - [L]
 
-  # ── STOP: health check ──
+  # ── STOP: health check PHP ──
   RewriteRule ^health\.php$ - [L]
 
-  # ── STOP: prevent loop on dist/ internal access ──
+  # ── STOP: anything already in dist/ (prevent loop) ──
   RewriteRule ^dist/ - [L]
 
-  # ── ROOT "/" request → rewrite to dist/index.html ──
+  # ── Block direct access to root index.html (it's Vite source, useless) ──
+  RewriteRule ^index\.html$ dist/index.html [L]
+
+  # ── Block direct access to root index.php ──
+  RewriteRule ^index\.php$ dist/index.html [L]
+
+  # ── ROOT "/" request → serve dist/index.html ──
   RewriteRule ^$ dist/index.html [L]
 
   # ── Files that exist inside dist/ → proxy to dist/ ──
   RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
   RewriteRule ^(.+)$ dist/$1 [L]
 
-  # ── Existing files in root (NOT index.html/index.php) → serve directly ──
+  # ── Existing files in root → serve directly ──
   RewriteCond %{REQUEST_FILENAME} -f
-  RewriteCond %{REQUEST_URI} !^/index\.(html|php)$ [NC]
   RewriteRule ^ - [L]
 
   # ── SPA Fallback: all other routes → dist/index.html ──
   RewriteRule ^ dist/index.html [L]
 </IfModule>
 
-# 3. Block sensitive files from direct browser access
-<FilesMatch "^(\.(git|env|htpasswd)|config\.php|package(-lock)?\.json|vite\.config\.js|index\.(php|html))$">
+# 3. Block sensitive files
+<FilesMatch "^(\.(git|env|htpasswd)|config\.php|setup\.php|package(-lock)?\.json|vite\.config\.js)$">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>
