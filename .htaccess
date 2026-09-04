@@ -1,6 +1,6 @@
 # =========================================================================
 # Hostinger LiteSpeed & Apache — BKI Pontianak (Root public_html)
-# Serve React SPA from dist/ — NO PHP router
+# Serve React SPA from dist/
 # =========================================================================
 
 # 1. Prevent LiteSpeed 408 Timeouts
@@ -9,7 +9,10 @@
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. Rewrite Rules
+# 2. Custom Error Document — catch CDN 408 and redirect to SPA
+ErrorDocument 408 /dist/index.html
+
+# 3. Rewrite Rules
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -21,20 +24,22 @@
   # ── STOP: API requests → let api/.htaccess handle ──
   RewriteRule ^api/ - [L]
 
-  # ── STOP: health check PHP ──
-  RewriteRule ^health\.php$ - [L]
+  # ── STOP: PHP files (health, etc.) ──
+  RewriteCond %{REQUEST_URI} \.php$ [NC]
+  RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
 
   # ── STOP: anything already in dist/ (prevent loop) ──
   RewriteRule ^dist/ - [L]
 
-  # ── Block direct access to root index.html (it's Vite source, useless) ──
-  RewriteRule ^index\.html$ dist/index.html [L]
-
-  # ── Block direct access to root index.php ──
-  RewriteRule ^index\.php$ dist/index.html [L]
-
   # ── ROOT "/" request → serve dist/index.html ──
   RewriteRule ^$ dist/index.html [L]
+
+  # ── Redirect root index.html to dist version ──
+  RewriteRule ^index\.html$ dist/index.html [L]
+
+  # ── Redirect root index.php to dist version ──
+  RewriteRule ^index\.php$ dist/index.html [L]
 
   # ── Files that exist inside dist/ → proxy to dist/ ──
   RewriteCond %{DOCUMENT_ROOT}/dist%{REQUEST_URI} -f
@@ -48,14 +53,14 @@
   RewriteRule ^ dist/index.html [L]
 </IfModule>
 
-# 3. Block sensitive files
+# 4. Block sensitive files
 <FilesMatch "^(\.(git|env|htpasswd)|config\.php|setup\.php|package(-lock)?\.json|vite\.config\.js)$">
   <IfModule mod_authz_core.c>
     Require all denied
   </IfModule>
 </FilesMatch>
 
-# 4. Security Headers
+# 5. Security Headers
 <IfModule mod_headers.c>
   Header set X-Content-Type-Options "nosniff"
   Header set X-XSS-Protection "1; mode=block"
@@ -63,7 +68,7 @@
   Header set Referrer-Policy "strict-origin-when-cross-origin"
 </IfModule>
 
-# 5. Cache Control
+# 6. Cache Control
 <IfModule mod_expires.c>
   ExpiresActive On
   ExpiresDefault "access plus 1 month"
@@ -82,7 +87,7 @@
   ExpiresByType font/ttf "access plus 1 year"
 </IfModule>
 
-# 6. GZIP Compression
+# 7. GZIP Compression
 <IfModule mod_deflate.c>
   AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
 </IfModule>
