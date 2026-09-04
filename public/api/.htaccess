@@ -1,0 +1,42 @@
+# ── Apache Configuration for BKI API ──
+# Upload file ini ke folder yang sama dengan api.php
+
+# Enable Rewrite Engine
+RewriteEngine On
+
+# Disable Directory Indexing
+Options -Indexes
+
+# Route all API requests to api.php
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ api.php [QSA,L]
+
+# Security: Block access to config file and sensitive files
+<FilesMatch "^(config\.php|setup\.lock|\.env.*)">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order Allow,Deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+
+# CORS Headers (backup, juga diset di PHP)
+<IfModule mod_headers.c>
+    Header always set Access-Control-Allow-Origin "*"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-API-Token"
+    Header always set Access-Control-Max-Age "86400"
+</IfModule>
+
+# PHP Settings
+<IfModule mod_php.c>
+    php_value upload_max_filesize 64M
+    php_value post_max_size 64M
+    php_value max_execution_time 120
+    php_value max_input_time 120
+    php_value memory_limit 256M
+</IfModule>
