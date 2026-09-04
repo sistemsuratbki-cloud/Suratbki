@@ -1,8 +1,19 @@
-# ── Apache / LiteSpeed Configuration for BKI API ──
-# Upload file ini ke folder yang sama dengan api.php
+# =========================================================================
+# LiteSpeed & Apache Configuration for BKI API Backend
+# Upload file ini ke folder public_html/api/ di Hostinger
+# =========================================================================
 
-# Enable Rewrite Engine
+# Prevent LiteSpeed timeouts on API
+<IfModule Litespeed>
+  RewriteEngine On
+  RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
+</IfModule>
+
 RewriteEngine On
+
+# Pass Authorization and custom headers to PHP
+RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
 # Stop loop if api.php is requested directly
 RewriteRule ^api\.php$ - [L]
@@ -13,7 +24,7 @@ RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^(.*)$ api.php [QSA,L]
 
 # Security: Block access to config file and sensitive files
-<FilesMatch "^(config\.php|setup\.php|setup\.lock|\.env.*|\.git.*)">
+<FilesMatch "^(config\.php|setup\.lock|\.env.*|\.git.*)">
     <IfModule mod_authz_core.c>
         Require all denied
     </IfModule>
@@ -30,4 +41,3 @@ RewriteRule ^(.*)$ api.php [QSA,L]
     Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-API-Token"
     Header always set Access-Control-Max-Age "86400"
 </IfModule>
-

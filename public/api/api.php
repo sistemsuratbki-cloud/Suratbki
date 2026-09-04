@@ -42,32 +42,75 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 // ── API Token Authentication ─────────────────────────────────────────────
-// Semua request (kecuali 'ping') WAJIB menyertakan header X-API-Token / Authorization
+// Semua request (kecuali 'ping') WAJIB menyertakan token autentikasi
 function verifyApiToken() {
     $action = isset($_GET['action']) ? $_GET['action'] : '';
     
-    // Ping diperbolehkan tanpa token (untuk testing koneksi)
+    // Ping diperbolehkan tanpa token (untuk health check koneksi)
     if ($action === 'ping') return;
     
-    // Token verifikasi
+    // Ambil token dari berbagai kemungkinan header & parameter
     $token = '';
-    if (isset($_SERVER['HTTP_X_API_TOKEN'])) {
+    if (!empty($_SERVER['HTTP_X_API_TOKEN'])) {
         $token = $_SERVER['HTTP_X_API_TOKEN'];
-    } elseif (isset($_SERVER['HTTP_AUTHORIZATION'])) {
+    } elseif (!empty($_SERVER['REDIRECT_HTTP_X_API_TOKEN'])) {
+        $token = $_SERVER['REDIRECT_HTTP_X_API_TOKEN'];
+    } elseif (!empty($_SERVER['HTTP_AUTHORIZATION'])) {
         $token = str_replace('Bearer ', '', $_SERVER['HTTP_AUTHORIZATION']);
-    } elseif (isset($_GET['token'])) {
+    } elseif (!empty($_SERVER['REDIRECT_HTTP_AUTHORIZATION'])) {
+        $token = str_replace('Bearer ', '', $_SERVER['REDIRECT_HTTP_AUTHORIZATION']);
+    } elseif (function_exists('apache_request_headers')) {
+        $headers = apache_request_headers();
+        foreach ($headers as $k => $v) {
+            $lower = strtolower($k);
+            if ($lower === 'x-api-token') {
+                $token = $v;
+                break;
+            } elseif ($lower === 'authorization') {
+                $token = str_replace('Bearer ', '', $v);
+                break;
+            }
+        }
+    }
+    
+    if (empty($token) && !empty($_GET['token'])) {
         $token = $_GET['token'];
     }
-
-    if (defined('API_TOKEN') && API_TOKEN !== '') {
-        if ($token !== API_TOKEN) {
-            http_response_code(401);
-            echo json_encode([
-                'success' => false,
-                'message' => 'Akses ditolak: API Token tidak valid atau tidak ditemukan. Sertakan header X-API-Token.'
-            ], JSON_UNESCAPED_UNICODE);
-            exit;
+    if (empty($token) && !empty($_POST['token'])) {
+        $token = $_POST['token'];
+    }
+    if (empty($token)) {
+        $raw = file_get_contents('php://input');
+        if ($raw) {
+            $parsed = json_decode($raw, true);
+            if (is_array($parsed) && !empty($parsed['token'])) {
+                $token = $parsed['token'];
+            }
         }
+    }
+
+    $token = trim((string)$token);
+
+    // Daftar token yang diakui sah (mendukung backward & forward compatibility)
+    $validTokens = [
+        'bki_secret_token_2026_pontianak_secure',
+        'bki-pontianak-2026-secret-token'
+    ];
+    if (defined('API_TOKEN') && API_TOKEN !== '') {
+        $validTokens[] = API_TOKEN;
+    }
+
+    // Validasi token
+    if (!in_array($token, $validTokens, true)) {
+        // PENTING: Gunakan status 403 Forbidden (bukan 401).
+        // LiteSpeed / CDN Hostinger mengonversi status 401 tanpa WWW-Authenticate menjadi halaman error 408 Request Time-out!
+        http_response_code(403);
+        echo json_encode([
+            'success'      => false,
+            'unauthorized' => true,
+            'message'      => 'Akses ditolak: API Token tidak valid atau tidak ditemukan. Sertakan header X-API-Token.'
+        ], JSON_UNESCAPED_UNICODE);
+        exit;
     }
 }
 verifyApiToken();
@@ -77,14 +120,21 @@ verifyApiToken();
 function getDb() {
     static $pdo = null;
     if ($pdo === null) {
+        $host    = defined('DB_HOST') ? DB_HOST : 'localhost';
+        $dbname  = defined('DB_NAME') ? DB_NAME : '';
+        $user    = defined('DB_USER') ? DB_USER : '';
+        $pass    = defined('DB_PASS') ? DB_PASS : '';
+        $charset = defined('DB_CHARSET') ? DB_CHARSET : 'utf8mb4';
+
         $pdo = new PDO(
-            'mysql:host=' . DB_HOST . ';dbname=' . DB_NAME . ';charset=' . DB_CHARSET,
-            DB_USER,
-            DB_PASS,
+            "mysql:host={$host};dbname={$dbname};charset={$charset}",
+            $user,
+            $pass,
             [
                 PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false
+                PDO::ATTR_EMULATE_PREPARES   => false,
+                PDO::ATTR_TIMEOUT            => 5
             ]
         );
     }

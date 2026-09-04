@@ -31,11 +31,11 @@ define('DB_CHARSET',  'utf8mb4');
 
 // ── API Security ─────────────────────────────────────────────────────────
 // Ganti dengan token rahasia Anda sendiri untuk keamanan API
-define('API_TOKEN',   'bki-pontianak-2026-secret-token');
+define('API_TOKEN',   'bki_secret_token_2026_pontianak_secure');
 
 // ── CORS Settings ────────────────────────────────────────────────────────
-// Domain yang diizinkan mengakses API (pisahkan dengan koma)
-define('ALLOWED_ORIGINS', 'https://pkadminclass.com,http://localhost:5173,http://localhost:3000,http://localhost:4173');
+// Gunakan '*' untuk mengizinkan frontend dan mobile web
+define('ALLOWED_ORIGINS', '*');
 
 // ── Timezone ─────────────────────────────────────────────────────────────
 date_default_timezone_set('Asia/Pontianak');

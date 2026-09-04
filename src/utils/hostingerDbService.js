@@ -14,15 +14,17 @@ const STORAGE_KEY_HOSTINGER_CONFIG = 'st_hostinger_config';
  */
 export function getHostingerConfig() {
   const defaultApiUrl = 'https://pkadminclass.com/api/api.php';
+  const defaultApiToken = 'bki_secret_token_2026_pontianak_secure';
   try {
     const saved = localStorage.getItem(STORAGE_KEY_HOSTINGER_CONFIG);
     if (saved) {
       const parsed = JSON.parse(saved);
       const cleanUrl = normalizeHostingerApiUrl(parsed.apiUrl) || defaultApiUrl;
+      const rawToken = (parsed.apiToken || '').trim();
       return {
         enabled: parsed.enabled !== undefined ? parsed.enabled : true,
         apiUrl: cleanUrl,
-        apiToken: (parsed.apiToken || 'bki-pontianak-2026-secret-token').trim(),
+        apiToken: rawToken || defaultApiToken,
         lastSync: parsed.lastSync || null,
         lastSyncStatus: parsed.lastSyncStatus || null
       };
@@ -34,7 +36,7 @@ export function getHostingerConfig() {
   return {
     enabled: true,
     apiUrl: defaultApiUrl,
-    apiToken: 'bki-pontianak-2026-secret-token',
+    apiToken: defaultApiToken,
     lastSync: null,
     lastSyncStatus: null
   };
@@ -85,16 +87,42 @@ export function getHostingerApiUrl() {
 
 export function getHostingerApiToken() {
   const config = getHostingerConfig();
-  return config.apiToken || 'bki-pontianak-2026-secret-token';
+  return config.apiToken || 'bki_secret_token_2026_pontianak_secure';
 }
 
 function getAuthHeaders(additional = {}) {
   const token = getHostingerApiToken();
   return {
     'Accept': 'application/json',
-    ...(token ? { 'X-API-Token': token } : {}),
+    ...(token ? {
+      'X-API-Token': token,
+      'Authorization': `Bearer ${token}`
+    } : {}),
     ...additional
   };
+}
+
+/**
+ * Helper fetch dengan timeout otomatis (default 6 detik) agar tidak pernah buffering / hang
+ */
+async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
+  try {
+    const res = await fetch(url, {
+      ...options,
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    return res;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    if (err.name === 'AbortError') {
+      throw new Error(`Permintaan ke Hostinger API melebihi batas waktu (${timeoutMs / 1000}s).`);
+    }
+    throw err;
+  }
 }
 
 /**
@@ -112,13 +140,14 @@ export async function testHostingerConnection(apiUrl) {
   }
 
   const startTime = Date.now();
+  const token = getHostingerApiToken();
 
   try {
-    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping&_t=' + Date.now();
-    const res = await fetch(targetUrl, {
+    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=ping' + (token ? `&token=${encodeURIComponent(token)}` : '') + '&_t=' + Date.now();
+    const res = await fetchWithTimeout(targetUrl, {
       method: 'GET',
       headers: getAuthHeaders()
-    });
+    }, 6000);
 
     const text = await res.text();
     let data;
@@ -142,7 +171,7 @@ export async function testHostingerConnection(apiUrl) {
       throw new Error(data?.message || 'Respon API tidak sesuai format');
     }
   } catch (err) {
-    if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError')) {
+    if (err.message.includes('Failed to fetch') || err.message.includes('NetworkError') || err.message.includes('melebihi batas waktu')) {
       throw new Error('Tidak dapat terhubung ke API Hostinger. Pastikan:\n1. URL API benar (contoh: https://domain.com/api/api.php)\n2. File api.php sudah di-upload ke Hostinger\n3. CORS sudah dikonfigurasi dengan benar');
     }
     throw err;
@@ -167,11 +196,12 @@ export async function fetchHostingerAllData(forceRefresh = false) {
   lastHostingerCacheTime = now;
 
   try {
-    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=getAllData&_t=' + Date.now();
-    const res = await fetch(targetUrl, {
+    const token = getHostingerApiToken();
+    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=getAllData' + (token ? `&token=${encodeURIComponent(token)}` : '') + '&_t=' + Date.now();
+    const res = await fetchWithTimeout(targetUrl, {
       method: 'GET',
       headers: getAuthHeaders()
-    });
+    }, 6000);
 
     if (!res.ok) throw new Error(`HTTP error ${res.status}`);
     const json = await res.json();
@@ -199,17 +229,20 @@ export async function saveHostingerItem(table, item) {
   cachedHostingerData = null;
 
   try {
+    const token = getHostingerApiToken();
     const payload = {
       action: 'saveItem',
+      token,
       table,
       data: item
     };
 
-    const res = await fetch(url, {
+    const targetUrl = url + (token ? (url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}` : '');
+    const res = await fetchWithTimeout(targetUrl, {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload)
-    });
+    }, 6000);
 
     const json = await res.json();
     return json?.success || false;
@@ -231,17 +264,20 @@ export async function deleteHostingerItem(table, id) {
   cachedHostingerData = null;
 
   try {
+    const token = getHostingerApiToken();
     const payload = {
       action: 'deleteItem',
+      token,
       table,
       id: String(id)
     };
 
-    const res = await fetch(url, {
+    const targetUrl = url + (token ? (url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}` : '');
+    const res = await fetchWithTimeout(targetUrl, {
       method: 'POST',
       headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(payload)
-    });
+    }, 6000);
 
     const json = await res.json();
     return json?.success || false;
@@ -262,16 +298,19 @@ export async function syncAllToHostinger(fullData) {
   lastHostingerCacheTime = 0;
   cachedHostingerData = null;
 
+  const token = getHostingerApiToken();
   const payload = {
     action: 'syncAll',
+    token,
     data: fullData
   };
 
-  const res = await fetch(url, {
+  const targetUrl = url + (token ? (url.includes('?') ? '&' : '?') + `token=${encodeURIComponent(token)}` : '');
+  const res = await fetchWithTimeout(targetUrl, {
     method: 'POST',
     headers: getAuthHeaders({ 'Content-Type': 'application/json' }),
     body: JSON.stringify(payload)
-  });
+  }, 12000);
 
   if (!res.ok) throw new Error(`HTTP error ${res.status}`);
   const json = await res.json();
@@ -295,11 +334,12 @@ export async function fetchHostingerStats() {
   if (!url) return null;
 
   try {
-    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=stats&_t=' + Date.now();
-    const res = await fetch(targetUrl, {
+    const token = getHostingerApiToken();
+    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=stats' + (token ? `&token=${encodeURIComponent(token)}` : '') + '&_t=' + Date.now();
+    const res = await fetchWithTimeout(targetUrl, {
       method: 'GET',
       headers: getAuthHeaders()
-    });
+    }, 6000);
 
     const json = await res.json();
     return json?.success ? json : null;
