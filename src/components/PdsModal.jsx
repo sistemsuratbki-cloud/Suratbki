@@ -1584,7 +1584,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   border: '1.5px solid var(--border-color-strong)',
                   borderRadius: 'var(--radius-md)',
                   padding: '1rem 1.25rem',
-                  marginBottom: '1.25rem'
+                  marginBottom: '1.25rem',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.6rem', flexWrap: 'wrap', gap: '0.5rem' }}>
@@ -1887,7 +1889,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   border: '1.5px solid var(--border-color-strong)',
                   borderRadius: 'var(--radius-md)',
                   padding: '1.25rem',
-                  marginBottom: '1.25rem'
+                  marginBottom: '1.25rem',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
                 }}
               >
                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--accent-primary)', marginBottom: '1rem', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem' }}>
@@ -2409,7 +2413,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   borderRadius: '16px',
                   padding: '1.25rem 1.5rem',
                   marginBottom: '1.5rem',
-                  boxShadow: '0 4px 16px rgba(2, 132, 199, 0.06)'
+                  boxShadow: '0 4px 16px rgba(2, 132, 199, 0.06)',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
                 }}
               >
                 {/* Header */}

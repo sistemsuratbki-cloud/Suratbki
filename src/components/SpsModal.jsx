@@ -243,7 +243,9 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                   background: 'var(--bg-main)',
                   border: '1.5px solid var(--border-color-strong)',
                   borderRadius: 'var(--radius-md)',
-                  padding: '1rem 1.25rem'
+                  padding: '1rem 1.25rem',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
                 }}
               >
                 <div className="form-group" style={{ margin: 0 }}>
@@ -323,14 +325,16 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
                 </div>
               </div>
 
-              {/* Section 2: Objek Survei / Nama Kapal & No. Agenda */}
+              {/* Section 2: Objek Survei (Nama Kapal & No. Agenda) */}
               <div
                 style={{
                   background: 'var(--bg-main)',
                   border: '1.5px solid var(--border-color-strong)',
                   borderRadius: 'var(--radius-md)',
                   padding: '1.25rem',
-                  marginBottom: '1.25rem'
+                  marginBottom: '1.25rem',
+                  maxWidth: '100%',
+                  boxSizing: 'border-box'
                 }}
               >
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>

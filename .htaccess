@@ -1,13 +1,72 @@
+# =========================================================================
+# Hostinger LiteSpeed — BKI Pontianak
+# ZERO REWRITE — Semua routing via index.php (PHP)
+# =========================================================================
+
+# 1. Prevent LiteSpeed Timeouts
 <IfModule Litespeed>
   RewriteEngine On
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
+
+# 2. PHP handles everything
 DirectoryIndex index.php
+
+# 3. Minimal rewrite — ONLY forward headers + route non-files to index.php
 <IfModule mod_rewrite.c>
   RewriteEngine On
+  RewriteBase /
+
+  # Forward auth headers
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+  RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
+
+  # Existing files → serve directly (NO internal rewrite)
   RewriteCond %{REQUEST_FILENAME} -f
   RewriteRule ^ - [L]
+
+  # API folder → let api/.htaccess handle
   RewriteRule ^api/ - [L]
+
+  # Everything else → index.php (PHP router, zero loop risk)
   RewriteRule ^ index.php [L]
+</IfModule>
+
+# 4. Block sensitive files
+<FilesMatch "^(\.(git|env|htpasswd)|config\.php|setup\.php|package(-lock)?\.json|vite\.config\.js)$">
+  <IfModule mod_authz_core.c>
+    Require all denied
+  </IfModule>
+</FilesMatch>
+
+# 5. Security Headers
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# 6. Cache Control
+<IfModule mod_expires.c>
+  ExpiresActive On
+  ExpiresDefault "access plus 1 month"
+  ExpiresByType text/html "access plus 0 seconds"
+  ExpiresByType application/json "access plus 0 seconds"
+  ExpiresByType text/css "access plus 1 year"
+  ExpiresByType application/javascript "access plus 1 year"
+  ExpiresByType text/javascript "access plus 1 year"
+  ExpiresByType image/x-icon "access plus 1 year"
+  ExpiresByType image/png "access plus 1 year"
+  ExpiresByType image/jpeg "access plus 1 year"
+  ExpiresByType image/svg+xml "access plus 1 year"
+  ExpiresByType image/webp "access plus 1 year"
+  ExpiresByType font/woff "access plus 1 year"
+  ExpiresByType font/woff2 "access plus 1 year"
+  ExpiresByType font/ttf "access plus 1 year"
+</IfModule>
+
+# 7. GZIP Compression
+<IfModule mod_deflate.c>
+  AddOutputFilterByType DEFLATE text/html text/css application/javascript application/json image/svg+xml
 </IfModule>
