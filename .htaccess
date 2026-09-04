@@ -3,13 +3,13 @@
 # Bulletproof SPA Routing from dist/ with Zero Rewrite Loops
 # =========================================================================
 
-# 1. Prevent LiteSpeed Timeouts & Aborts
+# 1. Prevent LiteSpeed Timeouts & Premature Aborts
 <IfModule Litespeed>
   RewriteEngine On
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. DirectoryIndex — serve React SPA from dist/index.html
+# 2. DirectoryIndex — serve React SPA directly from dist/index.html
 DirectoryIndex dist/index.html index.html index.php
 
 # 3. URL Rewriting
@@ -17,11 +17,11 @@ DirectoryIndex dist/index.html index.html index.php
   RewriteEngine On
   RewriteBase /
 
-  # Forward auth headers to PHP (LiteSpeed FastCGI)
+  # Forward Authorization headers to PHP
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # CRITICAL: Stop if request has already been internally rewritten (prevents 408 loops)
+  # CRITICAL: Stop if request has already been internally rewritten (stops 408 loops)
   RewriteCond %{ENV:REDIRECT_STATUS} 200
   RewriteRule ^ - [L]
 
@@ -34,14 +34,14 @@ DirectoryIndex dist/index.html index.html index.php
   # ── Never serve uncompiled root index.html or raw index.php → map to dist/index.html ──
   RewriteRule ^index\.(html|php)$ dist/index.html [L]
 
-  # ── Existing real files in root (health.php, favicon.ico, etc.) → serve directly ──
+  # ── Real files in root (health.php, robots.txt, etc.) → serve directly ──
   RewriteCond %{REQUEST_FILENAME} -f [OR]
   RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
-  # ── Static assets that exist in dist/ (assets/, signatures/, svg, etc.) ──
-  RewriteCond %{DOCUMENT_ROOT}/dist/$1 -f
-  RewriteRule ^(.*)$ dist/$1 [L]
+  # ── Static assets in dist/ (assets, signatures, svg, icons, images) ──
+  RewriteRule ^(assets|signatures)/(.*)$ dist/$1/$2 [L]
+  RewriteRule ^(bki-logo\.svg|danantara-logo\.svg|idsurvey-logo\.svg|favicon\..*)$ dist/$1 [L]
 
   # ── SPA Fallback: all remaining routes (/, /login, /dashboard, etc.) ──
   RewriteRule ^ dist/index.html [L]
