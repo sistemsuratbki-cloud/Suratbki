@@ -1,0 +1,53 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 350 76" width="100%" height="100%">
+  <defs>
+    <style>
+      .ids-id-text {
+        font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        fill: #00b4a7;
+        letter-spacing: -1px;
+      }
+      .ids-survey-text {
+        font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        fill: #143d75;
+        letter-spacing: -1px;
+      }
+      .ids-tagline-text {
+        font-family: 'Plus Jakarta Sans', 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+        font-size: 11px;
+        font-weight: 600;
+        fill: #00b4a7;
+        letter-spacing: 0.6px;
+      }
+    </style>
+  </defs>
+
+  <!-- Emblem -->
+  <g id="ids-emblem">
+    <!-- Navy Blue Circle Background -->
+    <circle cx="38" cy="38" r="33" fill="#143d75" />
+    
+    <!-- Vivid Teal Checkmark -->
+    <path
+      d="M 12,38 L 32,58 L 66,20"
+      fill="none"
+      stroke="#00b4a7"
+      stroke-width="13"
+      stroke-linecap="round"
+      stroke-linejoin="round"
+    />
+  </g>
+
+  <!-- Wordmark Text -->
+  <!-- "ID" in Teal -->
+  <text x="82" y="47" class="ids-id-text">ID</text>
+  <!-- "Survey" in Navy -->
+  <text x="132" y="47" class="ids-survey-text">Survey</text>
+
+  <!-- Subtitle Tagline -->
+  <text x="83" y="66" class="ids-tagline-text">Testing · Inspection · Certification</text>
+</svg>

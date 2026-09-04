@@ -2,8 +2,7 @@
 node_modules
 .pnpm-store
 
-# Production build output
-dist
+# Production build output (dist is tracked for Hostinger Git deployment)
 build
 
 # Logs
