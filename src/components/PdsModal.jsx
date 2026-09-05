@@ -343,7 +343,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tarifExpertise: 1500000
       });
     }
-  }, [editItem, isOpen, defaultLocation, defaultRate, currentUser, surveyorUsers, adminSettings]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editItem?.id, isOpen]);
 
   // Handle SPS Selection
   const handleToggleSps = (sps) => {

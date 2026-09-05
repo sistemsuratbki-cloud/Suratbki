@@ -113,7 +113,8 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
         status: 'Menunggu Survei'
       });
     }
-  }, [editItem, isOpen, defaultLocation, currentUser, surveyorUsers, role]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editItem?.id, isOpen]);
 
   if (!isOpen) return null;
 
