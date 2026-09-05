@@ -292,16 +292,24 @@ export const DataProvider = ({ children }) => {
   // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
   const refreshAllFromCloud = useCallback(async () => {
     try {
-      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings, cloudKapal, cloudVisit] = await Promise.all([
-        fetchSuratTugasFromCloud(),
-        fetchKwitansiFromCloud(),
-        fetchLaporanFromCloud(),
-        fetchTariffsFromCloud(),
-        fetchGradeTariffsFromCloud(),
-        fetchAdminSettingsFromCloud(),
-        fetchMasterKapalFromCloud(),
-        fetchVisitSurveiFromCloud()
+      // OPTIMIZED: Add timeout protection (15s total) to prevent 408 errors on LiteSpeed
+      const fetchWithTimeout = Promise.race([
+        Promise.all([
+          fetchSuratTugasFromCloud(),
+          fetchKwitansiFromCloud(),
+          fetchLaporanFromCloud(),
+          fetchTariffsFromCloud(),
+          fetchGradeTariffsFromCloud(),
+          fetchAdminSettingsFromCloud(),
+          fetchMasterKapalFromCloud(),
+          fetchVisitSurveiFromCloud()
+        ]),
+        new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Cloud sync timeout - data loaded from cache')), 15000)
+        )
       ]);
+
+      const [cloudSurat, cloudKw, cloudLap, cloudTariffs, cloudGrades, cloudSettings, cloudKapal, cloudVisit] = await fetchWithTimeout;
 
       if (Array.isArray(cloudSurat)) {
         // Auto-heal orphan SPS: jika ada SPS yang memiliki pdsId mengarah ke PDS yang sudah tidak ada di database,
@@ -370,7 +378,34 @@ export const DataProvider = ({ children }) => {
         safeSetLocalStorage('st_visit_survei', limited);
       }
     } catch (e) {
-      console.warn('Cloud sync load warning:', e);
+      console.warn('Cloud sync load warning (loading from localStorage cache):', e);
+      // FALLBACK: Load from localStorage cache if cloud sync times out
+      try {
+        const cachedSurat = localStorage.getItem('st_surat_tugas');
+        const cachedKw = localStorage.getItem('st_kwitansi_honor');
+        const cachedLap = localStorage.getItem('st_laporan_survei');
+        const cachedVisit = localStorage.getItem('st_visit_survei');
+        
+        if (cachedSurat) {
+          const parsed = JSON.parse(cachedSurat);
+          if (Array.isArray(parsed)) setSuratTugas(parsed.map(cleanEntityObject));
+        }
+        if (cachedKw) {
+          const parsed = JSON.parse(cachedKw);
+          if (Array.isArray(parsed)) setKwitansiHonor(parsed.map(cleanEntityObject));
+        }
+        if (cachedLap) {
+          const parsed = JSON.parse(cachedLap);
+          if (Array.isArray(parsed)) setLaporanSurvei(parsed.map(cleanEntityObject));
+        }
+        if (cachedVisit) {
+          const parsed = JSON.parse(cachedVisit);
+          if (Array.isArray(parsed)) setVisitSurvei(parsed.map(cleanEntityObject));
+        }
+        console.log('Loaded data from localStorage cache successfully');
+      } catch (cacheError) {
+        console.error('Failed to load from cache:', cacheError);
+      }
     }
   }, []);
 

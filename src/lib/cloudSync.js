@@ -123,14 +123,27 @@ const dualDelete = async (table, id) => {
 };
 
 /**
+ * Timeout wrapper untuk mencegah 408 timeout di LiteSpeed
+ */
+const withTimeout = (promise, timeoutMs = 5000) => {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Request timeout')), timeoutMs)
+    )
+  ]);
+};
+
+/**
  * Dual fetch: ambil dari Hostinger (primary) lalu fallback ke Google Sheets.
  * Mengembalikan data dari sumber pertama yang berhasil.
+ * OPTIMIZED: Added 5s timeout per source to prevent 408 errors
  */
 const dualFetchTable = async (tableName) => {
-  // 1. Coba dari Hostinger dulu (primary)
+  // 1. Coba dari Hostinger dulu (primary) - dengan timeout 5 detik
   if (isHostingerEnabled()) {
     try {
-      const hData = await fetchHostingerAllData();
+      const hData = await withTimeout(fetchHostingerAllData(), 5000);
       if (hData && Array.isArray(hData[tableName])) {
         return hData[tableName];
       }
@@ -139,13 +152,13 @@ const dualFetchTable = async (tableName) => {
         return hData[tableName];
       }
     } catch (e) {
-      console.warn(`[DualSync] Hostinger fetch ${tableName} fallback:`, e.message);
+      console.warn(`[DualSync] Hostinger fetch ${tableName} fallback (timeout atau error):`, e.message);
     }
   }
 
-  // 2. Fallback ke Google Sheets
+  // 2. Fallback ke Google Sheets - dengan timeout 5 detik
   try {
-    const gsData = await fetchGoogleSheetAllData();
+    const gsData = await withTimeout(fetchGoogleSheetAllData(), 5000);
     if (gsData && tableName === 'admin_settings') {
       return gsData[tableName] || null;
     }
