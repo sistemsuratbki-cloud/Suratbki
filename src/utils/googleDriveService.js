@@ -250,16 +250,27 @@ export async function uploadToGoogleDrive({
     base64Data
   };
 
-  const response = await fetch(targetUrl, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'text/plain;charset=utf-8'
-    },
-    body: JSON.stringify(payload),
-    redirect: 'follow'
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 8000); // 8s timeout
 
-  const text = await response.text();
+  let text;
+  try {
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+      body: JSON.stringify(payload),
+      redirect: 'follow',
+      signal: controller.signal
+    });
+    clearTimeout(timeoutId);
+    text = await response.text();
+  } catch (fetchErr) {
+    clearTimeout(timeoutId);
+    if (fetchErr.name === 'AbortError') {
+      throw new Error('Upload Google Drive timeout (>8 detik). Menggunakan penyimpanan lokal.');
+    }
+    throw fetchErr;
+  }
   let resJson;
   try {
     resJson = JSON.parse(text);

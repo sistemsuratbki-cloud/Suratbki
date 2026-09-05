@@ -22,7 +22,7 @@ export function readFileAsBase64(file) {
 
 /**
  * Uploads a file with smart fallback hierarchy:
- * Google Drive (if enabled) -> Base64 Local Data
+ * Google Drive (if enabled AND URL valid) -> Base64 Local Data
  */
 export async function uploadUniversalFile({
   file,
@@ -35,8 +35,11 @@ export async function uploadUniversalFile({
 
   const gdriveConfig = getGoogleDriveConfig();
 
-  // 1. Prioritaskan Google Drive jika aktif
-  if (gdriveConfig?.enabled && gdriveConfig?.webAppUrl) {
+  // Google Drive hanya dicoba jika URL bukan URL default yang sudah expired
+  const EXPIRED_URL = 'AKfycbxMYYfKw5rwpj_G1HoGh4lIXQxh6KI8mMZo7SEBWDQHTzoQbbGou1e8I58K3yer5xrSmg';
+  const isExpiredUrl = !gdriveConfig?.webAppUrl || gdriveConfig.webAppUrl.includes(EXPIRED_URL);
+
+  if (gdriveConfig?.enabled && gdriveConfig?.webAppUrl && !isExpiredUrl) {
     try {
       const driveResult = await uploadToGoogleDrive({
         file,
