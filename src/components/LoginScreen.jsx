@@ -8,7 +8,7 @@ import { DanantaraLogo } from './DanantaraLogo';
 import { checkLoginLock } from '../utils/security';
 
 export const LoginScreen = () => {
-  const { login } = useAuth();
+  const { login, isInitializing } = useAuth();
 
   const [identifierInput, setIdentifierInput] = useState('');
   const [passwordInput, setPasswordInput] = useState('');
@@ -317,10 +317,12 @@ export const LoginScreen = () => {
             <button
               type="submit"
               className="btn btn-primary"
-              style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem', opacity: isLocked || isLoading ? 0.6 : 1, fontSize: '0.95rem' }}
-              disabled={isLocked || isLoading}
+              style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem', opacity: isLocked || isLoading || isInitializing ? 0.6 : 1, fontSize: '0.95rem' }}
+              disabled={isLocked || isLoading || isInitializing}
             >
-              {isLoading ? (
+              {isInitializing ? (
+                <span>⏳ Memuat sistem, harap tunggu...</span>
+              ) : isLoading ? (
                 <span>Memverifikasi Kredensial...</span>
               ) : isLocked ? (
                 <>

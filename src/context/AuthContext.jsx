@@ -150,6 +150,7 @@ export const AuthProvider = ({ children }) => {
         localStorage.removeItem('st_admin_pass_v');
         localStorage.removeItem('st_users_reset_v5');
         localStorage.setItem('st_auth_cache_v', 'v2');
+        // Kembalikan INITIAL_USERS — init effect akan load dari cloud & migrate
         return INITIAL_USERS;
       }
       const saved = localStorage.getItem('st_users_list');
@@ -157,6 +158,11 @@ export const AuthProvider = ({ children }) => {
     } catch {
       return INITIAL_USERS;
     }
+  });
+
+  // isInitializing: true saat pertama load, false setelah cloud sync selesai
+  const [isInitializing, setIsInitializing] = useState(() => {
+    return localStorage.getItem('st_auth_cache_v') !== 'v2' || !localStorage.getItem('st_users_list');
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -292,6 +298,9 @@ export const AuthProvider = ({ children }) => {
       } catch (e) {
         console.warn('[Auth] Cloud users load warning:', e.message);
       }
+
+      // Init selesai — izinkan login
+      setIsInitializing(false);
     };
 
     runInit();
@@ -333,6 +342,11 @@ export const AuthProvider = ({ children }) => {
   // ── AUTH ACTIONS ───────────────────────────────────────────────────────
 
   const login = useCallback(async (identifierOrUser, inputPassword = null) => {
+    // Tunggu sampai init selesai — cegah login dengan data plaintext
+    if (isInitializing) {
+      return { success: false, message: 'Sistem sedang memuat data. Mohon tunggu sebentar...' };
+    }
+
     const lockState = checkLoginLock();
     if (lockState.isLocked) {
       return {
@@ -528,6 +542,7 @@ export const AuthProvider = ({ children }) => {
         login,
         logout,
         isAuthenticated: !!currentUser,
+        isInitializing,
         role: currentUser?.role || null,
         usersList,
         demoUsers: usersList,
