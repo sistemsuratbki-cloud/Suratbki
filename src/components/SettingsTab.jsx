@@ -904,8 +904,8 @@ export const SettingsTab = () => {
         </div>
       )}
 
-      {/* GOOGLE WORKSPACE INTEGRATION SETTINGS (ADMIN, KACAB, DEVELOPER) */}
-      {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'kacab') && (
+      {/* GOOGLE WORKSPACE INTEGRATION SETTINGS (DEVELOPER ONLY) */}
+      {(currentUser?.role === 'developer') && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
           <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
             <div className="card-title-group">
@@ -1202,8 +1202,8 @@ export const SettingsTab = () => {
         </div>
       )}
 
-      {/* HOSTINGER MYSQL DATABASE INTEGRATION (ADMIN, KACAB, DEVELOPER) */}
-      {(currentUser?.role === 'admin' || currentUser?.role === 'developer' || currentUser?.role === 'kacab') && (
+      {/* HOSTINGER MYSQL DATABASE INTEGRATION (DEVELOPER ONLY) */}
+      {(currentUser?.role === 'developer') && (
         <div className="card-section" style={{ padding: '1.75rem' }}>
           <div className="card-header" style={{ padding: 0, marginBottom: '1.25rem', border: 'none' }}>
             <div className="card-title-group">
