@@ -31,7 +31,10 @@ import { uploadToGoogleDrive, deleteFromGoogleDrive } from '../utils/googleDrive
 
 const mapFromDb = (row) => {
   if (!row) return null;
-  const raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
+  let raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
+  while (raw && typeof raw === 'object' && raw.raw_data && typeof raw.raw_data === 'object') {
+    raw = { ...raw.raw_data, ...raw };
+  }
   const merged = { ...raw, ...row };
   delete merged.raw_data;
 
@@ -56,6 +59,29 @@ const mapFromDb = (row) => {
 
   if (row.jenis_survey !== undefined && row.jenis_survey !== null) merged.jenisSurvey = row.jenis_survey;
   else if (raw.jenisSurvey !== undefined && raw.jenisSurvey !== null) merged.jenisSurvey = raw.jenisSurvey;
+
+  // Normalisasi Uang Harian & Tarif Finansial
+  if (row.uang_harian !== undefined && row.uang_harian !== null && row.uang_harian !== '') {
+    merged.uangHarian = Number(row.uang_harian);
+  } else if (raw.uangHarian !== undefined && raw.uangHarian !== null && raw.uangHarian !== '') {
+    merged.uangHarian = Number(raw.uangHarian);
+  } else if (raw.uang_harian !== undefined && raw.uang_harian !== null && raw.uang_harian !== '') {
+    merged.uangHarian = Number(raw.uang_harian);
+  } else if (merged.uang_harian !== undefined && merged.uang_harian !== null && merged.uang_harian !== '') {
+    merged.uangHarian = Number(merged.uang_harian);
+  }
+
+  if (row.tarif_dasar !== undefined && row.tarif_dasar !== null) merged.tarifDasar = Number(row.tarif_dasar);
+  else if (raw.tarifDasar !== undefined && raw.tarifDasar !== null) merged.tarifDasar = Number(raw.tarifDasar);
+
+  if (row.biaya_tiket !== undefined && row.biaya_tiket !== null) merged.biayaTiket = Number(row.biaya_tiket);
+  else if (raw.biayaTiket !== undefined && raw.biayaTiket !== null) merged.biayaTiket = Number(raw.biayaTiket);
+
+  if (row.tiket_hotel !== undefined && row.tiket_hotel !== null) merged.tiketHotel = Number(row.tiket_hotel);
+  else if (raw.tiketHotel !== undefined && raw.tiketHotel !== null) merged.tiketHotel = Number(raw.tiketHotel);
+
+  if (row.jumlah_estimasi !== undefined && row.jumlah_estimasi !== null) merged.jumlahEstimasi = Number(row.jumlah_estimasi);
+  else if (raw.jumlahEstimasi !== undefined && raw.jumlahEstimasi !== null) merged.jumlahEstimasi = Number(raw.jumlahEstimasi);
 
   // Normalisasi status & approvalStatus
   const rawApproval = row.approval_status || raw.approvalStatus || merged.approvalStatus;
@@ -273,7 +299,24 @@ export async function deleteTariffFromCloud(id) {
 export async function fetchGradeTariffsFromCloud() {
   try {
     const data = await dualFetchTable('grade_tariffs');
-    if (Array.isArray(data)) return data.map(mapFromDb);
+    if (Array.isArray(data)) {
+      return data.map((item) => {
+        const mapped = mapFromDb(item);
+        if (!mapped) return item;
+        const uangHarianVal = Number(
+          mapped.uangHarian !== undefined && mapped.uangHarian !== null && mapped.uangHarian !== ''
+            ? mapped.uangHarian
+            : (mapped.uang_harian !== undefined && mapped.uang_harian !== null && mapped.uang_harian !== ''
+              ? mapped.uang_harian
+              : (item.uang_harian || item.uangHarian || 0))
+        );
+        return {
+          ...mapped,
+          uangHarian: uangHarianVal,
+          uang_harian: uangHarianVal
+        };
+      });
+    }
   } catch (e) {
     console.warn('[CloudSync] fetchGradeTariffs warning:', e.message);
   }
@@ -283,7 +326,13 @@ export async function fetchGradeTariffsFromCloud() {
 export async function saveGradeTariffToCloud(item) {
   if (!item?.id) return;
   try {
-    await dualSave('grade_tariffs', item);
+    const val = Number(item.uangHarian !== undefined && item.uangHarian !== null ? item.uangHarian : (item.uang_harian || 0));
+    const payload = {
+      ...item,
+      uangHarian: val,
+      uang_harian: val
+    };
+    await dualSave('grade_tariffs', payload);
   } catch (err) {
     console.warn('[CloudSync] saveGradeTariff warning:', err.message);
   }

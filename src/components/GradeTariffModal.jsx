@@ -13,7 +13,13 @@ export const GradeTariffModal = ({ isOpen, onClose, editItem = null }) => {
 
   useEffect(() => {
     if (editItem) {
-      setFormData({ ...editItem });
+      setFormData({
+        ...editItem,
+        grade: editItem.grade || '',
+        uangHarian: editItem.uangHarian !== undefined && editItem.uangHarian !== null
+          ? editItem.uangHarian
+          : (editItem.uang_harian || 0)
+      });
     } else {
       setFormData({
         grade: '',

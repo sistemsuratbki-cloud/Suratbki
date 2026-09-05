@@ -187,7 +187,18 @@ export const DataProvider = ({ children }) => {
 
   const [gradeTariffs, setGradeTariffs] = useState(() => {
     const saved = localStorage.getItem('st_grade_tariffs');
-    return saved ? JSON.parse(saved) : INITIAL_GRADE_TARIFFS;
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((g) => ({
+            ...g,
+            uangHarian: Number(g.uangHarian !== undefined && g.uangHarian !== null ? g.uangHarian : (g.uang_harian || 0))
+          }));
+        }
+      } catch (e) {}
+    }
+    return INITIAL_GRADE_TARIFFS;
   });
 
   const [masterKapal, setMasterKapal] = useState(() => {
@@ -364,7 +375,12 @@ export const DataProvider = ({ children }) => {
         setTariffs(cloudTariffs);
       }
       if (Array.isArray(cloudGrades) && cloudGrades.length > 0) {
-        setGradeTariffs(cloudGrades);
+        const normalized = cloudGrades.map((g) => ({
+          ...g,
+          uangHarian: Number(g.uangHarian !== undefined && g.uangHarian !== null ? g.uangHarian : (g.uang_harian || 0))
+        }));
+        setGradeTariffs(normalized);
+        safeSetLocalStorage('st_grade_tariffs', normalized);
       }
       if (cloudSettings && typeof cloudSettings === 'object') {
         setAdminSettings((prev) => {
@@ -687,7 +703,8 @@ export const DataProvider = ({ children }) => {
 
   const resetGradeTariffs = () => {
     setGradeTariffs(INITIAL_GRADE_TARIFFS);
-    localStorage.setItem('st_grade_tariffs', JSON.stringify(INITIAL_GRADE_TARIFFS));
+    safeSetLocalStorage('st_grade_tariffs', INITIAL_GRADE_TARIFFS);
+    INITIAL_GRADE_TARIFFS.forEach((g) => saveGradeTariffToCloud(g));
   };
 
   // ====== CRUD MASTER KAPAL ======

@@ -114,7 +114,7 @@ export const GradeTariffManagementTable = () => {
                   </td>
                   <td>
                     <div style={{ fontWeight: 800, color: 'var(--accent-primary)' }}>
-                      {formatRupiah(item.uangHarian)}
+                      {formatRupiah(item.uangHarian !== undefined && item.uangHarian !== null ? item.uangHarian : (item.uang_harian || 0))}
                     </div>
                   </td>
                   <td style={{ textAlign: 'right', width: '120px' }}>
