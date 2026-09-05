@@ -1,0 +1,8 @@
+# =========================================================================
+# BKI Pontianak — public/.htaccess (copied to dist/.htaccess during build)
+# Explicitly DISABLE mod_rewrite inside dist/ folder.
+# This prevents LiteSpeed from inheriting root rewrite rules and looping (408).
+# =========================================================================
+<IfModule mod_rewrite.c>
+  RewriteEngine Off
+</IfModule>
