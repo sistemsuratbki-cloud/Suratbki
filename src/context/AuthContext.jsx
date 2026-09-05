@@ -282,15 +282,37 @@ export const AuthProvider = ({ children }) => {
       try {
         const cloudUsers = await fetchUsersFromCloud();
         if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
-          // Merge: prioritaskan data cloud, tapi pertahankan password yang sudah di-hash lokal
+          // Merge: cloud menang untuk data profil, tapi local INITIAL_USERS menang untuk role/roleLabel
+          // Ini memastikan perubahan role di INITIAL_USERS selalu diterapkan
           const merged = cloudUsers.map((cu) => {
             const local = baseUsers.find((u) => u.id === cu.id || u.username === cu.username);
-            // Jika cloud punya password unhashed, pakai yang lokal
+            const initial = INITIAL_USERS.find((u) => u.id === cu.id || u.username === cu.username);
+
+            let result = { ...cu };
+
+            // Password: pakai lokal jika sudah di-hash, cloud mungkin plaintext
             if (local && isPasswordHashed(local.password) && !isPasswordHashed(cu.password || '')) {
-              return { ...cu, password: local.password };
+              result.password = local.password;
             }
-            return cu;
+
+            // Role & roleLabel: INITIAL_USERS selalu menang (mencegah cloud override migrasi role)
+            if (initial) {
+              result.role = initial.role;
+              result.roleLabel = initial.roleLabel;
+            }
+
+            return result;
           });
+
+          // Update cloud untuk user yang role-nya berubah
+          const needsCloudUpdate = merged.filter((mu) => {
+            const cu = cloudUsers.find((c) => c.id === mu.id);
+            return cu && (cu.role !== mu.role || cu.roleLabel !== mu.roleLabel);
+          });
+          for (const u of needsCloudUpdate) {
+            saveUserToCloud(u).catch(() => {});
+          }
+
           localStorage.setItem('st_users_list', JSON.stringify(merged));
           setUsersList(merged);
         }
