@@ -81,6 +81,17 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
   const [spsSearchTerm, setSpsSearchTerm] = useState('');
   const spsContainerRef = useRef(null);
 
+  // Generate noOrder SEKALI saat modal dibuka untuk PDS baru — tidak berubah saat re-render
+  const generatedNoOrderRef = useRef(null);
+  useEffect(() => {
+    if (isOpen && !editItem) {
+      generatedNoOrderRef.current = `RFQ${Date.now().toString().slice(-8)}`;
+    }
+    if (!isOpen) {
+      generatedNoOrderRef.current = null;
+    }
+  }, [isOpen, editItem]);
+
   // State untuk Tambah Kapal Manual (Non-SPS)
   const [showManualAddShip, setShowManualAddShip] = useState(false);
   const [manualShipName, setManualShipName] = useState('');
@@ -296,7 +307,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tarifDasar: initialRate,
         tglMulai: todayDate,
         tglSelesai: todayDate,
-        noOrder: `RFQ${Date.now().toString().slice(-8)}`,
+        noOrder: generatedNoOrderRef.current || `RFQ${Date.now().toString().slice(-8)}`,
         noCda: '5100010',
         noSo: '',
         noWbs: '',

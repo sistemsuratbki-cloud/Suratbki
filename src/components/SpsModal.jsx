@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { toast } from 'react-hot-toast';
 import {
   X,
@@ -34,6 +34,19 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
     () => (usersList || []).filter((u) => u.role === 'surveyor' || u.role === 'kacab'),
     [usersList]
   );
+
+  // Generate noOrder SEKALI saat modal dibuka untuk SPS baru — tidak berubah saat re-render
+  const generatedNoOrderRef = useRef(null);
+  useEffect(() => {
+    if (isOpen && !editItem) {
+      // Buat noOrder baru hanya saat modal pertama kali dibuka untuk form baru
+      generatedNoOrderRef.current = `RFQ${Date.now().toString().slice(-8)}`;
+    }
+    if (!isOpen) {
+      // Reset saat modal ditutup agar siap untuk pembukaan berikutnya
+      generatedNoOrderRef.current = null;
+    }
+  }, [isOpen, editItem]);
 
   const [formData, setFormData] = useState({
     namaKapal: '',
@@ -94,7 +107,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
         tglSurat: todayDate,
         tglMulai: todayDate,
         tglSelesai: todayDate,
-        noOrder: `RFQ${Date.now().toString().slice(-8)}`,
+        noOrder: generatedNoOrderRef.current || `RFQ${Date.now().toString().slice(-8)}`,
         petugas: defaultSurveyor,
         catatan: '',
         status: 'Menunggu Survei'

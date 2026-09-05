@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   hashPassword,
   verifyPassword,
@@ -141,60 +141,164 @@ export const INITIAL_USERS = [
 
 export const AuthProvider = ({ children }) => {
   const [usersList, setUsersList] = useState(() => {
-    const saved = localStorage.getItem('st_users_list');
-    return saved ? JSON.parse(saved) : INITIAL_USERS;
+    try {
+      const saved = localStorage.getItem('st_users_list');
+      return saved ? JSON.parse(saved) : INITIAL_USERS;
+    } catch {
+      return INITIAL_USERS;
+    }
   });
 
+  const [currentUser, setCurrentUser] = useState(() => {
+    try {
+      const savedUser = localStorage.getItem('st_auth_user');
+      if (!savedUser) return null;
+      if (!isSessionValid()) {
+        localStorage.removeItem('st_auth_user');
+        destroySession();
+        return null;
+      }
+      return JSON.parse(savedUser);
+    } catch {
+      return null;
+    }
+  });
+
+  // Ref untuk pastikan init hanya jalan SEKALI — tidak peduli re-render
+  const initDoneRef = useRef(false);
+
+  // ── SINGLE INIT EFFECT ─────────────────────────────────────────────────
+  // Satu useEffect untuk semua operasi startup: reset, migrate, cloud load
+  // Tidak ada dependency yang bisa memicunya ulang.
   useEffect(() => {
-    const loadCloudUsers = async () => {
+    if (initDoneRef.current) return;
+    initDoneRef.current = true;
+
+    const runInit = async () => {
+      // 1. Reset users jika belum pernah di-reset ke v5
+      const isReset = localStorage.getItem('st_users_reset_v5');
+      let baseUsers;
+      if (!isReset) {
+        baseUsers = INITIAL_USERS;
+        localStorage.setItem('st_users_list', JSON.stringify(INITIAL_USERS));
+        localStorage.setItem('st_users_reset_v5', 'true');
+      } else {
+        try {
+          const saved = localStorage.getItem('st_users_list');
+          baseUsers = saved ? JSON.parse(saved) : INITIAL_USERS;
+        } catch {
+          baseUsers = INITIAL_USERS;
+        }
+      }
+
+      // 2. Migrate passwords — hanya jika belum v3
+      const alreadyMigrated = localStorage.getItem('st_admin_pass_v') === 'admin123_v3';
+      if (!alreadyMigrated) {
+        let needsMigration = false;
+        const migratedUsers = await Promise.all(
+          baseUsers.map(async (user) => {
+            const u = { ...user };
+            if (u.username === 'admin' && u.role !== 'admin') {
+              needsMigration = true;
+              u.role = 'admin';
+              u.roleLabel = 'Admin BKI';
+            }
+            if ((u.username === 'bone' || (u.name && u.name.includes('BONE'))) && !u.signatureUrl) {
+              needsMigration = true;
+              u.signatureUrl = '/signatures/alfian_bone_handwritten.png';
+            }
+            if ((u.username === 'sandi' || (u.name && u.name.includes('SANDI'))) && !u.signatureUrl) {
+              needsMigration = true;
+              u.signatureUrl = '/signatures/sandi_handwritten.png';
+            }
+            if ((u.username === 'andre' || (u.name && u.name.includes('ANDRE'))) && !u.signatureUrl) {
+              needsMigration = true;
+              u.signatureUrl = '/signatures/andre_handwritten.png';
+            }
+            if (u.username === 'septian' || (u.name && u.name.includes('SEPTIAN'))) {
+              if (!u.name || !u.name.includes('DEWANGKARA')) {
+                needsMigration = true;
+                u.name = 'SEPTIAN AJI DEWANGKARA';
+              }
+              if (!u.signatureUrl) {
+                needsMigration = true;
+                u.signatureUrl = '/signatures/septian_handwritten.png';
+              }
+            }
+            if ((u.username === 'muhson' || (u.name && u.name.includes('MUHSON'))) && !u.signatureUrl) {
+              needsMigration = true;
+              u.signatureUrl = '/signatures/kacab_muhson_signature.png';
+            }
+            if (!isPasswordHashed(u.password)) {
+              needsMigration = true;
+              const fallback = u.username === 'admin' ? 'admin123' : (u.password || 'password123');
+              u.password = await hashPassword(fallback);
+            }
+            return u;
+          })
+        );
+
+        if (!baseUsers.some((u) => u.username === 'monitor')) {
+          needsMigration = true;
+          migratedUsers.push({
+            id: 'usr-monitor',
+            username: 'monitor',
+            password: await hashPassword('monitor123'),
+            name: 'TV Display Monitor',
+            email: 'monitor@gmail.com',
+            role: 'monitor',
+            grade: '-',
+            roleLabel: 'Layar Monitor Khusus',
+            avatarBg: '#0f172a',
+            description: 'Akun khusus untuk menampilkan informasi di layar TV'
+          });
+        }
+
+        if (needsMigration) {
+          baseUsers = migratedUsers;
+          localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));
+          setUsersList(migratedUsers);
+        }
+        localStorage.setItem('st_admin_pass_v', 'admin123_v3');
+      }
+
+      // 3. Load dari cloud — TANPA seed jika cloud kosong (mencegah infinite POST)
       try {
         const cloudUsers = await fetchUsersFromCloud();
         if (Array.isArray(cloudUsers) && cloudUsers.length > 0) {
-          setUsersList(cloudUsers);
-        } else {
-          // If Supabase has no users yet, seed initial users to cloud
-          INITIAL_USERS.forEach((u) => saveUserToCloud(u));
+          // Merge: prioritaskan data cloud, tapi pertahankan password yang sudah di-hash lokal
+          const merged = cloudUsers.map((cu) => {
+            const local = baseUsers.find((u) => u.id === cu.id || u.username === cu.username);
+            // Jika cloud punya password unhashed, pakai yang lokal
+            if (local && isPasswordHashed(local.password) && !isPasswordHashed(cu.password || '')) {
+              return { ...cu, password: local.password };
+            }
+            return cu;
+          });
+          localStorage.setItem('st_users_list', JSON.stringify(merged));
+          setUsersList(merged);
         }
+        // SENGAJA tidak seed ke cloud jika kosong — mencegah infinite POST loop
       } catch (e) {
-        console.warn('Failed loading users from cloud:', e);
+        console.warn('[Auth] Cloud users load warning:', e.message);
       }
     };
-    loadCloudUsers();
-  }, []);
 
+    runInit();
+  }, []); // ← BENAR-BENAR KOSONG: jalan sekali saat mount
+
+  // Sync usersList ke localStorage
   useEffect(() => {
-    const isReset = localStorage.getItem('st_users_reset_v5');
-    if (!isReset) {
-      setUsersList(INITIAL_USERS);
-      localStorage.setItem('st_users_reset_v5', 'true');
+    try {
+      localStorage.setItem('st_users_list', JSON.stringify(usersList));
+    } catch (e) {
+      console.warn('[Auth] localStorage write error:', e);
     }
-  }, []);
-
-  const [currentUser, setCurrentUser] = useState(() => {
-    const savedUser = localStorage.getItem('st_auth_user');
-    if (!savedUser) return null;
-
-    // Check session validity
-    if (!isSessionValid()) {
-      localStorage.removeItem('st_auth_user');
-      destroySession();
-      return null;
-    }
-
-    return JSON.parse(savedUser);
-  });
-
-  const [passwordsMigrated, setPasswordsMigrated] = useState(false);
-
-  // Sync usersList to localStorage
-  useEffect(() => {
-    localStorage.setItem('st_users_list', JSON.stringify(usersList));
   }, [usersList]);
 
-  // Sync currentUser to localStorage (WITHOUT password)
+  // Sync currentUser ke localStorage (TANPA password)
   useEffect(() => {
     if (currentUser) {
-      // Strip password from stored session for security
       const safeUser = { ...currentUser };
       delete safeUser.password;
       localStorage.setItem('st_auth_user', JSON.stringify(safeUser));
@@ -203,104 +307,9 @@ export const AuthProvider = ({ children }) => {
     }
   }, [currentUser]);
 
-  // Auto-migrate plaintext passwords to hashed on first load & update admin password to admin123
-  useEffect(() => {
-    const migratePasswords = async () => {
-      const adminPassVersion = localStorage.getItem('st_admin_pass_v');
-      let needsMigration = false;
-
-      const migratedUsers = await Promise.all(
-        usersList.map(async (user) => {
-          let updatedUser = { ...user };
-          
-          if (updatedUser.username === 'admin' && adminPassVersion !== 'admin123_v1') {
-            needsMigration = true;
-            updatedUser.password = await hashPassword('admin123');
-          }
-          if (updatedUser.username === 'admin' && updatedUser.role !== 'admin') {
-            needsMigration = true;
-            updatedUser.role = 'admin';
-            updatedUser.roleLabel = 'Admin BKI';
-          }
-          
-          if ((updatedUser.username === 'bone' || (updatedUser.name && updatedUser.name.includes('BONE'))) && !updatedUser.signatureUrl) {
-            needsMigration = true;
-            updatedUser.signatureUrl = '/signatures/alfian_bone_handwritten.png';
-          }
-          if ((updatedUser.username === 'sandi' || (updatedUser.name && updatedUser.name.includes('SANDI'))) && !updatedUser.signatureUrl) {
-            needsMigration = true;
-            updatedUser.signatureUrl = '/signatures/sandi_handwritten.png';
-          }
-          if ((updatedUser.username === 'andre' || (updatedUser.name && updatedUser.name.includes('ANDRE'))) && !updatedUser.signatureUrl) {
-            needsMigration = true;
-            updatedUser.signatureUrl = '/signatures/andre_handwritten.png';
-          }
-          if (updatedUser.username === 'septian' || (updatedUser.name && updatedUser.name.includes('SEPTIAN'))) {
-            if (updatedUser.name === 'SEPTIAN AJI' || !updatedUser.name.includes('DEWANGKARA')) {
-              needsMigration = true;
-              updatedUser.name = 'SEPTIAN AJI DEWANGKARA';
-            }
-            if (!updatedUser.signatureUrl) {
-              needsMigration = true;
-              updatedUser.signatureUrl = '/signatures/septian_handwritten.png';
-            }
-          }
-          if ((updatedUser.username === 'muhson' || (updatedUser.name && updatedUser.name.includes('MUHSON'))) && !updatedUser.signatureUrl) {
-            needsMigration = true;
-            updatedUser.signatureUrl = '/signatures/kacab_muhson_signature.png';
-          }
-          
-          if (!isPasswordHashed(updatedUser.password)) {
-            needsMigration = true;
-            const fallbackPw = updatedUser.username === 'admin' ? 'admin123' : (updatedUser.password || 'password123');
-            updatedUser.password = await hashPassword(fallbackPw);
-          }
-          return updatedUser;
-        })
-      );
-
-      if (!usersList.some(u => u.username === 'monitor')) {
-        needsMigration = true;
-        const hashedPw = await hashPassword('monitor123');
-        migratedUsers.push({
-          id: 'usr-monitor',
-          username: 'monitor',
-          password: hashedPw,
-          name: 'TV Display Monitor',
-          email: 'monitor@gmail.com',
-          role: 'monitor',
-          grade: 'GRADE 6 A',
-          roleLabel: 'Layar Monitor Khusus',
-          avatarBg: '#0f172a',
-          description: 'Akun khusus untuk menampilkan informasi di layar TV'
-        });
-      }
-
-      if (needsMigration) {
-        setUsersList(migratedUsers);
-        localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));
-        // Sync migrated users to cloud so cloud database also stores secure hashes
-        migratedUsers.forEach((u) => saveUserToCloud(u).catch(() => {}));
-        setCurrentUser(prev => {
-          if (prev && (prev.username === 'admin' || prev.id === 'usr-prasetya')) {
-            const updated = { ...prev, role: 'admin', roleLabel: 'Admin BKI' };
-            localStorage.setItem('st_auth_user', JSON.stringify(updated));
-            return updated;
-          }
-          return prev;
-        });
-      }
-      localStorage.setItem('st_admin_pass_v', 'admin123_v3');
-      setPasswordsMigrated(true);
-    };
-
-    migratePasswords();
-  }, [usersList, passwordsMigrated]);
-
-  // Session expiry check — runs every 5 minutes
+  // Session expiry check — setiap 5 menit
   useEffect(() => {
     if (!currentUser) return;
-
     const interval = setInterval(() => {
       if (!isSessionValid()) {
         setCurrentUser(null);
@@ -308,21 +317,17 @@ export const AuthProvider = ({ children }) => {
         alert('Sesi Anda telah kedaluwarsa (8 jam). Silakan login kembali.');
       }
     }, 5 * 60 * 1000);
-
     return () => clearInterval(interval);
   }, [currentUser]);
 
-  /**
-   * Login with brute-force protection and password hashing.
-   * Returns: { success, message, lockInfo? }
-   */
+  // ── AUTH ACTIONS ───────────────────────────────────────────────────────
+
   const login = useCallback(async (identifierOrUser, inputPassword = null) => {
-    // Check rate limiting first
     const lockState = checkLoginLock();
     if (lockState.isLocked) {
       return {
         success: false,
-        message: `Terlalu banyak percobaan login gagal. Akun dikunci selama ${lockState.remainingSeconds} detik. Silakan coba lagi nanti.`,
+        message: `Terlalu banyak percobaan login gagal. Akun dikunci selama ${lockState.remainingSeconds} detik.`,
         lockInfo: lockState
       };
     }
@@ -338,21 +343,14 @@ export const AuthProvider = ({ children }) => {
           u.id === searchStr
       );
     } else {
-      // Object passed (e.g., from user list click)
       targetUser = usersList.find((u) => u.id === identifierOrUser.id);
     }
 
     if (!targetUser) {
-      // Generic error to prevent user enumeration
       const lockInfo = recordFailedLogin();
-      return {
-        success: false,
-        message: 'Username/email atau password yang Anda masukkan salah!',
-        lockInfo
-      };
+      return { success: false, message: 'Username/email atau password yang Anda masukkan salah!', lockInfo };
     }
 
-    // Verify password
     if (inputPassword) {
       const passwordValid = await verifyPassword(inputPassword, targetUser.password);
       if (!passwordValid) {
@@ -361,22 +359,18 @@ export const AuthProvider = ({ children }) => {
         return {
           success: false,
           message: remaining > 0
-            ? `Username/email atau password yang Anda masukkan salah! (${remaining} percobaan tersisa)`
-            : `Terlalu banyak percobaan gagal. Akun dikunci selama 2 menit.`,
+            ? `Username/email atau password salah! (${remaining} percobaan tersisa)`
+            : 'Terlalu banyak percobaan gagal. Akun dikunci selama 2 menit.',
           lockInfo
         };
       }
     }
 
-    // Login success — reset rate limiter and create session
     resetLoginAttempts();
     createSession();
-
-    // Set current user (without password in memory for safety)
     const safeUser = { ...targetUser };
     delete safeUser.password;
     setCurrentUser(safeUser);
-
     return { success: true, user: safeUser };
   }, [usersList]);
 
@@ -385,7 +379,6 @@ export const AuthProvider = ({ children }) => {
     destroySession();
   }, []);
 
-  // Find User by Username or Email for Forgot Password
   const findUserByIdentifier = useCallback((identifier) => {
     if (!identifier) return null;
     const searchStr = identifier.toLowerCase().trim();
@@ -395,25 +388,19 @@ export const AuthProvider = ({ children }) => {
         (u.email && u.email.toLowerCase() === searchStr)
     );
     if (!found) return null;
-    // Return safe user info (no password)
     const { password, ...safeUser } = found;
     return safeUser;
   }, [usersList]);
 
-  /**
-   * Verify that an email matches a user account (for forgot password flow).
-   */
   const verifyUserEmail = useCallback((userId, email) => {
     const user = usersList.find((u) => u.id === userId);
     if (!user || !user.email) return false;
     return user.email.toLowerCase().trim() === email.toLowerCase().trim();
   }, [usersList]);
 
-  // Change Password (hashed)
   const changePassword = useCallback(async (userId, newPassword) => {
     const hashedPw = await hashPassword(newPassword);
     let updatedUserObj = null;
-
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
@@ -424,18 +411,12 @@ export const AuthProvider = ({ children }) => {
         return u;
       })
     );
-
-    if (updatedUserObj) {
-      await saveUserToCloud(updatedUserObj);
-    }
-
-    // Don't store password in currentUser
+    if (updatedUserObj) await saveUserToCloud(updatedUserObj).catch(() => {});
     if (currentUser && currentUser.id === userId) {
       setCurrentUser((prev) => ({ ...prev }));
     }
   }, [currentUser]);
 
-  // Verify current password for the logged-in user (for change password flow and confirm modals)
   const verifyCurrentPassword = useCallback(async (inputPassword) => {
     if (!currentUser) return false;
     const fullUser = usersList.find((u) => u.id === currentUser.id || u.username === currentUser.username);
@@ -443,11 +424,9 @@ export const AuthProvider = ({ children }) => {
     return await verifyPassword(inputPassword, fullUser.password);
   }, [currentUser, usersList]);
 
-  // Reset Password by Admin (hashed)
   const resetPassword = useCallback(async (userId, defaultPass = 'password123') => {
     const hashedPw = await hashPassword(defaultPass);
     let updatedUserObj = null;
-
     setUsersList((prev) =>
       prev.map((u) => {
         if (u.id === userId) {
@@ -458,13 +437,9 @@ export const AuthProvider = ({ children }) => {
         return u;
       })
     );
-
-    if (updatedUserObj) {
-      await saveUserToCloud(updatedUserObj);
-    }
+    if (updatedUserObj) await saveUserToCloud(updatedUserObj).catch(() => {});
   }, []);
 
-  // User Management Actions for Admin
   const addUser = useCallback(async (userData) => {
     let roleLabel = 'Pengguna BKI';
     if (userData.role === 'admin' || userData.role === 'developer') roleLabel = 'Admin Utama BKI Pontianak';
@@ -473,11 +448,7 @@ export const AuthProvider = ({ children }) => {
     else if (userData.role === 'kacab') roleLabel = 'Kepala Cabang BKI Pontianak';
 
     const usernameGenerated = userData.username || userData.name.toLowerCase().replace(/[^a-z0-9]/g, '');
-
-    // Hash the password before storing
-    const rawPassword = userData.password || 'password123';
-    const hashedPw = await hashPassword(rawPassword);
-
+    const hashedPw = await hashPassword(userData.password || 'password123');
     const newUser = {
       ...userData,
       id: `usr-${Date.now().toString().slice(-6)}`,
@@ -487,18 +458,15 @@ export const AuthProvider = ({ children }) => {
       roleLabel: userData.roleLabel || roleLabel,
       avatarBg: userData.avatarBg || (userData.role === 'surveyor' ? '#10b981' : userData.role === 'keuangan' ? '#f59e0b' : '#1e3a8a')
     };
-
     setUsersList((prev) => [newUser, ...prev]);
-    await saveUserToCloud(newUser);
+    await saveUserToCloud(newUser).catch(() => {});
   }, []);
 
   const updateUser = useCallback(async (id, updatedData) => {
-    // If password is being changed, hash it
     let dataToSave = { ...updatedData };
     if (dataToSave.password && !isPasswordHashed(dataToSave.password)) {
       dataToSave.password = await hashPassword(dataToSave.password);
     }
-
     let oldUserObj = null;
     let updatedUserObj = null;
     setUsersList((prev) =>
@@ -512,23 +480,14 @@ export const AuthProvider = ({ children }) => {
         return u;
       })
     );
-
-    if (updatedUserObj) {
-      await saveUserToCloud(updatedUserObj);
-    }
-
+    if (updatedUserObj) await saveUserToCloud(updatedUserObj).catch(() => {});
     if (oldUserObj && dataToSave.name && oldUserObj.name !== dataToSave.name) {
       try {
-        window.dispatchEvent(
-          new CustomEvent('st_user_renamed', {
-            detail: { oldName: oldUserObj.name, newName: dataToSave.name, id }
-          })
-        );
-      } catch (e) {
-        console.warn('Dispatch st_user_renamed warning:', e);
-      }
+        window.dispatchEvent(new CustomEvent('st_user_renamed', {
+          detail: { oldName: oldUserObj.name, newName: dataToSave.name, id }
+        }));
+      } catch (e) {}
     }
-
     if (currentUser && currentUser.id === id) {
       const { password, ...safeUpdate } = dataToSave;
       setCurrentUser((prev) => ({ ...prev, ...safeUpdate }));
@@ -541,13 +500,15 @@ export const AuthProvider = ({ children }) => {
       return;
     }
     setUsersList((prev) => prev.filter((u) => u.id !== id));
-    await deleteUserFromCloud(id);
+    await deleteUserFromCloud(id).catch(() => {});
   }, [currentUser]);
 
   const resetUsers = useCallback(() => {
     setUsersList(INITIAL_USERS);
-    setPasswordsMigrated(false); // Will trigger re-migration
     localStorage.removeItem('st_users_list');
+    localStorage.removeItem('st_admin_pass_v');
+    localStorage.removeItem('st_users_reset_v5');
+    initDoneRef.current = false; // izinkan init ulang
   }, []);
 
   return (
@@ -578,8 +539,6 @@ export const AuthProvider = ({ children }) => {
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth must be used within an AuthProvider');
-  }
+  if (!context) throw new Error('useAuth must be used within an AuthProvider');
   return context;
 };
