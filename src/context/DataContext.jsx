@@ -614,7 +614,8 @@ export const DataProvider = ({ children }) => {
 
   const resetTariffs = () => {
     setTariffs(INITIAL_LOCATION_TARIFFS);
-    localStorage.setItem('st_tariffs', JSON.stringify(INITIAL_LOCATION_TARIFFS));
+    safeSetLocalStorage('st_tariffs_v2', INITIAL_LOCATION_TARIFFS);
+    localStorage.removeItem('st_tariffs');
   };
 
   // CRUD Actions for Grade / Uang Harian

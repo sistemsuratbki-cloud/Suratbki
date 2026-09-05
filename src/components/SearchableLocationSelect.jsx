@@ -18,6 +18,8 @@ import { Search, ChevronDown, ChevronUp, X, MapPin } from 'lucide-react';
 export default function SearchableLocationSelect({
   activeTariffs = [],
   value = '',
+  selectedRate = null,
+  selectedCategory = null,
   onChange,
   getLocationCategory,
   showRate = false,
@@ -82,9 +84,27 @@ export default function SearchableLocationSelect({
   // Get display text for currently selected value
   const selectedDisplay = useMemo(() => {
     if (!value) return '';
-    const found = activeTariffs.find(
-      (t) => (t.tujuan || t.name) === value
-    );
+    let found = null;
+    if (selectedRate && selectedCategory) {
+      found = activeTariffs.find(
+        (t) => (t.tujuan || t.name) === value && Number(t.rate) === Number(selectedRate) && t.kategori === selectedCategory
+      );
+    }
+    if (!found && selectedRate) {
+      found = activeTariffs.find(
+        (t) => (t.tujuan || t.name) === value && Number(t.rate) === Number(selectedRate)
+      );
+    }
+    if (!found && selectedCategory) {
+      found = activeTariffs.find(
+        (t) => (t.tujuan || t.name) === value && t.kategori === selectedCategory
+      );
+    }
+    if (!found) {
+      found = activeTariffs.find(
+        (t) => (t.tujuan || t.name) === value
+      );
+    }
     if (found) {
       const label = found.tujuan || found.name;
       const rincian = found.rincian ? ` (${found.rincian})` : '';
@@ -92,12 +112,12 @@ export default function SearchableLocationSelect({
       return `${label}${rincian}${rate}`;
     }
     return value;
-  }, [value, activeTariffs, showRate, formatRupiah]);
+  }, [value, selectedRate, selectedCategory, activeTariffs, showRate, formatRupiah]);
 
   const handleSelect = (tariff) => {
     if (disabled) return;
     const val = tariff.tujuan || tariff.name;
-    if (onChange) onChange(val);
+    if (onChange) onChange(val, tariff);
     setSearchTerm('');
     setIsOpen(false);
   };
@@ -307,7 +327,7 @@ export default function SearchableLocationSelect({
                   </div>
                   {filteredDalamKota.map((t, idx) => {
                     const itemValue = t.tujuan || t.name;
-                    const isSelected = itemValue === value;
+                    const isSelected = itemValue === value && (selectedRate ? Number(t.rate) === Number(selectedRate) : true) && (selectedCategory ? t.kategori === selectedCategory : true);
                     return (
                       <div
                         key={`dk-${idx}`}
@@ -364,7 +384,7 @@ export default function SearchableLocationSelect({
                   </div>
                   {filteredLuarKota.map((t, idx) => {
                     const itemValue = t.tujuan || t.name;
-                    const isSelected = itemValue === value;
+                    const isSelected = itemValue === value && (selectedRate ? Number(t.rate) === Number(selectedRate) : true) && (selectedCategory ? t.kategori === selectedCategory : true);
                     return (
                       <div
                         key={`lk-${idx}`}

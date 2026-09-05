@@ -400,32 +400,72 @@ export const INITIAL_GRADE_TARIFFS = [
   { id: 'grd-3', grade: 'GRADE 5 C', uangHarian: 275000 }
 ];
 
-export const findTariffByLocation = (locName, tariffList = INITIAL_LOCATION_TARIFFS) => {
+export const findTariffByLocation = (locName, tariffList = INITIAL_LOCATION_TARIFFS, preferredRate = null, preferredCategory = null) => {
   if (!locName) return null;
   const clean = String(locName).trim().toUpperCase();
-  return (tariffList || []).find((t) => {
+  const list = tariffList || [];
+
+  // 1. Exact match by name/tujuan with preferredRate and preferredCategory
+  if (preferredRate || preferredCategory) {
+    const perfect = list.find((t) => {
+      const tName = (t.name || '').trim().toUpperCase();
+      const tTujuan = (t.tujuan || '').trim().toUpperCase();
+      const nameMatch = tName === clean || tTujuan === clean;
+      const rateMatch = preferredRate ? Number(t.rate) === Number(preferredRate) : true;
+      const catMatch = preferredCategory ? t.kategori === preferredCategory : true;
+      return nameMatch && rateMatch && catMatch;
+    });
+    if (perfect) return perfect;
+  }
+
+  // 2. Exact match by name or tujuan with preferredRate
+  if (preferredRate) {
+    const rateMatch = list.find((t) => {
+      const tName = (t.name || '').trim().toUpperCase();
+      const tTujuan = (t.tujuan || '').trim().toUpperCase();
+      return (tName === clean || tTujuan === clean) && Number(t.rate) === Number(preferredRate);
+    });
+    if (rateMatch) return rateMatch;
+  }
+
+  // 3. Exact match by name or tujuan with preferredCategory
+  if (preferredCategory) {
+    const catMatch = list.find((t) => {
+      const tName = (t.name || '').trim().toUpperCase();
+      const tTujuan = (t.tujuan || '').trim().toUpperCase();
+      return (tName === clean || tTujuan === clean) && t.kategori === preferredCategory;
+    });
+    if (catMatch) return catMatch;
+  }
+
+  // 4. Exact match by name or tujuan
+  const exact = list.find((t) => {
     const tName = (t.name || '').trim().toUpperCase();
     const tTujuan = (t.tujuan || '').trim().toUpperCase();
-    return tName === clean || tTujuan === clean || clean.includes(tName) || (tName && clean.includes(tName));
+    return tName === clean || tTujuan === clean;
+  });
+  if (exact) return exact;
+
+  // 5. Partial match (only if identifier has significant length to avoid false positives)
+  return list.find((t) => {
+    const tName = (t.name || '').trim().toUpperCase();
+    const tTujuan = (t.tujuan || '').trim().toUpperCase();
+    if (tName && tName.length >= 4 && clean.includes(tName)) return true;
+    if (tTujuan && tTujuan.length >= 4 && clean.includes(tTujuan)) return true;
+    if (clean.length >= 4 && (tName.includes(clean) || tTujuan.includes(clean))) return true;
+    return false;
   }) || null;
 };
 
-export const getLocationCategory = (locName, tariffList = INITIAL_LOCATION_TARIFFS) => {
-  const matched = findTariffByLocation(locName, tariffList);
+export const getLocationCategory = (locName, tariffList = INITIAL_LOCATION_TARIFFS, preferredRate = null) => {
+  const matched = findTariffByLocation(locName, tariffList, preferredRate);
   if (matched && matched.kategori) {
     return matched.kategori;
   }
   // Default heuristic for Pontianak harbor areas
   const clean = String(locName || '').toUpperCase();
 
-  // VIA DARAT → Dalam Kota, VIA UDARA → Luar Kota
-  if (clean.includes('VIA DARAT')) {
-    return 'Dalam Kota';
-  }
-  if (clean.includes('VIA UDARA')) {
-    return 'Luar Kota';
-  }
-
+  // Explicit check for known Dalam Kota terms
   if (
     clean.includes('WAJOK') ||
     clean.includes('BATU LAYANG') ||
@@ -436,10 +476,16 @@ export const getLocationCategory = (locName, tariffList = INITIAL_LOCATION_TARIF
     clean.includes('SUI RAYA') ||
     clean.includes('JUNGKAT') ||
     clean.includes('KUMPAI') ||
-    clean.includes('MUARA JUNGKAT')
+    clean.includes('MUARA JUNGKAT') ||
+    clean.includes('PONTIANAK')
   ) {
     return 'Dalam Kota';
   }
+
+  if (clean.includes('VIA UDARA')) {
+    return 'Luar Kota';
+  }
+
   return 'Luar Kota';
 };
 

@@ -605,17 +605,32 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     }));
   };
 
+  // Toggle Kategori Perjalanan (Dalam Kota / Luar Kota)
+  const handleCategoryToggle = (targetCat = null) => {
+    const nextCat = targetCat || (formData.kategoriPerjalanan === 'Luar Kota' ? 'Dalam Kota' : 'Luar Kota');
+    const isLuar = nextCat === 'Luar Kota';
+    const tat = isLuar && !formData.tanpaTAT ? Number(adminSettings?.tatLuarKota || 750000) : 0;
+    setFormData((prev) => ({
+      ...prev,
+      kategoriPerjalanan: nextCat,
+      biayaTAT: tat,
+      saranaTransportasi: nextCat === 'Dalam Kota' ? 'DARAT DAN AIR' : 'UDARA, DARAT DAN AIR'
+    }));
+  };
+
   // Location Change (dari dropdown tariff)
-  const handleLocationChange = (locName) => {
-    const matched = findTariffByLocation(locName, activeTariffs);
+  const handleLocationChange = (locName, selectedTariff = null) => {
+    const matched = selectedTariff || findTariffByLocation(locName, activeTariffs, formData.tarifDasar, formData.kategoriPerjalanan);
     const newRate = matched ? Number(matched.rate) : formData.tarifDasar;
-    const newCategory = matched?.kategori || getLocationCategory(locName, activeTariffs);
+    const newCategory = (selectedTariff && selectedTariff.kategori)
+      ? selectedTariff.kategori
+      : (matched?.kategori || getLocationCategory(locName, activeTariffs, newRate));
     const tat = newCategory === 'Luar Kota' && !formData.tanpaTAT ? Number(adminSettings?.tatLuarKota || 750000) : 0;
 
     setFormData((prev) => ({
       ...prev,
-      lokasi: locName.toUpperCase(),
-      tempatSurvey: locName.toUpperCase(),
+      lokasi: (matched?.tujuan || matched?.name || locName).toUpperCase(),
+      tempatSurvey: (matched?.tujuan || matched?.name || locName).toUpperCase(),
       tarifDasar: newRate,
       kategoriPerjalanan: newCategory,
       biayaTAT: tat,
@@ -680,16 +695,6 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     const { count, details } = countHolidaysAndWeekendsInRange(formData.tglMulai, formData.tglSelesai);
     return { totalDays: hr, totalNights: mlm, autoHolidays: count, holidayDetails: details };
   }, [formData.tglMulai, formData.tglSelesai]);
-
-  // Sync automatic holidays count when dates change if not edited
-  useEffect(() => {
-    if (!editItem) {
-      setFormData((prev) => ({
-        ...prev,
-        jumlahHariLibur: autoHolidays
-      }));
-    }
-  }, [autoHolidays, editItem]);
 
   // Surveyor change -> sync grade (Memoized to prevent re-creation)
   const handleSurveyorChange = useCallback((name) => {
@@ -1958,9 +1963,42 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                     <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.4rem' }}>
                       <span style={{ fontWeight: 700 }}>Tempat Survey & Tarif SK *</span>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', flexWrap: 'wrap' }}>
-                        <span className={`badge ${formData.kategoriPerjalanan === 'Luar Kota' ? 'badge-primary' : 'badge-success'}`} style={{ fontSize: '0.65rem', padding: '0.1rem 0.4rem' }}>
-                          {formData.kategoriPerjalanan || 'Dalam Kota'}
-                        </span>
+                        {/* Segmented Control Kategori Perjalanan (Klik langsung untuk ubah) */}
+                        <div style={{ display: 'inline-flex', borderRadius: '6px', overflow: 'hidden', border: '1px solid var(--border-color)', fontSize: '0.68rem', fontWeight: 700 }}>
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryToggle('Dalam Kota')}
+                            style={{
+                              padding: '0.15rem 0.5rem',
+                              border: 'none',
+                              cursor: 'pointer',
+                              background: formData.kategoriPerjalanan === 'Dalam Kota' ? '#10b981' : 'var(--bg-secondary)',
+                              color: formData.kategoriPerjalanan === 'Dalam Kota' ? '#ffffff' : 'var(--text-secondary)',
+                              fontWeight: formData.kategoriPerjalanan === 'Dalam Kota' ? 800 : 600,
+                              transition: 'all 0.15s'
+                            }}
+                            title="Set kategori Dalam Kota (Tanpa Biaya TAT)"
+                          >
+                            🚗 Dalam Kota
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleCategoryToggle('Luar Kota')}
+                            style={{
+                              padding: '0.15rem 0.5rem',
+                              border: 'none',
+                              borderLeft: '1px solid var(--border-color)',
+                              cursor: 'pointer',
+                              background: formData.kategoriPerjalanan === 'Luar Kota' ? 'var(--accent-primary, #3b82f6)' : 'var(--bg-secondary)',
+                              color: formData.kategoriPerjalanan === 'Luar Kota' ? '#ffffff' : 'var(--text-secondary)',
+                              fontWeight: formData.kategoriPerjalanan === 'Luar Kota' ? 800 : 600,
+                              transition: 'all 0.15s'
+                            }}
+                            title="Set kategori Luar Kota (Dengan Biaya TAT)"
+                          >
+                            ✈️ Luar Kota
+                          </button>
+                        </div>
                         {/* Toggle Manual Input */}
                         <button
                           type="button"
@@ -1993,7 +2031,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                       <SearchableLocationSelect
                         activeTariffs={activeTariffs}
                         value={formData.lokasi}
-                        onChange={(val) => handleLocationChange(val)}
+                        selectedRate={formData.tarifDasar}
+                        selectedCategory={formData.kategoriPerjalanan}
+                        onChange={(val, tariff) => handleLocationChange(val, tariff)}
                         getLocationCategory={getLocationCategory}
                         showRate={true}
                         formatRupiah={formatRupiah}
@@ -2110,8 +2150,27 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                   </div>
 
                   <div className="form-group" style={{ margin: 0 }}>
-                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem' }}>
-                      Hari Libur (Jml)
+                    <label className="form-label" style={{ fontWeight: 700, fontSize: '0.78rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <span>Hari Libur (Jml)</span>
+                      {autoHolidays > 0 && Number(formData.jumlahHariLibur || 0) === 0 && (
+                        <button
+                          type="button"
+                          onClick={() => setFormData((prev) => ({ ...prev, jumlahHariLibur: autoHolidays }))}
+                          style={{
+                            fontSize: '0.68rem',
+                            padding: '0.1rem 0.45rem',
+                            borderRadius: '4px',
+                            border: '1px solid #f43f5e',
+                            background: '#fff1f2',
+                            color: '#e11d48',
+                            cursor: 'pointer',
+                            fontWeight: 700
+                          }}
+                          title="Terapkan jumlah hari libur otomatis yang terdeteksi pada rentang tanggal"
+                        >
+                          + Set {autoHolidays} Hari Libur
+                        </button>
+                      )}
                     </label>
                     <input
                       type="number"
@@ -2120,7 +2179,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
                       className="form-input"
                       style={{ fontWeight: 700 }}
                       placeholder="0"
-                      value={formData.jumlahHariLibur}
+                      value={formData.jumlahHariLibur ?? 0}
                       onChange={(e) => setFormData({ ...formData, jumlahHariLibur: Math.max(0, parseInt(e.target.value, 10) || 0) })}
                     />
                   </div>
