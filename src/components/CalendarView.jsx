@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, lazy, Suspense } from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon } from 'lucide-react';
 import { useData } from '../context/DataContext';
 import { useAuth } from '../context/AuthContext';
 import { formatDateIndo } from '../utils/formatters';
 import { filterDataByRole, isSameSurveyor } from '../utils/filterData';
 import { checkHolidayOrWeekend } from '../utils/holidays';
-import { DayDetailModal } from './DayDetailModal';
+
+const DayDetailModal = lazy(() => import('./DayDetailModal').then(m => ({ default: m.DayDetailModal })));
 
 export const CalendarView = ({ surveyorFilter }) => {
   const { suratTugas, kwitansiHonor, laporanSurvei } = useData();
@@ -382,14 +383,16 @@ export const CalendarView = ({ surveyorFilter }) => {
       </div>
 
       {isModalOpen && (
-        <DayDetailModal
-          isOpen={isModalOpen}
-          onClose={() => setIsModalOpen(false)}
-          selectedDate={selectedDateStr}
-          tasksOnDate={tasksOnSelectedDate}
-          kwitansiList={filteredKwitansi}
-          laporanList={filteredLaporan}
-        />
+        <Suspense fallback={null}>
+          <DayDetailModal
+            isOpen={isModalOpen}
+            onClose={() => setIsModalOpen(false)}
+            selectedDate={selectedDateStr}
+            tasksOnDate={tasksOnSelectedDate}
+            kwitansiList={filteredKwitansi}
+            laporanList={filteredLaporan}
+          />
+        </Suspense>
       )}
     </div>
   );

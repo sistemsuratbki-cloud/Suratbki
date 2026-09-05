@@ -157,12 +157,12 @@ const withTimeout = (promise, timeoutMs = 5000) => {
 
 /**
  * Fetch dari Hostinger ONLY (Google Sheets dinonaktifkan - URL 404/CORS error).
- * Dengan timeout 8 detik untuk cegah hanging.
+ * Dengan timeout 4 detik untuk cegah hanging.
  */
 const dualFetchTable = async (tableName) => {
   if (isHostingerEnabled()) {
     try {
-      const hData = await withTimeout(fetchHostingerAllData(), 8000);
+      const hData = await withTimeout(fetchHostingerAllData(), 4000);
       if (hData && Array.isArray(hData[tableName])) {
         return hData[tableName];
       }

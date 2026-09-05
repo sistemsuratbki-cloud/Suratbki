@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { useAuth } from './AuthContext';
 import {
   INITIAL_SURAT_TUGAS,
   INITIAL_KWITANSI_HONOR,
@@ -85,30 +86,28 @@ const deleteEntityFilesFromGoogleDrive = (item) => {
 
 const safeSetLocalStorage = (key, data) => {
   try {
-    // OPTIMIZED: Always strip large base64 to reduce localStorage pressure
-    const sanitized = JSON.parse(
-      JSON.stringify(data, (k, v) => {
-        // Keep essential signatures (small images)
-        if (k === 'signatureUrl' || k === 'kacabSignatureUrl' || k === 'pembuatSignatureUrl' || k === 'signature') {
-          return v;
-        }
-        // Strip large base64 (keep only Google Drive URLs and small data URLs)
-        if (typeof v === 'string') {
-          if (v.startsWith('http')) {
-            return v; // Keep all HTTP/HTTPS URLs (Google Drive links)
-          }
-          if (v.startsWith('data:') && v.length > 10000) {
-            // Large base64 (>10KB) stripped, small icons kept
-            return '[STRIPPED_BASE64]';
-          }
-        }
+    // OPTIMIZED: Direct single-pass serialization (eliminates double stringify + parse CPU freeze)
+    const jsonStr = JSON.stringify(data, (k, v) => {
+      // Keep essential signatures (small images)
+      if (k === 'signatureUrl' || k === 'kacabSignatureUrl' || k === 'pembuatSignatureUrl' || k === 'signature') {
         return v;
-      })
-    );
-    localStorage.setItem(key, JSON.stringify(sanitized));
+      }
+      // Strip large base64 (keep only Google Drive URLs and small data URLs)
+      if (typeof v === 'string') {
+        if (v.startsWith('http')) {
+          return v; // Keep all HTTP/HTTPS URLs (Google Drive links)
+        }
+        if (v.startsWith('data:') && v.length > 10000) {
+          // Large base64 (>10KB) stripped, small icons kept
+          return '[STRIPPED_BASE64]';
+        }
+      }
+      return v;
+    });
+    localStorage.setItem(key, jsonStr);
   } catch (e) {
     console.error(`LocalStorage write failed for ${key}:`, e);
-    // If still fails after sanitization, clear old data
+    // If still fails, clear old data
     try {
       localStorage.removeItem(key);
       console.warn(`Cleared ${key} to free space`);
@@ -147,6 +146,9 @@ const cleanEntityObject = (item) => {
 export const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
+  const auth = useAuth ? useAuth() : null;
+  const isAuthenticated = auth?.isAuthenticated ?? true;
+
   const [suratTugas, setSuratTugas] = useState(() => {
     const saved = localStorage.getItem('st_surat_tugas');
     const parsed = saved ? JSON.parse(saved) : INITIAL_SURAT_TUGAS;
@@ -300,7 +302,7 @@ export const DataProvider = ({ children }) => {
   // ====== 0. INITIAL CLOUD LOAD (SUPABASE) & REALTIME SYNC ======
   const refreshAllFromCloud = useCallback(async () => {
     try {
-      // OPTIMIZED: Add timeout protection (15s total) to prevent 408 errors on LiteSpeed
+      // OPTIMIZED: Add timeout protection (5s total) to prevent long waiting on slow connections
       const fetchWithTimeout = Promise.race([
         Promise.all([
           fetchSuratTugasFromCloud(),
@@ -313,7 +315,7 @@ export const DataProvider = ({ children }) => {
           fetchVisitSurveiFromCloud()
         ]),
         new Promise((_, reject) => 
-          setTimeout(() => reject(new Error('Cloud sync timeout - data loaded from cache')), 15000)
+          setTimeout(() => reject(new Error('Cloud sync timeout - data loaded from cache')), 5000)
         )
       ]);
 
@@ -427,6 +429,8 @@ export const DataProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     refreshAllFromCloud();
 
     // Subscribe to live cloud changes
@@ -437,7 +441,7 @@ export const DataProvider = ({ children }) => {
     return () => {
       if (typeof unsubscribe === 'function') unsubscribe();
     };
-  }, [refreshAllFromCloud]);
+  }, [isAuthenticated, refreshAllFromCloud]);
 
   // Sync to LocalStorage (Cleaned & Quota Safe) - DEBOUNCED to batch writes
   useEffect(() => {
@@ -481,7 +485,7 @@ export const DataProvider = ({ children }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
       safeSetLocalStorage('st_master_kapal', masterKapal);
-    }, 500);
+    }, 2500); // 2.5s debounce to prevent CPU freeze with 1700+ ship records
     return () => clearTimeout(timer);
   }, [masterKapal]);
 

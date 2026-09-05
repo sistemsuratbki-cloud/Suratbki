@@ -207,7 +207,7 @@ export async function fetchHostingerAllData(forceRefresh = false) {
       const res = await fetchWithTimeout(targetUrl, {
         method: 'GET',
         headers: getAuthHeaders()
-      }, 8000);
+      }, 4000);
 
       if (!res.ok) throw new Error(`HTTP error ${res.status}`);
       const json = await res.json();

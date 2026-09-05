@@ -160,10 +160,8 @@ export const AuthProvider = ({ children }) => {
     }
   });
 
-  // isInitializing: true saat pertama load, false setelah cloud sync selesai
-  const [isInitializing, setIsInitializing] = useState(() => {
-    return localStorage.getItem('st_auth_cache_v') !== 'v5' || !localStorage.getItem('st_users_list');
-  });
+  // isInitializing: false secara default agar form login langsung siap digunakan tanpa menunggu cloud
+  const [isInitializing, setIsInitializing] = useState(false);
 
   const [currentUser, setCurrentUser] = useState(() => {
     try {

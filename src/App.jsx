@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { DataProvider } from './context/DataContext';
@@ -7,18 +7,44 @@ import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { SummaryCards } from './components/SummaryCards';
 import { CalendarView } from './components/CalendarView';
-import { SuratTugasTable } from './components/SuratTugasTable';
-import { LaporanTable } from './components/LaporanTable';
-import { LaporanParafTable } from './components/LaporanParafTable';
-import { BukuAgendaTable } from './components/BukuAgendaTable';
-import { UserManagementTable } from './components/UserManagementTable';
-import { TariffManagementTable } from './components/TariffManagementTable';
-import { GradeTariffManagementTable } from './components/GradeTariffManagementTable';
-import { SettingsTab } from './components/SettingsTab';
 import { LoginScreen } from './components/LoginScreen';
-import { TvDisplay } from './components/TvDisplay';
-import { ShipDatabaseManagementTable } from './components/ShipDatabaseManagementTable';
-import { VisitSurveiTable } from './components/VisitSurveiTable';
+
+// Lazy loaded heavy tab components to reduce initial bundle by >70%
+const SuratTugasTable = lazy(() => import('./components/SuratTugasTable').then(m => ({ default: m.SuratTugasTable })));
+const LaporanTable = lazy(() => import('./components/LaporanTable').then(m => ({ default: m.LaporanTable })));
+const LaporanParafTable = lazy(() => import('./components/LaporanParafTable').then(m => ({ default: m.LaporanParafTable })));
+const BukuAgendaTable = lazy(() => import('./components/BukuAgendaTable').then(m => ({ default: m.BukuAgendaTable })));
+const UserManagementTable = lazy(() => import('./components/UserManagementTable').then(m => ({ default: m.UserManagementTable })));
+const TariffManagementTable = lazy(() => import('./components/TariffManagementTable').then(m => ({ default: m.TariffManagementTable })));
+const GradeTariffManagementTable = lazy(() => import('./components/GradeTariffManagementTable').then(m => ({ default: m.GradeTariffManagementTable })));
+const SettingsTab = lazy(() => import('./components/SettingsTab').then(m => ({ default: m.SettingsTab })));
+const TvDisplay = lazy(() => import('./components/TvDisplay').then(m => ({ default: m.TvDisplay })));
+const ShipDatabaseManagementTable = lazy(() => import('./components/ShipDatabaseManagementTable').then(m => ({ default: m.ShipDatabaseManagementTable })));
+const VisitSurveiTable = lazy(() => import('./components/VisitSurveiTable').then(m => ({ default: m.VisitSurveiTable })));
+
+function TabLoadingFallback() {
+  return (
+    <div style={{
+      minHeight: '400px',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '1rem',
+      color: 'var(--text-secondary, #64748b)'
+    }}>
+      <div style={{
+        width: '36px',
+        height: '36px',
+        border: '3px solid rgba(2, 132, 199, 0.2)',
+        borderTopColor: 'var(--primary-color, #0284c7)',
+        borderRadius: '50%',
+        animation: 'spin 0.8s linear infinite'
+      }} />
+      <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>Memuat modul...</span>
+    </div>
+  );
+}
 
 function AppContent() {
   const { isAuthenticated, role, logout, usersList } = useAuth();
@@ -60,7 +86,11 @@ function AppContent() {
   // Layar Monitor TV hanya dapat diakses oleh Kepala Cabang, Admin, Developer, dan Akun Monitor
   const canAccessMonitor = role === 'admin' || role === 'kacab' || role === 'developer' || role === 'monitor';
   if (role === 'monitor' || (activeTab === 'tv-display' && canAccessMonitor)) {
-    return <TvDisplay onClose={role === 'monitor' ? logout : () => setActiveTab(isFinance ? 'laporan_pds' : 'calendar')} isMonitorRole={role === 'monitor'} />;
+    return (
+      <Suspense fallback={<TabLoadingFallback />}>
+        <TvDisplay onClose={role === 'monitor' ? logout : () => setActiveTab(isFinance ? 'laporan_pds' : 'calendar')} isMonitorRole={role === 'monitor'} />
+      </Suspense>
+    );
   }
 
   return (
@@ -113,21 +143,23 @@ function AppContent() {
             </>
           )}
 
-          {(activeTab === 'surat' || activeTab === 'surat_sps') && !isFinance && <SuratTugasTable filterType="SPS" />}
-          {activeTab === 'surat_pds' && !isFinance && <SuratTugasTable filterType="PDS" />}
-          {activeTab === 'visit_survei' && !isFinance && <VisitSurveiTable onOpenMonitor={() => setActiveTab('tv-display')} />}
-          {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}
-          {activeTab === 'laporan_paraf' && <LaporanParafTable />}
-          {activeTab === 'buku_agenda' && <BukuAgendaTable />}
-          {activeTab === 'tariffs' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
-              <GradeTariffManagementTable />
-              <TariffManagementTable />
-            </div>
-          )}
-          {activeTab === 'users' && <UserManagementTable />}
-          {activeTab === 'ship_database' && <ShipDatabaseManagementTable />}
-          {activeTab === 'settings' && <SettingsTab />}
+          <Suspense fallback={<TabLoadingFallback />}>
+            {(activeTab === 'surat' || activeTab === 'surat_sps') && !isFinance && <SuratTugasTable filterType="SPS" />}
+            {activeTab === 'surat_pds' && !isFinance && <SuratTugasTable filterType="PDS" />}
+            {activeTab === 'visit_survei' && !isFinance && <VisitSurveiTable onOpenMonitor={() => setActiveTab('tv-display')} />}
+            {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}
+            {activeTab === 'laporan_paraf' && <LaporanParafTable />}
+            {activeTab === 'buku_agenda' && <BukuAgendaTable />}
+            {activeTab === 'tariffs' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '2rem' }}>
+                <GradeTariffManagementTable />
+                <TariffManagementTable />
+              </div>
+            )}
+            {activeTab === 'users' && <UserManagementTable />}
+            {activeTab === 'ship_database' && <ShipDatabaseManagementTable />}
+            {activeTab === 'settings' && <SettingsTab />}
+          </Suspense>
         </main>
       </div>
     </div>
