@@ -16,12 +16,17 @@ export const LoginScreen = () => {
   const [errorMessage, setErrorMessage] = useState('');
   const [isForgotModalOpen, setIsForgotModalOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
 
-  // Rate limiting UI state
   const [lockCountdown, setLockCountdown] = useState(0);
   const [failedAttempts, setFailedAttempts] = useState(0);
 
-  // Check lock state on mount
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
   useEffect(() => {
     const lockState = checkLoginLock();
     if (lockState.isLocked) {
@@ -30,54 +35,33 @@ export const LoginScreen = () => {
     }
   }, []);
 
-  // Countdown timer for lockout
   useEffect(() => {
     if (lockCountdown <= 0) return;
-
     const timer = setInterval(() => {
       setLockCountdown((prev) => {
-        if (prev <= 1) {
-          setFailedAttempts(0);
-          setErrorMessage('');
-          return 0;
-        }
+        if (prev <= 1) { setFailedAttempts(0); setErrorMessage(''); return 0; }
         return prev - 1;
       });
     }, 1000);
-
     return () => clearInterval(timer);
   }, [lockCountdown]);
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
     setErrorMessage('');
-
-    if (lockCountdown > 0) {
-      setErrorMessage(`Login dikunci. Tunggu ${lockCountdown} detik lagi.`);
-      return;
-    }
-
-    if (!identifierInput || !passwordInput) {
-      setErrorMessage('Mohon isi username/email dan password!');
-      return;
-    }
-
+    if (lockCountdown > 0) { setErrorMessage(`Login dikunci. Tunggu ${lockCountdown} detik lagi.`); return; }
+    if (!identifierInput || !passwordInput) { setErrorMessage('Mohon isi username/email dan password!'); return; }
     setIsLoading(true);
-
     try {
       const result = await login(identifierInput, passwordInput);
-
       if (result && !result.success) {
         setErrorMessage(result.message);
-
         if (result.lockInfo) {
           setFailedAttempts(result.lockInfo.attempts);
-          if (result.lockInfo.isLocked) {
-            setLockCountdown(result.lockInfo.remainingSeconds);
-          }
+          if (result.lockInfo.isLocked) setLockCountdown(result.lockInfo.remainingSeconds);
         }
       }
-    } catch (err) {
+    } catch {
       setErrorMessage('Terjadi kesalahan saat login. Silakan coba lagi.');
     } finally {
       setIsLoading(false);
@@ -85,269 +69,249 @@ export const LoginScreen = () => {
   }, [identifierInput, passwordInput, lockCountdown, login]);
 
   const isLocked = lockCountdown > 0;
-
-  const formatCountdown = (seconds) => {
-    const m = Math.floor(seconds / 60);
-    const s = seconds % 60;
-    return `${m}:${s.toString().padStart(2, '0')}`;
-  };
+  const formatCountdown = (s) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        background: 'var(--bg-main)',
-        padding: '1.5rem',
-        position: 'relative',
-        overflow: 'hidden'
-      }}
-    >
-      {/* Decorative Glow Backgrounds */}
-      <div
-        style={{
-          position: 'absolute',
-          top: '-10%',
-          left: '-5%',
-          width: '550px',
-          height: '550px',
-          background: 'radial-gradient(circle, rgba(30, 58, 138, 0.22) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%',
-          pointerEvents: 'none'
-        }}
-      />
-      <div
-        style={{
-          position: 'absolute',
-          bottom: '-10%',
-          right: '-5%',
-          width: '550px',
-          height: '550px',
-          background: 'radial-gradient(circle, rgba(0, 180, 167, 0.18) 0%, rgba(0,0,0,0) 70%)',
-          borderRadius: '50%',
-          pointerEvents: 'none'
-        }}
-      />
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      justifyContent: 'center',
+      background: 'var(--bg-main)',
+      padding: isMobile ? '1rem' : '2rem',
+      position: 'relative',
+      overflow: 'hidden',
+      boxSizing: 'border-box'
+    }}>
+      {/* Decorative glows — hidden on mobile to save space */}
+      {!isMobile && <>
+        <div style={{ position: 'absolute', top: '-10%', left: '-5%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(30,58,138,0.2) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+        <div style={{ position: 'absolute', bottom: '-10%', right: '-5%', width: '500px', height: '500px', background: 'radial-gradient(circle, rgba(0,180,167,0.15) 0%, transparent 70%)', borderRadius: '50%', pointerEvents: 'none' }} />
+      </>}
 
-      <div
-        style={{
-          maxWidth: '960px',
-          width: '100%',
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))',
-          gap: '2.5rem',
-          alignItems: 'center',
-          zIndex: 2
-        }}
-      >
-        {/* Left Side: Danantara, BKI & IDSurvey Branding */}
-        <div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '0.85rem', marginBottom: '1.5rem', flexWrap: 'wrap' }}>
-            <BKILogo size={46} />
-            <div style={{ height: '32px', width: '1.5px', background: 'var(--border-color)' }} />
-            <IDSurveyLogo height={34} />
-            <div style={{ height: '32px', width: '1.5px', background: 'var(--border-color)' }} />
-            <DanantaraLogo height={32} />
+      <div style={{
+        width: '100%',
+        maxWidth: isMobile ? '420px' : '960px',
+        display: isMobile ? 'flex' : 'grid',
+        flexDirection: 'column',
+        gridTemplateColumns: '1fr 1fr',
+        gap: isMobile ? '1rem' : '2.5rem',
+        alignItems: 'center',
+        zIndex: 2
+      }}>
+
+        {/* ── Branding Section ── */}
+        <div style={{ width: '100%' }}>
+          {/* Logos row */}
+          <div style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: '0.65rem',
+            marginBottom: isMobile ? '0.75rem' : '1.25rem',
+            flexWrap: 'nowrap',
+            justifyContent: isMobile ? 'center' : 'flex-start'
+          }}>
+            <BKILogo size={isMobile ? 36 : 44} />
+            <div style={{ height: '28px', width: '1.5px', background: 'var(--border-color)', flexShrink: 0 }} />
+            <IDSurveyLogo height={isMobile ? 26 : 32} />
+            <div style={{ height: '28px', width: '1.5px', background: 'var(--border-color)', flexShrink: 0 }} />
+            <DanantaraLogo height={isMobile ? 24 : 30} />
           </div>
 
-          <div style={{ marginBottom: '1.25rem' }}>
-            <h1 style={{ fontSize: '1.85rem', fontWeight: 800, color: 'var(--text-primary)', lineHeight: 1.25 }}>
+          {/* Title & tagline — compact on mobile */}
+          <div style={{ marginBottom: isMobile ? '0.5rem' : '1rem', textAlign: isMobile ? 'center' : 'left' }}>
+            <h1 style={{
+              fontSize: isMobile ? '1.2rem' : '1.75rem',
+              fontWeight: 800,
+              color: 'var(--text-primary)',
+              lineHeight: 1.25,
+              margin: 0
+            }}>
               Sistem Informasi Surat Tugas & Survei Kapal
             </h1>
-            <div style={{ fontSize: '0.95rem', color: 'var(--accent-primary)', fontWeight: 700, marginTop: '0.35rem' }}>
-              PT Biro Klasifikasi Indonesia (Persero) — Cabang Madya Kelas Pontianak
+            <div style={{
+              fontSize: isMobile ? '0.78rem' : '0.9rem',
+              color: 'var(--accent-primary)',
+              fontWeight: 700,
+              marginTop: '0.3rem'
+            }}>
+              PT BKI (Persero) — Cabang Madya Kelas Pontianak
             </div>
           </div>
 
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.925rem', lineHeight: '1.65', margin: 0 }}>
-            Portal resmi pengelolaan Surat Tugas Survei, Kwitansi Honorarium Surveyor, dan Laporan Kelaiklautan Kapal untuk wilayah kerja Kalimantan Barat.
-          </p>
+          {!isMobile && (
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', lineHeight: '1.6', margin: 0 }}>
+              Portal resmi pengelolaan Surat Tugas Survei, Kwitansi Honorarium Surveyor, dan Laporan Kelaiklautan Kapal untuk wilayah kerja Kalimantan Barat.
+            </p>
+          )}
         </div>
 
-        {/* Right Side: Professional Secure Login Form */}
-        <div
-          className="card-section"
-          style={{
-            padding: '2.25rem',
-            margin: 0,
-            background: 'var(--bg-card-solid)',
-            borderColor: 'var(--border-color-strong)',
-            boxShadow: 'var(--shadow-lg)'
-          }}
-        >
-          <div style={{ marginBottom: '1.5rem', textAlign: 'center' }}>
-            <div
-              style={{
-                width: '46px',
-                height: '46px',
-                borderRadius: '12px',
-                background: 'var(--accent-light)',
-                color: 'var(--accent-primary)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                marginBottom: '0.75rem'
-              }}
-            >
-              <Lock size={22} />
+        {/* ── Login Card ── */}
+        <div style={{
+          width: '100%',
+          background: 'var(--bg-card-solid)',
+          border: '1px solid var(--border-color-strong)',
+          borderRadius: 'var(--radius-lg)',
+          padding: isMobile ? '1.5rem 1.25rem' : '2.25rem',
+          boxShadow: 'var(--shadow-lg)',
+          boxSizing: 'border-box'
+        }}>
+          {/* Card header */}
+          <div style={{ marginBottom: '1.25rem', textAlign: 'center' }}>
+            <div style={{
+              width: '42px', height: '42px', borderRadius: '10px',
+              background: 'var(--accent-light)', color: 'var(--accent-primary)',
+              display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: '0.65rem'
+            }}>
+              <Lock size={20} />
             </div>
-            <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: 'var(--text-primary)' }}>
+            <h2 style={{ fontSize: isMobile ? '1.1rem' : '1.25rem', fontWeight: 800, color: 'var(--text-primary)', margin: 0 }}>
               Login ke Akun Anda
             </h2>
-            <p style={{ fontSize: '0.825rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
-              Masukkan username atau email dan password resmi Anda:
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem', marginBottom: 0 }}>
+              Masukkan username atau email dan password Anda
             </p>
           </div>
 
-          {/* Lockout Warning Banner */}
+          {/* Lockout banner */}
           {isLocked && (
             <div style={{
-              padding: '0.75rem 1rem',
-              background: 'rgba(239, 68, 68, 0.12)',
-              border: '1.5px solid #ef4444',
-              borderRadius: 'var(--radius-md)',
-              marginBottom: '1.25rem',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.65rem'
+              padding: '0.65rem 0.9rem', background: 'rgba(239,68,68,0.1)',
+              border: '1.5px solid #ef4444', borderRadius: 'var(--radius-md)',
+              marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem'
             }}>
-              <AlertTriangle size={20} color="#dc2626" style={{ flexShrink: 0 }} />
+              <AlertTriangle size={18} color="#dc2626" style={{ flexShrink: 0 }} />
               <div>
-                <div style={{ fontWeight: 800, fontSize: '0.85rem', color: '#dc2626' }}>
-                  🔒 Login Dikunci — Terlalu Banyak Percobaan Gagal
-                </div>
-                <div style={{ fontSize: '0.78rem', color: '#b91c1c', marginTop: '0.1rem' }}>
-                  Coba lagi dalam <strong style={{ fontSize: '1rem' }}>{formatCountdown(lockCountdown)}</strong> ({failedAttempts}/5 percobaan)
+                <div style={{ fontWeight: 800, fontSize: '0.82rem', color: '#dc2626' }}>Login Dikunci</div>
+                <div style={{ fontSize: '0.76rem', color: '#b91c1c' }}>
+                  Coba lagi dalam <strong>{formatCountdown(lockCountdown)}</strong> ({failedAttempts}/5)
                 </div>
               </div>
             </div>
           )}
 
+          {/* Error message */}
           {errorMessage && !isLocked && (
-            <div style={{ padding: '0.65rem 0.9rem', background: '#fee2e2', color: '#dc2626', borderRadius: 'var(--radius-md)', fontSize: '0.825rem', fontWeight: 700, marginBottom: '1.25rem' }}>
+            <div style={{
+              padding: '0.6rem 0.85rem', background: '#fee2e2', color: '#dc2626',
+              borderRadius: 'var(--radius-md)', fontSize: '0.8rem', fontWeight: 700,
+              marginBottom: '1rem'
+            }}>
               ⚠️ {errorMessage}
             </div>
           )}
 
-          <form onSubmit={handleSubmit}>
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                <KeyRound size={14} color="var(--accent-primary)" />
-                <span>Username atau Email BKI *</span>
+          {/* Form */}
+          <form onSubmit={handleSubmit} style={{ width: '100%' }}>
+            {/* Username field */}
+            <div style={{ marginBottom: '1rem' }}>
+              <label style={{
+                display: 'flex', alignItems: 'center', gap: '0.3rem',
+                fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)',
+                marginBottom: '0.4rem'
+              }}>
+                <KeyRound size={13} color="var(--accent-primary)" />
+                Username atau Email BKI *
               </label>
               <input
                 type="text"
                 className="form-input"
+                style={{ width: '100%', boxSizing: 'border-box' }}
                 value={identifierInput}
                 onChange={(e) => setIdentifierInput(e.target.value)}
-                placeholder="Masukkan username atau email BKI..."
+                placeholder="Username atau email BKI..."
                 required
                 disabled={isLocked}
                 autoComplete="username"
-                autoFocus
+                autoFocus={!isMobile}
               />
             </div>
 
-            <div className="form-group" style={{ marginBottom: '1.25rem' }}>
+            {/* Password field */}
+            <div style={{ marginBottom: '1rem' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.4rem' }}>
-                <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', margin: 0 }}>
-                  <Lock size={14} color="var(--accent-primary)" />
-                  <span>Password Akun *</span>
+                <label style={{
+                  display: 'flex', alignItems: 'center', gap: '0.3rem',
+                  fontSize: '0.82rem', fontWeight: 600, color: 'var(--text-primary)', margin: 0
+                }}>
+                  <Lock size={13} color="var(--accent-primary)" />
+                  Password Akun *
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setIsForgotModalOpen(true)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'var(--accent-primary)',
-                    fontSize: '0.775rem',
-                    fontWeight: 700,
-                    cursor: 'pointer',
-                    padding: 0,
-                    textDecoration: 'underline'
-                  }}
-                >
+                <button type="button" onClick={() => setIsForgotModalOpen(true)} style={{
+                  background: 'none', border: 'none', color: 'var(--accent-primary)',
+                  fontSize: '0.76rem', fontWeight: 700, cursor: 'pointer', padding: 0,
+                  textDecoration: 'underline', flexShrink: 0
+                }}>
                   Lupa Password?
                 </button>
               </div>
-
               <div style={{ position: 'relative' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
                   className="form-input"
-                  style={{ paddingRight: '2.5rem' }}
+                  style={{ width: '100%', boxSizing: 'border-box', paddingRight: '2.75rem' }}
                   value={passwordInput}
                   onChange={(e) => setPasswordInput(e.target.value)}
-                  placeholder="Masukkan password akun Anda..."
+                  placeholder="Password akun Anda..."
                   required
                   disabled={isLocked}
                   autoComplete="current-password"
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  style={{
-                    position: 'absolute',
-                    right: '0.75rem',
-                    top: '50%',
-                    transform: 'translateY(-50%)',
-                    background: 'none',
-                    border: 'none',
-                    cursor: 'pointer',
-                    color: 'var(--text-muted)'
-                  }}
-                  title={showPassword ? 'Sembunyikan password' : 'Tampilkan password'}
-                >
+                <button type="button" onClick={() => setShowPassword(!showPassword)} style={{
+                  position: 'absolute', right: '0.75rem', top: '50%',
+                  transform: 'translateY(-50%)', background: 'none', border: 'none',
+                  cursor: 'pointer', color: 'var(--text-muted)', padding: 0,
+                  display: 'flex', alignItems: 'center'
+                }}>
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
             </div>
 
-            {/* Failed attempts indicator */}
+            {/* Failed attempts */}
             {failedAttempts > 0 && failedAttempts < 5 && !isLocked && (
-              <div style={{ fontSize: '0.725rem', color: '#f59e0b', fontWeight: 700, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                <AlertTriangle size={13} />
-                <span>Percobaan gagal: {failedAttempts}/5 — Akun akan dikunci setelah 5x gagal</span>
+              <div style={{
+                fontSize: '0.72rem', color: '#f59e0b', fontWeight: 700,
+                marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.3rem'
+              }}>
+                <AlertTriangle size={12} />
+                Percobaan gagal: {failedAttempts}/5 — dikunci setelah 5x gagal
               </div>
             )}
 
+            {/* Submit button */}
             <button
               type="submit"
               className="btn btn-primary"
-              style={{ width: '100%', padding: '0.85rem', marginTop: '0.5rem', opacity: isLocked || isLoading || isInitializing ? 0.6 : 1, fontSize: '0.95rem' }}
+              style={{
+                width: '100%', padding: '0.85rem', marginTop: '0.25rem',
+                opacity: isLocked || isLoading || isInitializing ? 0.65 : 1,
+                fontSize: '0.95rem', display: 'flex', alignItems: 'center',
+                justifyContent: 'center', gap: '0.5rem', boxSizing: 'border-box'
+              }}
               disabled={isLocked || isLoading || isInitializing}
             >
-              {isInitializing ? (
-                <span>⏳ Memuat sistem, harap tunggu...</span>
-              ) : isLoading ? (
-                <span>Memverifikasi Kredensial...</span>
-              ) : isLocked ? (
-                <>
-                  <Lock size={16} />
-                  <span>Login Dikunci ({formatCountdown(lockCountdown)})</span>
-                </>
-              ) : (
-                <>
-                  <span>Masuk ke Sistem</span>
-                  <ArrowRight size={18} />
-                </>
-              )}
+              {isInitializing ? '⏳ Memuat sistem...' :
+               isLoading ? 'Memverifikasi...' :
+               isLocked ? <><Lock size={15} /> Login Dikunci ({formatCountdown(lockCountdown)})</> :
+               <><span>Masuk ke Sistem</span><ArrowRight size={17} /></>}
             </button>
           </form>
 
-          <div style={{ textAlign: 'center', marginTop: '1.5rem', paddingTop: '1.25rem', borderTop: '1px solid var(--border-color)', fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-            🔒 Portal Resmi PT Biro Klasifikasi Indonesia (Persero) • IDSurvey
+          {/* Footer */}
+          <div style={{
+            textAlign: 'center', marginTop: '1.25rem', paddingTop: '1rem',
+            borderTop: '1px solid var(--border-color)',
+            fontSize: '0.72rem', color: 'var(--text-muted)'
+          }}>
+            🔒 Portal Resmi PT BKI (Persero) • IDSurvey
           </div>
         </div>
       </div>
 
-      <ForgotPasswordModal
-        isOpen={isForgotModalOpen}
-        onClose={() => setIsForgotModalOpen(false)}
-      />
+      <ForgotPasswordModal isOpen={isForgotModalOpen} onClose={() => setIsForgotModalOpen(false)} />
     </div>
   );
 };
