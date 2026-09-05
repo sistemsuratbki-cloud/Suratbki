@@ -323,19 +323,58 @@ export const DataProvider = ({ children }) => {
           return st;
         });
 
-        const cleanedSurat = healedSurat.map(cleanEntityObject);
-        setSuratTugas(cleanedSurat);
-        safeSetLocalStorage('st_surat_tugas', cleanedSurat);
+        // MEMORY OPTIMIZATION: Load only latest 30 items initially, rest in background
+        const sortedSurat = healedSurat.sort((a, b) => {
+          const dateA = new Date(a.createdAt || a.tglMulai || 0);
+          const dateB = new Date(b.createdAt || b.tglMulai || 0);
+          return dateB - dateA; // Newest first
+        });
+        
+        const initial30 = sortedSurat.slice(0, 30);
+        const cleanedInitial = initial30.map(cleanEntityObject);
+        setSuratTugas(cleanedInitial);
+        safeSetLocalStorage('st_surat_tugas', cleanedInitial);
+        
+        // Load rest after 3 seconds to prevent memory spike
+        if (sortedSurat.length > 30) {
+          setTimeout(() => {
+            const cleanedAll = sortedSurat.map(cleanEntityObject);
+            setSuratTugas(cleanedAll);
+            safeSetLocalStorage('st_surat_tugas', cleanedAll);
+          }, 3000);
+        }
       }
       if (Array.isArray(cloudKw)) {
-        const cleanedKw = cloudKw.map(cleanEntityObject);
+        // Limit Kwitansi to 30 latest
+        const sorted = cloudKw.sort((a, b) => new Date(b.tglBayar || 0) - new Date(a.tglBayar || 0));
+        const limited = sorted.slice(0, 30);
+        const cleanedKw = limited.map(cleanEntityObject);
         setKwitansiHonor(cleanedKw);
         safeSetLocalStorage('st_kwitansi_honor', cleanedKw);
+        
+        if (sorted.length > 30) {
+          setTimeout(() => {
+            const cleanedAll = sorted.map(cleanEntityObject);
+            setKwitansiHonor(cleanedAll);
+            safeSetLocalStorage('st_kwitansi_honor', cleanedAll);
+          }, 4000);
+        }
       }
       if (Array.isArray(cloudLap)) {
-        const cleanedLap = cloudLap.map(cleanEntityObject);
+        // Limit Laporan to 30 latest
+        const sorted = cloudLap.sort((a, b) => new Date(b.tglLapor || 0) - new Date(a.tglLapor || 0));
+        const limited = sorted.slice(0, 30);
+        const cleanedLap = limited.map(cleanEntityObject);
         setLaporanSurvei(cleanedLap);
         safeSetLocalStorage('st_laporan_survei', cleanedLap);
+        
+        if (sorted.length > 30) {
+          setTimeout(() => {
+            const cleanedAll = sorted.map(cleanEntityObject);
+            setLaporanSurvei(cleanedAll);
+            safeSetLocalStorage('st_laporan_survei', cleanedAll);
+          }, 5000);
+        }
       }
       if (Array.isArray(cloudTariffs) && cloudTariffs.length > 0) {
         setTariffs(cloudTariffs);
@@ -350,8 +389,17 @@ export const DataProvider = ({ children }) => {
         setMasterKapal(mergeWithDefaultMasterKapal(cloudKapal));
       }
       if (Array.isArray(cloudVisit)) {
-        setVisitSurvei(cloudVisit.map(cleanEntityObject));
-        safeSetLocalStorage('st_visit_survei', cloudVisit);
+        const sorted = cloudVisit.sort((a, b) => new Date(b.tanggalKunjungan || 0) - new Date(a.tanggalKunjungan || 0));
+        const limited = sorted.slice(0, 30);
+        setVisitSurvei(limited.map(cleanEntityObject));
+        safeSetLocalStorage('st_visit_survei', limited);
+        
+        if (sorted.length > 30) {
+          setTimeout(() => {
+            setVisitSurvei(sorted.map(cleanEntityObject));
+            safeSetLocalStorage('st_visit_survei', sorted);
+          }, 6000);
+        }
       }
     } catch (e) {
       console.warn('Cloud sync load warning:', e);
