@@ -144,13 +144,13 @@ export const AuthProvider = ({ children }) => {
     try {
       // Force clear localStorage jika versi lama (sebelum rewrite AuthContext)
       const cacheVersion = localStorage.getItem('st_auth_cache_v');
-      if (cacheVersion !== 'v4') {
+      if (cacheVersion !== 'v5') {
+        console.log('[Auth] Cache version mismatch, clearing localStorage for re-migration...');
         localStorage.removeItem('st_users_list');
         localStorage.removeItem('st_auth_user');
         localStorage.removeItem('st_admin_pass_v');
         localStorage.removeItem('st_users_reset_v5');
-        localStorage.setItem('st_auth_cache_v', 'v4');
-        // Kembalikan INITIAL_USERS — init effect akan load dari cloud & migrate
+        localStorage.setItem('st_auth_cache_v', 'v5');
         return INITIAL_USERS;
       }
       const saved = localStorage.getItem('st_users_list');
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }) => {
 
   // isInitializing: true saat pertama load, false setelah cloud sync selesai
   const [isInitializing, setIsInitializing] = useState(() => {
-    return localStorage.getItem('st_auth_cache_v') !== 'v4' || !localStorage.getItem('st_users_list');
+    return localStorage.getItem('st_auth_cache_v') !== 'v5' || !localStorage.getItem('st_users_list');
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -174,7 +174,14 @@ export const AuthProvider = ({ children }) => {
         destroySession();
         return null;
       }
-      return JSON.parse(savedUser);
+      const parsed = JSON.parse(savedUser);
+      // Force clear currentUser jika masih role lama (admin) — akan di-patch ulang setelah cloud load
+      if (parsed && parsed.username === 'admin' && parsed.role !== 'developer') {
+        const corrected = { ...parsed, role: 'developer', roleLabel: 'Developer' };
+        localStorage.setItem('st_auth_user', JSON.stringify(corrected));
+        return corrected;
+      }
+      return parsed;
     } catch {
       return null;
     }
@@ -207,8 +214,8 @@ export const AuthProvider = ({ children }) => {
         }
       }
 
-      // 2. Migrate passwords — hanya jika belum v3
-      const alreadyMigrated = localStorage.getItem('st_admin_pass_v') === 'admin123_v3';
+      // 2. Migrate passwords — hanya jika belum v4
+      const alreadyMigrated = localStorage.getItem('st_admin_pass_v') === 'admin123_v4';
       if (!alreadyMigrated) {
         let needsMigration = false;
         const migratedUsers = await Promise.all(
@@ -275,7 +282,7 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem('st_users_list', JSON.stringify(migratedUsers));
           setUsersList(migratedUsers);
         }
-        localStorage.setItem('st_admin_pass_v', 'admin123_v3');
+        localStorage.setItem('st_admin_pass_v', 'admin123_v4');
       }
 
       // 3. Load dari cloud — TANPA seed jika cloud kosong (mencegah infinite POST)
