@@ -994,6 +994,12 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       rincianHotel: formData.rincianHotel || [],
       biayaTiket: totalTiketCalc + totalHotelCalc,
       linkedSpsIds: selectedSpsIds,
+      // Lampiran umum PDS (tiket, hotel, foto batch)
+      fileTiketTransportName: formData.fileTiketTransportName || '',
+      fileTiketTransportData: formData.fileTiketTransportData || formData.fileTiketTransportName || '',
+      fileKwitansiHotelName: formData.fileKwitansiHotelName || '',
+      fileKwitansiHotelData: formData.fileKwitansiHotelData || formData.fileKwitansiHotelName || '',
+      fotoList: formData.fotoList || [],
       shipsDetail: shipsDetail.length > 0 ? shipsDetail.map((s, idx) => ({
         ...s,
         ...(idx === 0 && {
