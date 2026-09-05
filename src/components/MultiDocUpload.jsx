@@ -4,7 +4,7 @@ import { toast } from 'react-hot-toast';
 import { validateFileUpload } from '../utils/security';
 import { parseAttachmentFiles, serializeAttachmentFiles } from '../utils/formatters';
 import { uploadUniversalFile } from '../utils/fileStorageHelper';
-import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+import { deleteFromGoogleDrive, isGoogleDriveUrl, getGoogleDriveConfig } from '../utils/googleDriveService';
 
 export const MultiDocUpload = ({
   value = '',

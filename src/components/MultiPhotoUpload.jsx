@@ -3,7 +3,7 @@ import { Camera, X, Plus, Image as ImageIcon, Eye, Trash2, Upload, FileText, Che
 import { toast } from 'react-hot-toast';
 import { validateFileUpload } from '../utils/security';
 import { uploadUniversalFile } from '../utils/fileStorageHelper';
-import { deleteFromGoogleDrive, isGoogleDriveUrl } from '../utils/googleDriveService';
+import { deleteFromGoogleDrive, isGoogleDriveUrl, getGoogleDriveConfig } from '../utils/googleDriveService';
 
 export default function MultiPhotoUpload({
   fileNames = '',
