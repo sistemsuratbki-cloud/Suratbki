@@ -31,7 +31,8 @@ if (substr($path, 0, 4) === '/api') {
     exit;
 }
 
-// ── 2. File statis di dist/ (JS, CSS, images, fonts, dll.) ──
+// ── 2. File statis di dist/ → SERVE DENGAN Connection: close ──
+// Hindari PHP readfile untuk file besar karena bisa 408 di LiteSpeed
 $distFile = __DIR__ . '/dist' . $path;
 if ($path !== '/' && is_file($distFile)) {
     $ext = strtolower(pathinfo($distFile, PATHINFO_EXTENSION));
@@ -58,14 +59,22 @@ if ($path !== '/' && is_file($distFile)) {
         'map'   => 'application/json'
     ];
     $ct = isset($mimes[$ext]) ? $mimes[$ext] : 'application/octet-stream';
+    $fileSize = filesize($distFile);
 
     if ($ext === 'html') {
         header('Cache-Control: no-cache, no-store, must-revalidate');
-    } else {
+    } elseif (in_array($ext, ['js', 'mjs', 'css', 'woff', 'woff2', 'ttf'])) {
         header('Cache-Control: public, max-age=31536000, immutable');
+    } else {
+        header('Cache-Control: public, max-age=2592000');
     }
+
     header('Content-Type: ' . $ct);
-    header('Content-Length: ' . filesize($distFile));
+    header('Content-Length: ' . $fileSize);
+    // PENTING: Connection close agar LiteSpeed tidak tunggu keep-alive
+    header('Connection: close');
+    // Flush output buffer segera
+    if (function_exists('ob_end_flush')) { @ob_end_flush(); }
     readfile($distFile);
     exit;
 }
@@ -78,6 +87,9 @@ if (file_exists($distIndex)) {
     header('Pragma: no-cache');
     header('Expires: 0');
     header('Content-Length: ' . filesize($distIndex));
+    // PENTING: Connection close agar LiteSpeed tidak timeout 408
+    header('Connection: close');
+    if (function_exists('ob_end_flush')) { @ob_end_flush(); }
     readfile($distIndex);
     exit;
 }

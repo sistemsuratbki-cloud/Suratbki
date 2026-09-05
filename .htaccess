@@ -1,6 +1,6 @@
 # =========================================================================
 # Hostinger LiteSpeed — BKI Pontianak
-# ZERO REWRITE — Semua routing via index.php (PHP)
+# DIRECT SERVE: Semua static assets dilayani LiteSpeed langsung (tanpa PHP)
 # =========================================================================
 
 # 1. Prevent LiteSpeed Timeouts
@@ -9,10 +9,10 @@
   RewriteRule .* - [E=noconntimeout:1,E=noabort:1]
 </IfModule>
 
-# 2. PHP handles everything
+# 2. PHP handles SPA routing only
 DirectoryIndex index.php
 
-# 3. Minimal rewrite — ONLY forward headers + route non-files to index.php
+# 3. Rewrite rules
 <IfModule mod_rewrite.c>
   RewriteEngine On
   RewriteBase /
@@ -21,14 +21,25 @@ DirectoryIndex index.php
   RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
   RewriteRule .* - [E=HTTP_X_API_TOKEN:%{HTTP:X-API-Token}]
 
-  # Existing files → serve directly (NO internal rewrite)
+  # ── File yang sudah ada di disk → langsung (termasuk dist/) ──
   RewriteCond %{REQUEST_FILENAME} -f
+  RewriteRule ^ - [L]
+
+  RewriteCond %{REQUEST_FILENAME} -d
   RewriteRule ^ - [L]
 
   # API folder → let api/.htaccess handle
   RewriteRule ^api/ - [L]
 
-  # Everything else → index.php (PHP router, zero loop risk)
+  # ── Assets: rewrite /assets/* → /dist/assets/* agar LiteSpeed serve langsung ──
+  RewriteRule ^assets/(.*)$ dist/assets/$1 [L]
+
+  # ── Public files (favicon, logos, signatures) → /dist/* ──
+  RewriteRule ^(favicon\.[a-z]+)$ dist/$1 [L]
+  RewriteRule ^(signatures/.*)$ dist/$1 [L]
+  RewriteRule ^(bki-logo\.svg|danantara-logo\.svg|idsurvey-logo\.svg)$ dist/$1 [L]
+
+  # ── SPA routes → index.php ──
   RewriteRule ^ index.php [L]
 </IfModule>
 
