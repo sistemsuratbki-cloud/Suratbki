@@ -183,38 +183,50 @@ export async function testHostingerConnection(apiUrl) {
  */
 let cachedHostingerData = null;
 let lastHostingerCacheTime = 0;
+let inFlightFetchPromise = null;
 
 export async function fetchHostingerAllData(forceRefresh = false) {
   const url = getHostingerApiUrl();
   if (!url) return null;
 
   const now = Date.now();
-  if (!forceRefresh && cachedHostingerData && (now - lastHostingerCacheTime < 8000)) {
+  if (!forceRefresh && cachedHostingerData && (now - lastHostingerCacheTime < 10000)) {
     return cachedHostingerData;
   }
 
-  lastHostingerCacheTime = now;
-
-  try {
-    const token = getHostingerApiToken();
-    const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=getAllData' + (token ? `&token=${encodeURIComponent(token)}` : '') + '&_t=' + Date.now();
-    const res = await fetchWithTimeout(targetUrl, {
-      method: 'GET',
-      headers: getAuthHeaders()
-    }, 6000);
-
-    if (!res.ok) throw new Error(`HTTP error ${res.status}`);
-    const json = await res.json();
-
-    if (json && json.success && json.data) {
-      cachedHostingerData = json.data;
-      return json.data;
-    }
-    return null;
-  } catch (err) {
-    console.warn('[Hostinger] Fetch all data warning:', err.message);
-    return null;
+  // Deduplikasi: Jika ada request yang sedang berjalan di background, gunakan promise yang sama
+  // Ini mencegah 8 request paralel dikirim sekaligus ke server LiteSpeed saat refreshAllFromCloud
+  if (inFlightFetchPromise) {
+    return inFlightFetchPromise;
   }
+
+  inFlightFetchPromise = (async () => {
+    try {
+      const token = getHostingerApiToken();
+      const targetUrl = url + (url.includes('?') ? '&' : '?') + 'action=getAllData' + (token ? `&token=${encodeURIComponent(token)}` : '') + '&_t=' + Date.now();
+      const res = await fetchWithTimeout(targetUrl, {
+        method: 'GET',
+        headers: getAuthHeaders()
+      }, 8000);
+
+      if (!res.ok) throw new Error(`HTTP error ${res.status}`);
+      const json = await res.json();
+
+      if (json && json.success && json.data) {
+        cachedHostingerData = json.data;
+        lastHostingerCacheTime = Date.now();
+        return json.data;
+      }
+      return cachedHostingerData || null;
+    } catch (err) {
+      console.warn('[Hostinger] Fetch all data warning:', err.message);
+      return cachedHostingerData || null;
+    } finally {
+      inFlightFetchPromise = null;
+    }
+  })();
+
+  return inFlightFetchPromise;
 }
 
 /**

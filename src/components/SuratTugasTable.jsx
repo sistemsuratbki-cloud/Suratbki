@@ -1440,17 +1440,21 @@ export const SuratTugasTable = ({ filterType = 'SPS' }) => {
         </table>
       </div>
 
-      <SpsModal
-        isOpen={isSpsModalOpen}
-        onClose={() => setIsSpsModalOpen(false)}
-        editItem={editingItem}
-      />
-      <PdsModal
-        isOpen={isPdsModalOpen}
-        onClose={() => setIsPdsModalOpen(false)}
-        editItem={editingItem}
-        onPrint={(item) => handleOpenPdsPrint(item)}
-      />
+      {isSpsModalOpen && (
+        <SpsModal
+          isOpen={isSpsModalOpen}
+          onClose={() => setIsSpsModalOpen(false)}
+          editItem={editingItem}
+        />
+      )}
+      {isPdsModalOpen && (
+        <PdsModal
+          isOpen={isPdsModalOpen}
+          onClose={() => setIsPdsModalOpen(false)}
+          editItem={editingItem}
+          onPrint={(item) => handleOpenPdsPrint(item)}
+        />
+      )}
 
       <SuratTugasPrintModal
         isOpen={isPrintModalOpen}

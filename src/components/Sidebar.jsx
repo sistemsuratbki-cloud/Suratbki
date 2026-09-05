@@ -188,8 +188,17 @@ export const Sidebar = ({ activeTab, setActiveTab, isMobileMenuOpen, setIsMobile
                   color: isActive ? 'var(--accent-primary)' : 'var(--text-secondary)' 
                 }}
                 onClick={() => {
-                  if (item.subItems) {
-                    toggleMenu(item.id);
+                  if (item.subItems && item.subItems.length > 0) {
+                    const isChildActive = item.subItems.some(sub => sub.id === activeTab);
+                    if (!isChildActive) {
+                      // Jika belum berada di salah satu sub-item, buka dropdown dan langsung arahkan ke sub-item pertama
+                      setExpandedMenus(prev => ({ ...prev, [item.id]: true }));
+                      setActiveTab(item.subItems[0].id);
+                      if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);
+                    } else {
+                      // Jika sudah berada di salah satu sub-item, toggle expand/collapse
+                      toggleMenu(item.id);
+                    }
                   } else {
                     setActiveTab(item.id);
                     if (setIsMobileMenuOpen) setIsMobileMenuOpen(false);

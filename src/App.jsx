@@ -113,7 +113,7 @@ function AppContent() {
             </>
           )}
 
-          {activeTab === 'surat_sps' && !isFinance && <SuratTugasTable filterType="SPS" />}
+          {(activeTab === 'surat' || activeTab === 'surat_sps') && !isFinance && <SuratTugasTable filterType="SPS" />}
           {activeTab === 'surat_pds' && !isFinance && <SuratTugasTable filterType="PDS" />}
           {activeTab === 'visit_survei' && !isFinance && <VisitSurveiTable onOpenMonitor={() => setActiveTab('tv-display')} />}
           {(activeTab === 'laporan' || activeTab === 'laporan_pds') && <LaporanTable />}

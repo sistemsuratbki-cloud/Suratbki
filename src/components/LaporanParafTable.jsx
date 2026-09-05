@@ -1249,11 +1249,13 @@ export const LaporanParafTable = () => {
         suratTugas={selectedSpsPrintItem}
       />
 
-      <SpsModal
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        editItem={editingItem}
-      />
+      {isEditModalOpen && (
+        <SpsModal
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          editItem={editingItem}
+        />
+      )}
     </div>
   );
 };

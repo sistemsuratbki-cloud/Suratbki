@@ -499,8 +499,16 @@ export const clearOperationalDataFromCloud = async () => {
 
 export const subscribeToRealtimeChanges = (callbacks = {}) => {
   const config = typeof callbacks === 'function' ? { onAny: callbacks } : (callbacks || {});
+  let lastSyncTime = Date.now();
 
-  const checkSync = async () => {
+  const checkSync = async (force = false) => {
+    const now = Date.now();
+    // Throttle: jangan fetch ulang jika sync baru saja terjadi < 20 detik lalu
+    if (!force && (now - lastSyncTime < 20000)) {
+      return;
+    }
+    lastSyncTime = now;
+
     try {
       // HOSTINGER ONLY — Google Sheets dinonaktifkan (URL 404/CORS error)
       if (!isHostingerEnabled()) return;
@@ -513,25 +521,23 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
     }
   };
 
-  // Polling berkala setiap 15 detik
-  const intervalId = setInterval(checkSync, 15000);
+  // Polling berkala setiap 30 detik (cukup untuk sinkronisasi realtime, ringan untuk browser dan LiteSpeed)
+  const intervalId = setInterval(() => checkSync(true), 30000);
 
-  // Auto-sync saat aplikasi dibuka kembali / tab di-fokuskan
+  // Auto-sync saat aplikasi dibuka kembali / tab di-fokuskan (throttled agar tidak freeze)
   const handleVisibility = () => {
     if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-      checkSync();
+      checkSync(false);
     }
   };
   if (typeof window !== 'undefined') {
     window.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', checkSync);
   }
 
   return () => {
     clearInterval(intervalId);
     if (typeof window !== 'undefined') {
       window.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', checkSync);
     }
   };
 };
