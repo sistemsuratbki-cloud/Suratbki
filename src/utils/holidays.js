@@ -124,8 +124,10 @@ export const countHolidaysAndWeekendsInRange = (startDateStr, endDateStr) => {
   let count = 0;
   const details = [];
   const cur = new Date(start);
+  let iterations = 0;
 
-  while (cur <= end) {
+  while (cur <= end && iterations < 366) {
+    iterations++;
     const y = cur.getFullYear();
     const m = String(cur.getMonth() + 1).padStart(2, '0');
     const d = String(cur.getDate()).padStart(2, '0');

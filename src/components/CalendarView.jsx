@@ -381,14 +381,16 @@ export const CalendarView = ({ surveyorFilter }) => {
         </div>
       </div>
 
-      <DayDetailModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        selectedDate={selectedDateStr}
-        tasksOnDate={tasksOnSelectedDate}
-        kwitansiList={filteredKwitansi}
-        laporanList={filteredLaporan}
-      />
+      {isModalOpen && (
+        <DayDetailModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          selectedDate={selectedDateStr}
+          tasksOnDate={tasksOnSelectedDate}
+          kwitansiList={filteredKwitansi}
+          laporanList={filteredLaporan}
+        />
+      )}
     </div>
   );
 };

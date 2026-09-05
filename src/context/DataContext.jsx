@@ -241,10 +241,6 @@ export const DataProvider = ({ children }) => {
     return [];
   });
 
-  useEffect(() => {
-    safeSetLocalStorage('st_visit_survei', visitSurvei);
-  }, [visitSurvei]);
-
   // Sinkronisasi otomatis dokumen jika nama pengguna/surveyor diubah
   useEffect(() => {
     const handleUserRenamed = (e) => {
@@ -503,116 +499,66 @@ export const DataProvider = ({ children }) => {
     return () => clearTimeout(timer);
   }, [visitSurvei]);
 
-  // Auto-sync / heal Kwitansi & Laporan only for PDS (Perjalanan Dinas Surveyor)
-  // THROTTLED to prevent excessive re-processing on every suratTugas change
+  // Auto-heal Kwitansi jika ada PDS yang belum memiliki data kwitansi
+  // Hanya berjalan saat data suratTugas berubah (bukan saat kwitansiHonor berubah, untuk cegah loop tak terbatas)
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (suratTugas.length > 0) {
+      if (suratTugas && suratTugas.length > 0) {
         let kwitansiUpdated = false;
-        let laporanUpdated = false;
-        const updatedKwitansiList = [...kwitansiHonor];
-        let updatedLaporanList = [...laporanSurvei];
+        const currentKwitansiList = [...kwitansiHonor];
+        const newHealedItems = [];
 
-      // Only PDS items (or items that are already executed/not pending SPS) get Kwitansi & Laporan
-      const pdsItems = suratTugas.filter(
-        (st) => st.docType === 'PDS' || st.isPds === true || (!st.docType && st.status !== 'Menunggu Survei')
-      );
+        const pdsItems = suratTugas.filter(
+          (st) => st && (st.docType === 'PDS' || st.isPds === true || (!st.docType && st.status !== 'Menunggu Survei'))
+        );
 
-      pdsItems.forEach((st) => {
-        const baseRate = Number(st.tarifDasar) || 3000000;
-        const ticketTransport = Number(st.tiketPesawatTaxi) || Number(st.biayaTiket) || 0;
-        const ticketHotel = Number(st.tiketHotel) || 0;
-        const totalTicket = ticketTransport + ticketHotel;
-        const totalHonor = Number(st.jumlahEstimasi) || (baseRate + totalTicket);
+        pdsItems.forEach((st) => {
+          const baseRate = Number(st.tarifDasar) || 3000000;
+          const ticketTransport = Number(st.tiketPesawatTaxi) || Number(st.biayaTiket) || 0;
+          const ticketHotel = Number(st.tiketHotel) || 0;
+          const totalTicket = ticketTransport + ticketHotel;
+          const totalHonor = Number(st.jumlahEstimasi) || (baseRate + totalTicket);
 
-        // 1. Check Kwitansi
-        const existingKw = updatedKwitansiList.find((k) => k.suratId === st.id);
-        if (!existingKw) {
-          updatedKwitansiList.push(cleanEntityObject({
-            id: `KW-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900) + 100}`,
-            suratId: st.id,
-            nomorSurat: cleanDocNumber(st.nomor),
-            namaKapal: st.namaKapal,
-            penerima: st.petugas,
-            lokasi: st.tempatSurvey || st.lokasi,
-            tarifDasar: baseRate,
-            biayaTiket: totalTicket,
-            tiketHotel: ticketHotel,
-            tiketPesawatTaxi: ticketTransport,
-            kategoriTransportasi: st.kategoriTransportasi || 'Pesawat Terbang',
-            fileTiketName: st.fileTiketTransportName || st.fileTiketName || '',
-            fileFotoName: st.fileFotoName || '',
-            fileFotoData: st.fileFotoData || '',
-            fotoList: st.fotoList || [],
-            fileVisitName: st.fileVisitName || '',
-            fileKwitansiHotelName: st.fileKwitansiHotelName || '',
-            jumlah: totalHonor,
-            status: 'Belum Dibayar',
-            tglBayar: st.tglMulai || new Date().toISOString().split('T')[0],
-            catatan: `Honorarium Standar (${st.tempatSurvey || st.lokasi})`
-          }));
-          kwitansiUpdated = true;
-        }
-
-        // 2. Check Laporan Survei (DISABLED - PDS sekarang include NO.SO/NO.WBS)
-        // Laporan tidak lagi di-generate otomatis, semua data ada di PDS
-        /*
-        const isAcc = st.approvalStatus === 'ACC';
-        const existingLap = updatedLaporanList.find((l) => l.suratId === st.id);
-
-        if (isAcc) {
-          if (!existingLap) {
-            updatedLaporanList.push(cleanEntityObject({
-              id: `LAP-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900) + 100}`,
+          const existingKw = currentKwitansiList.find((k) => k.suratId === st.id);
+          if (!existingKw) {
+            const healedKw = cleanEntityObject({
+              id: `KW-${Date.now().toString().slice(-6)}-${Math.floor(Math.random() * 900) + 100}`,
               suratId: st.id,
-              tglLapor: st.tglMulai || new Date().toISOString().split('T')[0],
-              tanggal: st.tglMulai || new Date().toISOString().split('T')[0],
+              nomorSurat: cleanDocNumber(st.nomor),
               namaKapal: st.namaKapal,
+              penerima: st.petugas,
               lokasi: st.tempatSurvey || st.lokasi,
-              lokasiSurvey: st.tempatSurvey || st.lokasi,
-              nilai: totalHonor,
               tarifDasar: baseRate,
-              namaSurvey: st.jenisSurvey || st.perihal || 'DINAS SURVEY KLAS',
-              noAgenda: cleanDocNumber(st.noAgenda || st.nomor),
-              noCda: st.noCda || '5100010',
-              noSo: st.noSo || '',
-              noWbs: st.noWbs || '',
-              petugas: st.petugas,
-              isCito: !!st.isCito,
-              hasil: st.catatan || `Survei kelaiklautan kapal ${st.namaKapal}`,
-              status: 'Terkirim',
+              biayaTiket: totalTicket,
+              tiketHotel: ticketHotel,
+              tiketPesawatTaxi: ticketTransport,
+              kategoriTransportasi: st.kategoriTransportasi || 'Pesawat Terbang',
+              fileTiketName: st.fileTiketTransportName || st.fileTiketName || '',
               fileFotoName: st.fileFotoName || '',
               fileFotoData: st.fileFotoData || '',
               fotoList: st.fotoList || [],
               fileVisitName: st.fileVisitName || '',
-              fileTiketTransportName: st.fileTiketTransportName || st.fileTiketName || '',
-              fileKwitansiHotelName: st.fileKwitansiHotelName || ''
-            }));
-            laporanUpdated = true;
+              fileKwitansiHotelName: st.fileKwitansiHotelName || '',
+              jumlah: totalHonor,
+              status: 'Belum Dibayar',
+              tglBayar: st.tglMulai || new Date().toISOString().split('T')[0],
+              catatan: `Honorarium Standar (${st.tempatSurvey || st.lokasi})`
+            });
+            currentKwitansiList.push(healedKw);
+            newHealedItems.push(healedKw);
+            kwitansiUpdated = true;
           }
-        } else {
-          // Jika status belum ACC / diminta revisi, keluarkan dari Laporan Survei
-          if (existingLap) {
-            updatedLaporanList = updatedLaporanList.filter((l) => l.suratId !== st.id);
-            laporanUpdated = true;
-          }
-        }
-        */
-      });
+        });
 
         if (kwitansiUpdated) {
-          setKwitansiHonor(updatedKwitansiList.map(cleanEntityObject));
+          setKwitansiHonor(currentKwitansiList);
+          safeSetLocalStorage('st_kwitansi_honor', currentKwitansiList);
+          newHealedItems.forEach(item => saveKwitansiToCloud(item).catch(() => {}));
         }
-        // laporanUpdated disabled - tidak lagi auto-sync Laporan
-        /*
-        if (laporanUpdated) {
-          setLaporanSurvei(updatedLaporanList.map(cleanEntityObject));
-        }
-        */
       }
-    }, 2000); // Throttle to max once per 2 seconds
+    }, 2000);
     return () => clearTimeout(timer);
-  }, [suratTugas, kwitansiHonor, laporanSurvei]);
+  }, [suratTugas]);
 
   const updateAdminSettings = (newSettings) => {
     const merged = { ...adminSettings, ...newSettings };

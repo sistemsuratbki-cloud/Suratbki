@@ -32,8 +32,17 @@ import { uploadToGoogleDrive, deleteFromGoogleDrive } from '../utils/googleDrive
 const mapFromDb = (row) => {
   if (!row) return null;
   let raw = row.raw_data && typeof row.raw_data === 'object' ? row.raw_data : {};
-  while (raw && typeof raw === 'object' && raw.raw_data && typeof raw.raw_data === 'object') {
-    raw = { ...raw.raw_data, ...raw };
+  
+  // Unnest raw_data jika bertingkat, dengan batas kedalaman aman agar TIDAK PERNAH terjadi infinite loop
+  let depth = 0;
+  while (raw && typeof raw === 'object' && raw.raw_data && typeof raw.raw_data === 'object' && depth < 5) {
+    depth++;
+    const inner = raw.raw_data;
+    delete raw.raw_data;
+    raw = { ...inner, ...raw };
+  }
+  if (raw && typeof raw === 'object') {
+    delete raw.raw_data;
   }
   const merged = { ...raw, ...row };
   delete merged.raw_data;
