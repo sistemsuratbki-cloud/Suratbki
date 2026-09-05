@@ -144,12 +144,12 @@ export const AuthProvider = ({ children }) => {
     try {
       // Force clear localStorage jika versi lama (sebelum rewrite AuthContext)
       const cacheVersion = localStorage.getItem('st_auth_cache_v');
-      if (cacheVersion !== 'v3') {
+      if (cacheVersion !== 'v4') {
         localStorage.removeItem('st_users_list');
         localStorage.removeItem('st_auth_user');
         localStorage.removeItem('st_admin_pass_v');
         localStorage.removeItem('st_users_reset_v5');
-        localStorage.setItem('st_auth_cache_v', 'v3');
+        localStorage.setItem('st_auth_cache_v', 'v4');
         // Kembalikan INITIAL_USERS — init effect akan load dari cloud & migrate
         return INITIAL_USERS;
       }
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }) => {
 
   // isInitializing: true saat pertama load, false setelah cloud sync selesai
   const [isInitializing, setIsInitializing] = useState(() => {
-    return localStorage.getItem('st_auth_cache_v') !== 'v3' || !localStorage.getItem('st_users_list');
+    return localStorage.getItem('st_auth_cache_v') !== 'v4' || !localStorage.getItem('st_users_list');
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -325,6 +325,16 @@ export const AuthProvider = ({ children }) => {
       localStorage.removeItem('st_auth_user');
     }
   }, [currentUser]);
+
+  // Patch currentUser jika role-nya berubah di usersList (migrasi)
+  useEffect(() => {
+    if (!currentUser || isInitializing) return;
+    const freshUser = usersList.find(u => u.id === currentUser.id || u.username === currentUser.username);
+    if (freshUser && (freshUser.role !== currentUser.role || freshUser.roleLabel !== currentUser.roleLabel)) {
+      const { password, ...safe } = freshUser;
+      setCurrentUser(safe);
+    }
+  }, [usersList, currentUser, isInitializing]);
 
   // Session expiry check — setiap 5 menit
   useEffect(() => {
