@@ -80,46 +80,32 @@ const isHostingerEnabled = () => {
 };
 
 /**
- * Dual save: kirim ke Google Sheets dan Hostinger secara paralel.
- * Kegagalan salah satu tidak menghentikan yang lain.
+ * Dual save: HOSTINGER ONLY (Google Sheets dinonaktifkan - URL 404/CORS error).
+ * Kegagalan tidak menghentikan operasi.
  */
 const dualSave = async (table, item) => {
-  const promises = [
-    saveGoogleSheetItem(table, item).catch(e => 
-      console.warn(`[DualSync] GSheets save ${table} warning:`, e.message)
-    )
-  ];
-
   if (isHostingerEnabled()) {
-    promises.push(
-      saveHostingerItem(table, item).catch(e => 
-        console.warn(`[DualSync] Hostinger save ${table} warning:`, e.message)
-      )
-    );
+    try {
+      await saveHostingerItem(table, item);
+    } catch (e) {
+      console.warn(`[Sync] Hostinger save ${table} warning:`, e.message);
+    }
   }
-
-  await Promise.allSettled(promises);
+  // Google Sheets dinonaktifkan: URL sudah tidak valid (404 + CORS error)
 };
 
 /**
- * Dual delete: hapus dari Google Sheets dan Hostinger secara paralel.
+ * Dual delete: HOSTINGER ONLY (Google Sheets dinonaktifkan - URL 404/CORS error).
  */
 const dualDelete = async (table, id) => {
-  const promises = [
-    deleteGoogleSheetItem(table, id).catch(e => 
-      console.warn(`[DualSync] GSheets delete ${table} warning:`, e.message)
-    )
-  ];
-
   if (isHostingerEnabled()) {
-    promises.push(
-      deleteHostingerItem(table, id).catch(e => 
-        console.warn(`[DualSync] Hostinger delete ${table} warning:`, e.message)
-      )
-    );
+    try {
+      await deleteHostingerItem(table, id);
+    } catch (e) {
+      console.warn(`[Sync] Hostinger delete ${table} warning:`, e.message);
+    }
   }
-
-  await Promise.allSettled(promises);
+  // Google Sheets dinonaktifkan: URL sudah tidak valid (404 + CORS error)
 };
 
 /**
@@ -135,40 +121,24 @@ const withTimeout = (promise, timeoutMs = 5000) => {
 };
 
 /**
- * Dual fetch: ambil dari Hostinger (primary) lalu fallback ke Google Sheets.
- * Mengembalikan data dari sumber pertama yang berhasil.
- * OPTIMIZED: Added 5s timeout per source to prevent 408 errors
+ * Fetch dari Hostinger ONLY (Google Sheets dinonaktifkan - URL 404/CORS error).
+ * Dengan timeout 8 detik untuk cegah hanging.
  */
 const dualFetchTable = async (tableName) => {
-  // 1. Coba dari Hostinger dulu (primary) - dengan timeout 5 detik
   if (isHostingerEnabled()) {
     try {
-      const hData = await withTimeout(fetchHostingerAllData(), 5000);
+      const hData = await withTimeout(fetchHostingerAllData(), 8000);
       if (hData && Array.isArray(hData[tableName])) {
         return hData[tableName];
       }
-      // Untuk admin_settings (object, bukan array)
       if (hData && tableName === 'admin_settings' && hData[tableName]) {
         return hData[tableName];
       }
     } catch (e) {
-      console.warn(`[DualSync] Hostinger fetch ${tableName} fallback (timeout atau error):`, e.message);
+      console.warn(`[Sync] Hostinger fetch ${tableName} warning:`, e.message);
     }
   }
-
-  // 2. Fallback ke Google Sheets - dengan timeout 5 detik
-  try {
-    const gsData = await withTimeout(fetchGoogleSheetAllData(), 5000);
-    if (gsData && tableName === 'admin_settings') {
-      return gsData[tableName] || null;
-    }
-    if (gsData && Array.isArray(gsData[tableName])) {
-      return gsData[tableName];
-    }
-  } catch (e) {
-    console.warn(`[DualSync] GSheets fetch ${tableName} warning:`, e.message);
-  }
-
+  // Google Sheets dinonaktifkan: URL sudah tidak valid (404 + CORS error)
   return null;
 };
 
@@ -483,18 +453,15 @@ export const subscribeToRealtimeChanges = (callbacks = {}) => {
 
   const checkSync = async () => {
     try {
-      let data = null;
-      if (isHostingerEnabled()) {
-        data = await fetchHostingerAllData(true);
-      }
-      if (!data) {
-        data = await fetchGoogleSheetAllData(true);
-      }
-
+      // HOSTINGER ONLY — Google Sheets dinonaktifkan (URL 404/CORS error)
+      if (!isHostingerEnabled()) return;
+      const data = await withTimeout(fetchHostingerAllData(), 8000);
       if (data && typeof config.onAny === 'function') {
         config.onAny('all', 'REFRESH', data);
       }
-    } catch (e) {}
+    } catch (e) {
+      // Diam saja jika timeout/error — jangan spam console
+    }
   };
 
   // Polling berkala setiap 15 detik

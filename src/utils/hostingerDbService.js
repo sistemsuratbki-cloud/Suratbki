@@ -103,9 +103,9 @@ function getAuthHeaders(additional = {}) {
 }
 
 /**
- * Helper fetch dengan timeout otomatis (default 6 detik) agar tidak pernah buffering / hang
+ * Helper fetch dengan timeout otomatis (default 10 detik) agar tidak pernah buffering / hang
  */
-async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
+async function fetchWithTimeout(url, options = {}, timeoutMs = 10000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -119,7 +119,7 @@ async function fetchWithTimeout(url, options = {}, timeoutMs = 6000) {
   } catch (err) {
     clearTimeout(timeoutId);
     if (err.name === 'AbortError') {
-      throw new Error(`Permintaan ke Hostinger API melebihi batas waktu (${timeoutMs / 1000}s).`);
+      throw new Error(`Permintaan ke Hostinger API melebihi batas waktu (${timeoutMs / 1000}s). Periksa koneksi atau coba lagi.`);
     }
     throw err;
   }
