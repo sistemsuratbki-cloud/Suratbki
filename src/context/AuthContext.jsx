@@ -118,11 +118,11 @@ export const INITIAL_USERS = [
     name: 'Prasetya',
     email: 'sistemsuratbki@gmail.com',
     phone: '+620000000007',
-    role: 'admin',
+    role: 'developer',
     grade: '-',
-    roleLabel: 'Admin BKI',
+    roleLabel: 'Developer',
     avatarBg: '#eab308',
-    description: 'Admin Sistem'
+    description: 'Developer Sistem'
   },
   {
     id: 'usr-finance',
@@ -144,12 +144,12 @@ export const AuthProvider = ({ children }) => {
     try {
       // Force clear localStorage jika versi lama (sebelum rewrite AuthContext)
       const cacheVersion = localStorage.getItem('st_auth_cache_v');
-      if (cacheVersion !== 'v2') {
+      if (cacheVersion !== 'v3') {
         localStorage.removeItem('st_users_list');
         localStorage.removeItem('st_auth_user');
         localStorage.removeItem('st_admin_pass_v');
         localStorage.removeItem('st_users_reset_v5');
-        localStorage.setItem('st_auth_cache_v', 'v2');
+        localStorage.setItem('st_auth_cache_v', 'v3');
         // Kembalikan INITIAL_USERS — init effect akan load dari cloud & migrate
         return INITIAL_USERS;
       }
@@ -162,7 +162,7 @@ export const AuthProvider = ({ children }) => {
 
   // isInitializing: true saat pertama load, false setelah cloud sync selesai
   const [isInitializing, setIsInitializing] = useState(() => {
-    return localStorage.getItem('st_auth_cache_v') !== 'v2' || !localStorage.getItem('st_users_list');
+    return localStorage.getItem('st_auth_cache_v') !== 'v3' || !localStorage.getItem('st_users_list');
   });
 
   const [currentUser, setCurrentUser] = useState(() => {
@@ -214,10 +214,10 @@ export const AuthProvider = ({ children }) => {
         const migratedUsers = await Promise.all(
           baseUsers.map(async (user) => {
             const u = { ...user };
-            if (u.username === 'admin' && u.role !== 'admin') {
+            if (u.username === 'admin' && u.role !== 'developer') {
               needsMigration = true;
-              u.role = 'admin';
-              u.roleLabel = 'Admin BKI';
+              u.role = 'developer';
+              u.roleLabel = 'Developer';
             }
             if ((u.username === 'bone' || (u.name && u.name.includes('BONE'))) && !u.signatureUrl) {
               needsMigration = true;
@@ -358,7 +358,9 @@ export const AuthProvider = ({ children }) => {
 
     let targetUser = null;
     if (typeof identifierOrUser === 'string') {
-      const searchStr = identifierOrUser.toLowerCase().trim();
+      // Support format @username (strip @ prefix)
+      const raw = identifierOrUser.trim();
+      const searchStr = (raw.startsWith('@') ? raw.slice(1) : raw).toLowerCase();
       targetUser = usersList.find(
         (u) =>
           (u.username && u.username.toLowerCase() === searchStr) ||

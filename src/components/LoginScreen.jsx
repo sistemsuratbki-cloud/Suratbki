@@ -171,7 +171,7 @@ export const LoginScreen = () => {
               Login ke Akun Anda
             </h2>
             <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: '0.2rem', marginBottom: 0 }}>
-              Masukkan username atau email dan password Anda
+              Gunakan <strong>@username</strong> atau email dan password Anda
             </p>
           </div>
 
@@ -213,7 +213,7 @@ export const LoginScreen = () => {
                 marginBottom: '0.4rem'
               }}>
                 <KeyRound size={13} color="var(--accent-primary)" />
-                Username atau Email BKI *
+                @Username atau Email BKI *
               </label>
               <input
                 type="text"
@@ -221,7 +221,7 @@ export const LoginScreen = () => {
                 style={{ width: '100%', boxSizing: 'border-box' }}
                 value={identifierInput}
                 onChange={(e) => setIdentifierInput(e.target.value)}
-                placeholder="Username atau email BKI..."
+                placeholder="@username atau email BKI..."
                 required
                 disabled={isLocked}
                 autoComplete="username"
