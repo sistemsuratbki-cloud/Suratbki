@@ -85,25 +85,35 @@ const deleteEntityFilesFromGoogleDrive = (item) => {
 
 const safeSetLocalStorage = (key, data) => {
   try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (e) {
-    console.warn(`LocalStorage write warning for ${key}:`, e);
-    try {
-      // Jika quota penyimpanan terlampaui (misal file base64 pdf), simpan versi ringan tanpa string base64 besar
-      const sanitized = JSON.parse(
-        JSON.stringify(data, (k, v) => {
-          if (k === 'signatureUrl' || k === 'kacabSignatureUrl' || k === 'pembuatSignatureUrl' || k === 'signature') {
-            return v;
-          }
-          if (typeof v === 'string' && v.startsWith('data:') && v.length > 20000) {
-            return '[DATA_URL_ATTACHMENT]';
-          }
+    // OPTIMIZED: Always strip large base64 to reduce localStorage pressure
+    const sanitized = JSON.parse(
+      JSON.stringify(data, (k, v) => {
+        // Keep essential signatures (small images)
+        if (k === 'signatureUrl' || k === 'kacabSignatureUrl' || k === 'pembuatSignatureUrl' || k === 'signature') {
           return v;
-        })
-      );
-      localStorage.setItem(key, JSON.stringify(sanitized));
+        }
+        // Strip large base64 (keep only Google Drive URLs and small data URLs)
+        if (typeof v === 'string') {
+          if (v.startsWith('http')) {
+            return v; // Keep all HTTP/HTTPS URLs (Google Drive links)
+          }
+          if (v.startsWith('data:') && v.length > 10000) {
+            // Large base64 (>10KB) stripped, small icons kept
+            return '[STRIPPED_BASE64]';
+          }
+        }
+        return v;
+      })
+    );
+    localStorage.setItem(key, JSON.stringify(sanitized));
+  } catch (e) {
+    console.error(`LocalStorage write failed for ${key}:`, e);
+    // If still fails after sanitization, clear old data
+    try {
+      localStorage.removeItem(key);
+      console.warn(`Cleared ${key} to free space`);
     } catch (e2) {
-      console.error(`LocalStorage fallback failed for ${key}:`, e2);
+      console.error(`Cannot clear ${key}:`, e2);
     }
   }
 };
@@ -361,49 +371,75 @@ export const DataProvider = ({ children }) => {
     };
   }, [refreshAllFromCloud]);
 
-  // Sync to LocalStorage (Cleaned & Quota Safe)
+  // Sync to LocalStorage (Cleaned & Quota Safe) - DEBOUNCED to batch writes
   useEffect(() => {
-    const cleaned = suratTugas.map(cleanEntityObject);
-    safeSetLocalStorage('st_surat_tugas', cleaned);
+    const timer = setTimeout(() => {
+      const cleaned = suratTugas.map(cleanEntityObject);
+      safeSetLocalStorage('st_surat_tugas', cleaned);
+    }, 500); // Batch writes with 500ms delay
+    return () => clearTimeout(timer);
   }, [suratTugas]);
 
   useEffect(() => {
-    const cleaned = kwitansiHonor.map(cleanEntityObject);
-    safeSetLocalStorage('st_kwitansi_honor', cleaned);
+    const timer = setTimeout(() => {
+      const cleaned = kwitansiHonor.map(cleanEntityObject);
+      safeSetLocalStorage('st_kwitansi_honor', cleaned);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [kwitansiHonor]);
 
   useEffect(() => {
-    const cleaned = laporanSurvei.map(cleanEntityObject);
-    safeSetLocalStorage('st_laporan_survei', cleaned);
+    const timer = setTimeout(() => {
+      const cleaned = laporanSurvei.map(cleanEntityObject);
+      safeSetLocalStorage('st_laporan_survei', cleaned);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [laporanSurvei]);
 
   useEffect(() => {
-    safeSetLocalStorage('st_tariffs_v2', tariffs);
+    const timer = setTimeout(() => {
+      safeSetLocalStorage('st_tariffs_v2', tariffs);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [tariffs]);
 
   useEffect(() => {
-    safeSetLocalStorage('st_grade_tariffs', gradeTariffs);
+    const timer = setTimeout(() => {
+      safeSetLocalStorage('st_grade_tariffs', gradeTariffs);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [gradeTariffs]);
 
   useEffect(() => {
-    safeSetLocalStorage('st_master_kapal', masterKapal);
+    const timer = setTimeout(() => {
+      safeSetLocalStorage('st_master_kapal', masterKapal);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [masterKapal]);
 
   useEffect(() => {
-    safeSetLocalStorage('st_admin_settings', adminSettings);
+    const timer = setTimeout(() => {
+      safeSetLocalStorage('st_admin_settings', adminSettings);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [adminSettings]);
 
   useEffect(() => {
-    safeSetLocalStorage('st_visit_survei', visitSurvei);
+    const timer = setTimeout(() => {
+      safeSetLocalStorage('st_visit_survei', visitSurvei);
+    }, 500);
+    return () => clearTimeout(timer);
   }, [visitSurvei]);
 
   // Auto-sync / heal Kwitansi & Laporan only for PDS (Perjalanan Dinas Surveyor)
+  // THROTTLED to prevent excessive re-processing on every suratTugas change
   useEffect(() => {
-    if (suratTugas.length > 0) {
-      let kwitansiUpdated = false;
-      let laporanUpdated = false;
-      const updatedKwitansiList = [...kwitansiHonor];
-      let updatedLaporanList = [...laporanSurvei];
+    const timer = setTimeout(() => {
+      if (suratTugas.length > 0) {
+        let kwitansiUpdated = false;
+        let laporanUpdated = false;
+        const updatedKwitansiList = [...kwitansiHonor];
+        let updatedLaporanList = [...laporanSurvei];
 
       // Only PDS items (or items that are already executed/not pending SPS) get Kwitansi & Laporan
       const pdsItems = suratTugas.filter(
@@ -492,17 +528,19 @@ export const DataProvider = ({ children }) => {
         */
       });
 
-      if (kwitansiUpdated) {
-        setKwitansiHonor(updatedKwitansiList.map(cleanEntityObject));
+        if (kwitansiUpdated) {
+          setKwitansiHonor(updatedKwitansiList.map(cleanEntityObject));
+        }
+        // laporanUpdated disabled - tidak lagi auto-sync Laporan
+        /*
+        if (laporanUpdated) {
+          setLaporanSurvei(updatedLaporanList.map(cleanEntityObject));
+        }
+        */
       }
-      // laporanUpdated disabled - tidak lagi auto-sync Laporan
-      /*
-      if (laporanUpdated) {
-        setLaporanSurvei(updatedLaporanList.map(cleanEntityObject));
-      }
-      */
-    }
-  }, [suratTugas]);
+    }, 2000); // Throttle to max once per 2 seconds
+    return () => clearTimeout(timer);
+  }, [suratTugas, kwitansiHonor, laporanSurvei]);
 
   const updateAdminSettings = (newSettings) => {
     const merged = { ...adminSettings, ...newSettings };

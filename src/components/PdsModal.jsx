@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   X,
   Save,
@@ -679,8 +679,8 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
     }
   }, [autoHolidays, editItem]);
 
-  // Surveyor change -> sync grade
-  const handleSurveyorChange = (name) => {
+  // Surveyor change -> sync grade (Memoized to prevent re-creation)
+  const handleSurveyorChange = useCallback((name) => {
     const user = findSurveyorUser(surveyorUsers, name);
     const grade = user?.grade || 'GRADE 6 A';
     setFormData((prev) => ({
@@ -688,46 +688,83 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       petugas: name,
       pangkat: grade
     }));
-  };
+  }, [surveyorUsers]);
+
+  // Extract only calculation-relevant fields to prevent unnecessary recalculations
+  const calculationInputs = useMemo(() => ({
+    kategoriPerjalanan: formData.kategoriPerjalanan,
+    pangkat: formData.pangkat,
+    tarifDasar: formData.tarifDasar,
+    rincianTiket: formData.rincianTiket,
+    rincianHotel: formData.rincianHotel,
+    tiketHotel: formData.tiketHotel,
+    tiketPesawatTaxi: formData.tiketPesawatTaxi,
+    jumlahHariLibur: formData.jumlahHariLibur,
+    tanpaTAT: formData.tanpaTAT,
+    biayaTAT: formData.biayaTAT,
+    tanpaUangHarian: formData.tanpaUangHarian,
+    hariTanpaUangHarian: formData.hariTanpaUangHarian,
+    isSmc: formData.isSmc,
+    jumlahPendamping: formData.jumlahPendamping,
+    tarifExpertise: formData.tarifExpertise,
+    biayaExpertise: formData.biayaExpertise
+  }), [
+    formData.kategoriPerjalanan,
+    formData.pangkat,
+    formData.tarifDasar,
+    formData.rincianTiket,
+    formData.rincianHotel,
+    formData.tiketHotel,
+    formData.tiketPesawatTaxi,
+    formData.jumlahHariLibur,
+    formData.tanpaTAT,
+    formData.biayaTAT,
+    formData.tanpaUangHarian,
+    formData.hariTanpaUangHarian,
+    formData.isSmc,
+    formData.jumlahPendamping,
+    formData.tarifExpertise,
+    formData.biayaExpertise
+  ]);
 
   // Honorarium and Expense Calculations
   const calculations = useMemo(() => {
-    const isLuarKota = formData.kategoriPerjalanan === 'Luar Kota';
+    const isLuarKota = calculationInputs.kategoriPerjalanan === 'Luar Kota';
     const hr = totalDays;
     const mlm = totalNights;
 
     const gradeData = (gradeTariffs || []).find(
-      (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === (formData.pangkat || 'GRADE 6 A').replace(/\s+/g, '').toUpperCase()
+      (g) => (g.grade || '').replace(/\s+/g, '').toUpperCase() === (calculationInputs.pangkat || 'GRADE 6 A').replace(/\s+/g, '').toUpperCase()
     ) || {};
 
     let sisaHariUangHarian = hr;
-    if (formData.tanpaUangHarian) {
-      const deduct = formData.hariTanpaUangHarian !== undefined ? Number(formData.hariTanpaUangHarian) : hr;
+    if (calculationInputs.tanpaUangHarian) {
+      const deduct = calculationInputs.hariTanpaUangHarian !== undefined ? Number(calculationInputs.hariTanpaUangHarian) : hr;
       sisaHariUangHarian = Math.max(0, hr - Math.max(0, Math.min(deduct, hr)));
     }
 
-    const uangHarianRate = formData.tanpaUangHarian && sisaHariUangHarian === 0 ? 0 : (Number(gradeData.uangHarian) || 300000);
+    const uangHarianRate = calculationInputs.tanpaUangHarian && sisaHariUangHarian === 0 ? 0 : (Number(gradeData.uangHarian) || 300000);
     const uangHarianTotal = uangHarianRate * sisaHariUangHarian;
     
     // Multi Hotel Total
-    const uangHotelTotal = (Array.isArray(formData.rincianHotel) && formData.rincianHotel.length > 0)
-      ? formData.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
-      : (Number(formData.tiketHotel) || 0) * mlm;
+    const uangHotelTotal = (Array.isArray(calculationInputs.rincianHotel) && calculationInputs.rincianHotel.length > 0)
+      ? calculationInputs.rincianHotel.reduce((sum, h) => sum + (Number(h.totalBiaya) || ((Number(h.jumlahMalam) || 1) * (Number(h.tarifPerMalam) || 0)) || (Number(h.nominal) || 0)), 0)
+      : (Number(calculationInputs.tiketHotel) || 0) * mlm;
 
-    const hrLibur = Number(formData.jumlahHariLibur) || 0;
-    const hrLbrTotal = formData.tanpaUangHarian && sisaHariUangHarian === 0 ? 0 : hrLibur * uangHarianRate * 0.5;
+    const hrLibur = Number(calculationInputs.jumlahHariLibur) || 0;
+    const hrLbrTotal = calculationInputs.tanpaUangHarian && sisaHariUangHarian === 0 ? 0 : hrLibur * uangHarianRate * 0.5;
 
     // Multi Tiket Transport Total
-    const tiketTransport = (Array.isArray(formData.rincianTiket) && formData.rincianTiket.length > 0)
-      ? formData.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
-      : (Number(formData.tiketPesawatTaxi) || 0);
+    const tiketTransport = (Array.isArray(calculationInputs.rincianTiket) && calculationInputs.rincianTiket.length > 0)
+      ? calculationInputs.rincianTiket.reduce((sum, t) => sum + (Number(t.nominal) || 0), 0)
+      : (Number(calculationInputs.tiketPesawatTaxi) || 0);
 
-    const tat = formData.tanpaTAT ? 0 : Number(formData.biayaTAT || (isLuarKota ? (adminSettings?.tatLuarKota || 750000) : 0));
-    const rateSK = Number(formData.tarifDasar) || 0;
+    const tat = calculationInputs.tanpaTAT ? 0 : Number(calculationInputs.biayaTAT || (isLuarKota ? (adminSettings?.tatLuarKota || 750000) : 0));
+    const rateSK = Number(calculationInputs.tarifDasar) || 0;
 
-    const biayaExpertise = formData.isSmc
-      ? (Number(formData.jumlahPendamping !== undefined ? formData.jumlahPendamping : 2) * Number(formData.tarifExpertise !== undefined ? formData.tarifExpertise : 1500000))
-      : (Number(formData.biayaExpertise) || 0);
+    const biayaExpertise = calculationInputs.isSmc
+      ? (Number(calculationInputs.jumlahPendamping !== undefined ? calculationInputs.jumlahPendamping : 2) * Number(calculationInputs.tarifExpertise !== undefined ? calculationInputs.tarifExpertise : 1500000))
+      : (Number(calculationInputs.biayaExpertise) || 0);
 
     let totalBiaya = 0;
     if (isLuarKota) {
@@ -750,19 +787,19 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       biayaExpertise,
       totalBiaya
     };
-  }, [formData, totalDays, totalNights, gradeTariffs, adminSettings]);
+  }, [calculationInputs, totalDays, totalNights, gradeTariffs, adminSettings]);
 
-  // Multi-Tiket Transport Handlers
-  const handleAddTiket = () => {
+  // Multi-Tiket Transport Handlers (Memoized)
+  const handleAddTiket = useCallback(() => {
     setFormData((prev) => {
       const list = Array.isArray(prev.rincianTiket) ? [...prev.rincianTiket] : [];
       list.push({ id: Date.now(), keterangan: '', nominal: 0 });
       const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
       return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
     });
-  };
+  }, []);
 
-  const handleUpdateTiket = (index, field, value) => {
+  const handleUpdateTiket = useCallback((index, field, value) => {
     setFormData((prev) => {
       const list = Array.isArray(prev.rincianTiket) ? [...prev.rincianTiket] : [];
       if (!list[index]) return prev;
@@ -770,9 +807,9 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
       return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
     });
-  };
+  }, []);
 
-  const handleRemoveTiket = (index) => {
+  const handleRemoveTiket = useCallback((index) => {
     setFormData((prev) => {
       let list = Array.isArray(prev.rincianTiket) ? prev.rincianTiket.filter((_, i) => i !== index) : [];
       if (list.length === 0) {
@@ -781,19 +818,19 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       const total = list.reduce((sum, item) => sum + (Number(item.nominal) || 0), 0);
       return { ...prev, rincianTiket: list, tiketPesawatTaxi: total };
     });
-  };
+  }, []);
 
-  // Multi-Hotel Handlers
-  const handleAddHotel = () => {
+  // Multi-Hotel Handlers (Memoized)
+  const handleAddHotel = useCallback(() => {
     setFormData((prev) => {
       const list = Array.isArray(prev.rincianHotel) ? [...prev.rincianHotel] : [];
       list.push({ id: Date.now(), namaHotel: '', jumlahMalam: 1, tarifPerMalam: 0, totalBiaya: 0 });
       const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
       return { ...prev, rincianHotel: list, tiketHotel: total };
     });
-  };
+  }, []);
 
-  const handleUpdateHotel = (index, field, value) => {
+  const handleUpdateHotel = useCallback((index, field, value) => {
     setFormData((prev) => {
       const list = Array.isArray(prev.rincianHotel) ? [...prev.rincianHotel] : [];
       if (!list[index]) return prev;
@@ -805,7 +842,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
       const total = list.reduce((sum, item) => sum + (Number(item.totalBiaya) || ((Number(item.jumlahMalam) || 1) * (Number(item.tarifPerMalam) || 0))), 0);
       return { ...prev, rincianHotel: list, tiketHotel: total };
     });
-  };
+  }, []);
 
   const handleRemoveHotel = (index) => {
     setFormData((prev) => {
