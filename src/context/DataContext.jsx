@@ -144,7 +144,7 @@ const cleanEntityObject = (item) => {
   return cleaned;
 };
 
-const DataContext = createContext();
+export const DataContext = createContext();
 
 export const DataProvider = ({ children }) => {
   const [suratTugas, setSuratTugas] = useState(() => {
@@ -214,6 +214,7 @@ export const DataProvider = ({ children }) => {
       kacabSignatureUrl: '/signatures/kacab_muhson_signature.png',
       pembuatSignatureUrl: '/signatures/pembuat_renza_signature.png',
       tatLuarKota: 750000,
+      customSurveyTypes: [],
       ...parsed
     };
   });
@@ -366,7 +367,11 @@ export const DataProvider = ({ children }) => {
         setGradeTariffs(cloudGrades);
       }
       if (cloudSettings && typeof cloudSettings === 'object') {
-        setAdminSettings((prev) => ({ ...prev, ...cloudSettings }));
+        setAdminSettings((prev) => {
+          const merged = { ...prev, ...cloudSettings };
+          safeSetLocalStorage('st_admin_settings', merged);
+          return merged;
+        });
       }
       if (Array.isArray(cloudKapal) && cloudKapal.length > 0) {
         setMasterKapal(mergeWithDefaultMasterKapal(cloudKapal));
@@ -596,6 +601,7 @@ export const DataProvider = ({ children }) => {
   const updateAdminSettings = (newSettings) => {
     const merged = { ...adminSettings, ...newSettings };
     setAdminSettings(merged);
+    safeSetLocalStorage('st_admin_settings', merged);
     saveAdminSettingsToCloud(merged);
   };
 

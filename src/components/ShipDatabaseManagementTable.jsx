@@ -6,17 +6,39 @@ import {
 import toast from 'react-hot-toast';
 import { useData } from '../context/DataContext';
 import { ModalPortal } from './ModalPortal';
-import { DEFAULT_SURVEY_TYPES } from './MultiSurveySelect';
+import { DEFAULT_SURVEY_TYPES, loadCustomTypes } from './MultiSurveySelect';
 import { MASTER_COMPANIES } from '../data/defaultMasterKapal';
 
 const EMPTY_FORM = { namaKapal: '', noAgenda: '', pemohon: '', jenisSurvey: '' };
 
 const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEdit = false }) => {
   const [form, setForm] = useState(initialData);
+  const [customTypes, setCustomTypes] = useState(() => loadCustomTypes());
 
   React.useEffect(() => {
     setForm(initialData);
   }, [initialData, isOpen]);
+
+  useEffect(() => {
+    const handleSync = (e) => {
+      if (Array.isArray(e.detail)) {
+        setCustomTypes(e.detail);
+      } else {
+        setCustomTypes(loadCustomTypes());
+      }
+    };
+    const handleStorage = (e) => {
+      if (e.key === 'st_custom_survey_types' || e.key === 'st_admin_settings') {
+        setCustomTypes(loadCustomTypes());
+      }
+    };
+    window.addEventListener('st_custom_survey_types_updated', handleSync);
+    window.addEventListener('storage', handleStorage);
+    return () => {
+      window.removeEventListener('st_custom_survey_types_updated', handleSync);
+      window.removeEventListener('storage', handleStorage);
+    };
+  }, []);
 
   if (!isOpen) return null;
 
@@ -33,12 +55,15 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
   };
 
   const handleSelectQuickSurvey = (surveyType) => {
+    const upper = surveyType.trim().toUpperCase();
     setForm(prev => {
-      const current = prev.jenisSurvey ? prev.jenisSurvey.split(',').map(s => s.trim()).filter(Boolean) : [];
-      if (current.includes(surveyType)) {
-        return { ...prev, jenisSurvey: current.filter(s => s !== surveyType).join(', ') };
+      const current = prev.jenisSurvey
+        ? prev.jenisSurvey.split(',').map(s => s.trim().toUpperCase()).filter(Boolean)
+        : [];
+      if (current.includes(upper)) {
+        return { ...prev, jenisSurvey: current.filter(s => s !== upper).join(', ') };
       } else {
-        return { ...prev, jenisSurvey: [...current, surveyType].join(', ') };
+        return { ...prev, jenisSurvey: [...current, upper].join(', ') };
       }
     });
   };
@@ -140,12 +165,52 @@ const ShipFormModal = ({ isOpen, onClose, onSave, initialData = EMPTY_FORM, isEd
                 onChange={(e) => setForm((p) => ({ ...p, jenisSurvey: e.target.value.toUpperCase() }))}
                 style={{ textTransform: 'uppercase', marginBottom: '0.4rem' }}
               />
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.35rem' }}>
-                Pilihan Cepat Jenis Survei:
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-muted)', marginBottom: '0.35rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span>Pilihan Cepat Jenis Survei:</span>
+                {customTypes.length > 0 && (
+                  <span style={{ fontSize: '0.66rem', color: '#b45309', fontWeight: 700 }}>
+                    ★ {customTypes.length} Kustom
+                  </span>
+                )}
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '100px', overflowY: 'auto' }}>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem', maxHeight: '110px', overflowY: 'auto' }}>
+                {/* Tipe survei kustom */}
+                {customTypes.map((type) => {
+                  const currentTokens = (form.jenisSurvey || '')
+                    .split(',')
+                    .map((s) => s.trim().toUpperCase())
+                    .filter(Boolean);
+                  const isSelected = currentTokens.includes(type.toUpperCase());
+                  return (
+                    <button
+                      key={type}
+                      type="button"
+                      onClick={() => handleSelectQuickSurvey(type)}
+                      title="Jenis Survei Kustom"
+                      style={{
+                        padding: '0.2rem 0.5rem',
+                        fontSize: '0.68rem',
+                        borderRadius: '5px',
+                        border: isSelected ? '1px solid #d97706' : '1px dashed rgba(217,119,6,0.45)',
+                        background: isSelected ? 'rgba(234,179,8,0.22)' : 'rgba(234,179,8,0.06)',
+                        color: isSelected ? '#92400e' : '#b45309',
+                        fontWeight: isSelected ? 800 : 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                    >
+                      {isSelected && '✓ '} ★ {type}
+                    </button>
+                  );
+                })}
+
+                {/* Tipe survei default BKI */}
                 {DEFAULT_SURVEY_TYPES.map((type) => {
-                  const isSelected = form.jenisSurvey && form.jenisSurvey.toUpperCase().includes(type);
+                  const currentTokens = (form.jenisSurvey || '')
+                    .split(',')
+                    .map((s) => s.trim().toUpperCase())
+                    .filter(Boolean);
+                  const isSelected = currentTokens.includes(type.toUpperCase());
                   return (
                     <button
                       key={type}
