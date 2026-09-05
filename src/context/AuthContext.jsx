@@ -363,7 +363,6 @@ export const AuthProvider = ({ children }) => {
         (u) =>
           (u.username && u.username.toLowerCase() === searchStr) ||
           (u.email && u.email.toLowerCase() === searchStr) ||
-          u.role === searchStr ||
           u.id === searchStr
       );
     } else {
