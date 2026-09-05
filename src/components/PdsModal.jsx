@@ -296,7 +296,7 @@ export const PdsModal = ({ isOpen, onClose, editItem = null, onPrint = null }) =
         tarifDasar: initialRate,
         tglMulai: todayDate,
         tglSelesai: todayDate,
-        noOrder: `RFQ260${String(Math.floor(Math.random() * 900) + 100)}`,
+        noOrder: `RFQ${Date.now().toString().slice(-8)}`,
         noCda: '5100010',
         noSo: '',
         noWbs: '',

@@ -94,7 +94,7 @@ export const SpsModal = ({ isOpen, onClose, editItem = null }) => {
         tglSurat: todayDate,
         tglMulai: todayDate,
         tglSelesai: todayDate,
-        noOrder: `RFQ260${String(Math.floor(Math.random() * 900) + 100)}`,
+        noOrder: `RFQ${Date.now().toString().slice(-8)}`,
         petugas: defaultSurveyor,
         catatan: '',
         status: 'Menunggu Survei'
