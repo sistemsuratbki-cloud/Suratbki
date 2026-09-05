@@ -142,6 +142,16 @@ export const INITIAL_USERS = [
 export const AuthProvider = ({ children }) => {
   const [usersList, setUsersList] = useState(() => {
     try {
+      // Force clear localStorage jika versi lama (sebelum rewrite AuthContext)
+      const cacheVersion = localStorage.getItem('st_auth_cache_v');
+      if (cacheVersion !== 'v2') {
+        localStorage.removeItem('st_users_list');
+        localStorage.removeItem('st_auth_user');
+        localStorage.removeItem('st_admin_pass_v');
+        localStorage.removeItem('st_users_reset_v5');
+        localStorage.setItem('st_auth_cache_v', 'v2');
+        return INITIAL_USERS;
+      }
       const saved = localStorage.getItem('st_users_list');
       return saved ? JSON.parse(saved) : INITIAL_USERS;
     } catch {
