@@ -323,58 +323,33 @@ export const DataProvider = ({ children }) => {
           return st;
         });
 
-        // MEMORY OPTIMIZATION: Load only latest 30 items initially, rest in background
+        // MEMORY OPTIMIZATION: Limit to latest 50 items only (keep it simple, no setTimeout)
         const sortedSurat = healedSurat.sort((a, b) => {
           const dateA = new Date(a.createdAt || a.tglMulai || 0);
           const dateB = new Date(b.createdAt || b.tglMulai || 0);
           return dateB - dateA; // Newest first
         });
         
-        const initial30 = sortedSurat.slice(0, 30);
-        const cleanedInitial = initial30.map(cleanEntityObject);
-        setSuratTugas(cleanedInitial);
-        safeSetLocalStorage('st_surat_tugas', cleanedInitial);
-        
-        // Load rest after 3 seconds to prevent memory spike
-        if (sortedSurat.length > 30) {
-          setTimeout(() => {
-            const cleanedAll = sortedSurat.map(cleanEntityObject);
-            setSuratTugas(cleanedAll);
-            safeSetLocalStorage('st_surat_tugas', cleanedAll);
-          }, 3000);
-        }
+        const limitedSurat = sortedSurat.slice(0, 50); // Only keep 50 latest
+        const cleanedSurat = limitedSurat.map(cleanEntityObject);
+        setSuratTugas(cleanedSurat);
+        safeSetLocalStorage('st_surat_tugas', cleanedSurat);
       }
       if (Array.isArray(cloudKw)) {
-        // Limit Kwitansi to 30 latest
+        // Limit to 50 latest
         const sorted = cloudKw.sort((a, b) => new Date(b.tglBayar || 0) - new Date(a.tglBayar || 0));
-        const limited = sorted.slice(0, 30);
+        const limited = sorted.slice(0, 50);
         const cleanedKw = limited.map(cleanEntityObject);
         setKwitansiHonor(cleanedKw);
         safeSetLocalStorage('st_kwitansi_honor', cleanedKw);
-        
-        if (sorted.length > 30) {
-          setTimeout(() => {
-            const cleanedAll = sorted.map(cleanEntityObject);
-            setKwitansiHonor(cleanedAll);
-            safeSetLocalStorage('st_kwitansi_honor', cleanedAll);
-          }, 4000);
-        }
       }
       if (Array.isArray(cloudLap)) {
-        // Limit Laporan to 30 latest
+        // Limit to 50 latest
         const sorted = cloudLap.sort((a, b) => new Date(b.tglLapor || 0) - new Date(a.tglLapor || 0));
-        const limited = sorted.slice(0, 30);
+        const limited = sorted.slice(0, 50);
         const cleanedLap = limited.map(cleanEntityObject);
         setLaporanSurvei(cleanedLap);
         safeSetLocalStorage('st_laporan_survei', cleanedLap);
-        
-        if (sorted.length > 30) {
-          setTimeout(() => {
-            const cleanedAll = sorted.map(cleanEntityObject);
-            setLaporanSurvei(cleanedAll);
-            safeSetLocalStorage('st_laporan_survei', cleanedAll);
-          }, 5000);
-        }
       }
       if (Array.isArray(cloudTariffs) && cloudTariffs.length > 0) {
         setTariffs(cloudTariffs);
@@ -390,16 +365,9 @@ export const DataProvider = ({ children }) => {
       }
       if (Array.isArray(cloudVisit)) {
         const sorted = cloudVisit.sort((a, b) => new Date(b.tanggalKunjungan || 0) - new Date(a.tanggalKunjungan || 0));
-        const limited = sorted.slice(0, 30);
+        const limited = sorted.slice(0, 50);
         setVisitSurvei(limited.map(cleanEntityObject));
         safeSetLocalStorage('st_visit_survei', limited);
-        
-        if (sorted.length > 30) {
-          setTimeout(() => {
-            setVisitSurvei(sorted.map(cleanEntityObject));
-            safeSetLocalStorage('st_visit_survei', sorted);
-          }, 6000);
-        }
       }
     } catch (e) {
       console.warn('Cloud sync load warning:', e);
